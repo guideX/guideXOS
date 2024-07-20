@@ -72,8 +72,6 @@ namespace guideXOS.DefaultApps {
             AddButton(270, 90, "<");
             //>
             AddButton(270, 120, ">");
-
-
         }
         /// <summary>
         /// On Draw

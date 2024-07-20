@@ -4,10 +4,21 @@ using guideXOS.Misc;
 using System;
 using System.Drawing;
 namespace guideXOS.GUI {
+    /// <summary>
+    /// Lock Screen
+    /// </summary>
     public static class Lockscreen {
+        /// <summary>
+        /// Ls Font
+        /// </summary>
         static IFont lsfont;
+        /// <summary>
+        /// Mon
+        /// </summary>
         static string[] mon;
-
+        /// <summary>
+        /// Run
+        /// </summary>
         public static void Run() {
             mon = new string[12]
             {

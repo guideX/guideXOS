@@ -27,7 +27,7 @@ namespace guideXOS.Driver
         {
             if (ACPI.HPET == null) 
             {
-                Console.WriteLine("[HPET] HPET not found!");
+                //Console.WriteLine("[HPET] HPET not found!");
                 return;
             }
 

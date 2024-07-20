@@ -43,6 +43,10 @@ namespace guideXOS.GUI {
         /// </summary>
         public static string Dir;
         /// <summary>
+        /// Taskbar
+        /// </summary>
+        public static Taskbar Taskbar;
+        /// <summary>
         /// Image Viewer
         /// </summary>
         public static ImageViewer imageViewer;
@@ -68,6 +72,7 @@ namespace guideXOS.GUI {
         /// Initialize
         /// </summary>
         public static void Initialize() {
+            Taskbar = new Taskbar(40, new PNG(File.ReadAllBytes("Images/file.png")));
             Apps = new AppCollection();
             IndexClicked = -1;
             FileIcon = new PNG(File.ReadAllBytes("Images/file.png"));
@@ -177,20 +182,21 @@ namespace guideXOS.GUI {
                 LastPoint.Y = -1;
             }
 
-            DrawTaskBar();
+            Taskbar.Draw();
+            //DrawTaskBar();
         }
         /// <summary>
         /// Draw Task Bar
         /// </summary>
-        private static void DrawTaskBar() {
-            Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - BarHeight, Framebuffer.Width, BarHeight, 0xDD222222);
-            Framebuffer.Graphics.DrawImage(12, Framebuffer.Height - BarHeight + 4, StartIcon);
+        //private static void DrawTaskBar() {
+            //Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - BarHeight, Framebuffer.Width, BarHeight, 0xDD222222);
+            //Framebuffer.Graphics.DrawImage(12, Framebuffer.Height - BarHeight + 4, StartIcon);
             // TASK MANAGER! DON'T FORGET!
             //string Result = $"guideXos - FPS:{FPSMeter.FPS} | CPU Usage:{ThreadPool.CPUUsage}% | Used Memory: {(Allocator.MemoryInUse / 1024)}kbytes | {RTC.Hour}:{(RTC.Minute < 10 ? "0" : "")}{RTC.Minute}";
             //WindowManager.font.DrawString(Framebuffer.Graphics.Width - WindowManager.font.MeasureString(Result) - WindowManager.font.FontSize, Framebuffer.Height - BarHeight + (BarHeight / 2) - (WindowManager.font.FontSize / 2), Result);
             //Result.Dispose();
 
-        }
+        //}
 
         public static Point LastPoint;
 
@@ -228,7 +234,7 @@ namespace guideXOS.GUI {
         /// <param name="itemX"></param>
         /// <param name="itemY"></param>
         public static void OnClick(string name, bool isDirectory, int itemX, int itemY) {
-            if (!string.IsNullOrWhiteSpace(name)) { guideXOS.GUI.NotificationManager.Add(new Nofity("Clicked: " + name)); }
+            //if (!string.IsNullOrWhiteSpace(name)) { guideXOS.GUI.NotificationManager.Add(new Nofity("Clicked: " + name)); }
             ClickLock = true;
             string devider = "/";
             string path = Dir + name;
@@ -236,6 +242,7 @@ namespace guideXOS.GUI {
                 string newd = Dir + name + devider;
                 Dir.Dispose();
                 Dir = newd;
+                //guideXOS.GUI.NotificationManager.Add(new Nofity("New Dir: " + Dir));
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 PNG png = new PNG(buffer);

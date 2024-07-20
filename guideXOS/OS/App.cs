@@ -90,6 +90,7 @@ namespace guideXOS.OS {
             _apps.Add(new App("Paint", icon));
             _apps.Add(new App("Console", icon));
             _apps.Add(new App("Monitor", icon));
+            _apps.Add(new App("StartMenu", icon));
         }
         /// <summary>
         /// Load
@@ -118,8 +119,7 @@ namespace guideXOS.OS {
                             b = true;
                             break;
                         case "Console":
-                            Program.FConsole.Visible = true;
-                            _apps[i].AppObject = Program.FConsole;
+                            Program.InitConsole();
                             b = true;
                             break;
                     }

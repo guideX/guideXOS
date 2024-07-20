@@ -69,7 +69,7 @@ namespace guideXOS.Misc
         {
             if(HID.Keyboard != null)
             {
-                HID.GetKeyboardThings(HID.Keyboard, out byte ScanCode, out ConsoleKey Key);
+                HID.GetKeyboard(HID.Keyboard, out byte ScanCode, out ConsoleKey Key);
                 Keyboard.KeyInfo.KeyState = Key != ConsoleKey.None ? ConsoleKeyState.Pressed : ConsoleKeyState.Released;
 
                 if(Key != ConsoleKey.None)
@@ -83,7 +83,7 @@ namespace guideXOS.Misc
 
             if (!VMwareTools.Available && HID.Mouse != null)
             {
-                HID.GetMouseThings(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out MouseButtons buttons);
+                HID.GetMouse(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out MouseButtons buttons);
 
                 Control.MousePosition.X = Math.Clamp(Control.MousePosition.X + AxisX, 0, Framebuffer.Width);
                 Control.MousePosition.Y = Math.Clamp(Control.MousePosition.Y + AxisY, 0, Framebuffer.Height);
@@ -112,7 +112,7 @@ namespace guideXOS.Misc
                     Hub.Initialize(device);
                     break;
                 default:
-                    Console.WriteLine($"[USB] Unrecognized device class:{device.Class} subClass:{device.SubClass}");
+                    //Console.WriteLine($"[USB] Unrecognized device class:{device.Class} subClass:{device.SubClass}");
                     break;
 
             }

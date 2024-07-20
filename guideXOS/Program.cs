@@ -1,5 +1,3 @@
-//#define USBDebug
-//#define NETWORK
 using guideXOS;
 using guideXOS.Driver;
 using guideXOS.FS;
@@ -10,29 +8,51 @@ using System.Drawing;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+/// <summary>
+/// Program
+/// </summary>
 unsafe class Program {
-    static void Main() { }
+    /// <summary>
+    /// Main
+    /// </summary>
+    static void Main() { 
+    }
+    /// <summary>
+    /// DLL Import
+    /// </summary>
     [DllImport("*")]
     public static extern void test();
-    static Image Cursor;
-    static Image CursorMoving;
+    /// <summary>
+    /// Cusor
+    /// </summary>
+    private static Image Cursor;
+    /// <summary>
+    /// Cursor Moving
+    /// </summary>
+    private static Image CursorMoving;
+    /// <summary>
+    /// Wallpaper
+    /// </summary>
     public static Image Wallpaper;
-    static bool USBMouseTest() {
-        HID.GetMouseThings(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out var Buttons);
+    /// <summary>
+    /// USB Mouse Test
+    /// </summary>
+    /// <returns></returns>
+    private static bool USBMouseTest() {
+        HID.GetMouse(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out var Buttons);
         return Buttons != MouseButtons.None;
     }
-    static bool USBKeyboardTest() {
-        HID.GetKeyboardThings(HID.Keyboard, out var ScanCode, out var Key);
+    /// <summary>
+    /// USB Keyboard Test
+    /// </summary>
+    /// <returns></returns>
+    private static bool USBKeyboardTest() {
+        HID.GetKeyboard(HID.Keyboard, out var ScanCode, out var Key);
         return ScanCode != 0;
     }
-    /*
-     * Minimum system requirement:
-     * 1024MiB of RAM
-     * Memory Map:
-     * 256 MiB - 512MiB   -> System
-     * 512 MiB - ∞     -> Free to use
-     */
-    //Check out Kernel/Misc/EntryPoint.cs
+    /// <summary>
+    /// KMain
+    /// </summary>
     [RuntimeExport("KMain")]
     static void KMain() {
         Animator.Initialize();
@@ -66,7 +86,7 @@ unsafe class Program {
             }
             if(HID.Keyboard != null) 
             {
-                HID.GetKeyboardThings(HID.Keyboard, out var ScanCode, out var Key);
+                HID.GetKeyboard(HID.Keyboard, out var ScanCode, out var Key);
                 if(ScanCode != 0)
                 {
                     Console.WriteLine($"ScanCode:{ScanCode}");
@@ -78,22 +98,11 @@ unsafe class Program {
         HID.Initialize();
         EHCI.Initialize();
 
-        if (HID.Mouse != null) {
-            //Console.Write("[Warning] Press please press Mouse any key to validate USB Mouse ");
-            bool res = Console.Wait(&USBMouseTest, 2000);
-            //Console.WriteLine();
-            if (!res) {
-                lock (null) {
-                    USB.NumDevice--;
-                    HID.Mouse = null;
-                }
-            }
-        }
-
+        /*
         if (HID.Keyboard != null) {
-            //Console.Write("[Warning] Press please press any key to validate USB keyboard ");
+            Console.Write("[Warning] Press please press any key to validate USB keyboard ");
             bool res = Console.Wait(&USBKeyboardTest, 2000);
-            //Console.WriteLine();
+            Console.WriteLine();
             if (!res) {
                 lock (null) {
                     USB.NumDevice--;
@@ -101,46 +110,48 @@ unsafe class Program {
                 }
             }
         }
+        */
+        //if (HID.Mouse != null) {
+        //Console.Write("[Warning] Press please press Mouse any key to validate USB Mouse ");
+        //bool res = Console.Wait(&USBMouseTest, 2000);
+        //Console.WriteLine();
+        //if (!res) {
+        //lock (null) {
+        //USB.NumDevice--;
+        //HID.Mouse = null;
+        //}
+        //}
+        //}
 
         USB.StartPolling();
 
         //Use qemu for USB debug
         //VMware won't connect virtual USB HIDs
         if (HID.Mouse == null) {
-            //Console.WriteLine("USB Mouse not present");
+            Console.WriteLine("USB Mouse not present");
         }
         if (HID.Keyboard == null) {
-            //Console.WriteLine("USB Keyboard not present");
+            Console.WriteLine("USB Keyboard not present");
         }
 #endif
 
         //Sized width to 512
-        //https://gitlab.com/Enthymeme/hackneyed-x11-cursors/-/blob/master/theme/right-handed-white.svg
         Cursor = new PNG(File.ReadAllBytes("Images/Cursor.png"));
         CursorMoving = new PNG(File.ReadAllBytes("Images/Grab.png"));
-        //Image from unsplash
         Wallpaper = new PNG(File.ReadAllBytes("Images/Wallpaper1.png"));
-
         BitFont.Initialize();
-
         string CustomCharset = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-        BitFont.RegisterBitFont(new BitFontDescriptor("Song", CustomCharset, File.ReadAllBytes("Song.btf"), 16));
-
+        BitFont.RegisterBitFont(new BitFontDescriptor("Song", CustomCharset, File.ReadAllBytes("Fonts/Song.btf"), 16));
         FConsole = null;
         WindowManager.Initialize();
-
         Desktop.Initialize();
-
         //Serial.WriteLine("Hello World");
         //Console.WriteLine("Hello, World!");
         //Console.WriteLine("Use Native AOT (Core RT) Technology.");
-
         //test();
-
         Audio.Initialize();
         AC97.Initialize();
         ES1371.Initialize();
-
         /*
         for (; ; )
         {
@@ -201,7 +212,6 @@ unsafe class Program {
         return buffer;
     }
 #endif
-
     public static bool rightClicked;
     public static FConsole FConsole;
     public static RightMenu rightmenu;
@@ -222,10 +232,8 @@ unsafe class Program {
         wall.Dispose();
 
         //Lockscreen.Run();
-
-        FConsole = new FConsole(350, 300);
-        FConsole.Visible = false;
-
+        FConsole = null;
+        
         var welcome = new Welcome(500, 250);
 
         rightmenu = new RightMenu();
@@ -327,5 +335,11 @@ unsafe class Program {
 
             FPSMeter.Update();
         }
+    }
+    /// <summary>
+    /// Init Console
+    /// </summary>
+    public static void InitConsole() {
+        FConsole = new FConsole(350, 300);
     }
 }

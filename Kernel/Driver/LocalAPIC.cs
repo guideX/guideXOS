@@ -76,8 +76,8 @@ namespace guideXOS.Driver
             // Configure Spurious Interrupt Vector Register
             WriteRegister((uint)LAPIC_SVR, 0x1FF);
 
-            if (SMP.ThisCPU != 0)
-                Console.WriteLine("[Local APIC] Local APIC failed to initialize");
+            //if (SMP.ThisCPU != 0)
+                //Console.WriteLine("[Local APIC] Local APIC failed to initialize");
         }
 
         public static uint GetId()

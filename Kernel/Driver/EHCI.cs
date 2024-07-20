@@ -28,12 +28,12 @@ namespace guideXOS.Driver
             PCIDevice device = PCI.GetDevice(0x0C, 0x03, 0x20);
             if (device == null) return;
 
-            Console.WriteLine("[EHCI] EHCI controller found!");
+            //Console.WriteLine("[EHCI] EHCI controller found!");
 
             device.WriteRegister(0x04, 0x04 | 0x02 | 0x01);
 
             uint bar0 = device.Bar0;
-            Console.WriteLine($"[EHCI] Bar0: {bar0.ToString("x2")}");
+            //Console.WriteLine($"[EHCI] Bar0: {bar0.ToString("x2")}");
             BaseAddr = bar0 + *(byte*)bar0;
             ushort ver = *(ushort*)(bar0 + 0x02);
             if (ver != 0x100)
@@ -43,13 +43,13 @@ namespace guideXOS.Driver
             }
             uint hcsparams = *(uint*)(bar0 + 0x04);
             AvailablePorts = (byte)(hcsparams & 0xF);
-            Console.WriteLine($"[EHCI] {AvailablePorts} Ports available");
+            //Console.WriteLine($"[EHCI] {AvailablePorts} Ports available");
             uint hccparams = *(uint*)(bar0 + 0x08);
 
             uint eecp = (hccparams & (255 << 8)) >> 8;
             if (eecp >= 0x40)
             {
-                Console.WriteLine("[EHCI] Disabling BIOS EHCI Hand-off");
+                //Console.WriteLine("[EHCI] Disabling BIOS EHCI Hand-off");
                 uint legsup = PCI.ReadRegister32(device.Bus, device.Slot, device.Function, (byte)eecp);
 
                 if (legsup & 0x00010000)
@@ -57,7 +57,7 @@ namespace guideXOS.Driver
                     PCI.WriteRegister32(device.Bus, device.Slot, device.Function, (byte)eecp, legsup | 0x01000000);
                     for (; ; )
                     {
-                        Console.WriteLine("[EHCI] Waitting for BIOS ready");
+                        //Console.WriteLine("[EHCI] Waitting for BIOS ready");
                         legsup = PCI.ReadRegister32(device.Bus, device.Slot, device.Function, (byte)eecp);
                         if ((~legsup & 0x00010000) != 0 && (legsup & 0x01000000) != 0)
                         {
@@ -73,7 +73,7 @@ namespace guideXOS.Driver
             uint default_cmd = *(uint*)CMDReg;
             if (default_cmd & 1)
             {
-                Console.WriteLine("[EHCI] Stopping this controller");
+                //Console.WriteLine("[EHCI] Stopping this controller");
                 *(uint*)CMDReg &= ~1u;
                 while (1)
                 {
@@ -87,7 +87,7 @@ namespace guideXOS.Driver
             *(uint*)CMDReg |= 2;
             while (1)
             {
-                Console.WriteLine("[EHCI] Waitting for controller ready");
+                //Console.WriteLine("[EHCI] Waitting for controller ready");
                 if ((*(uint*)CMDReg & 2) == 0)
                 {
                     break;
@@ -655,7 +655,7 @@ namespace guideXOS.Driver
             device.Speed = speed;
 
             USB.DeviceAddr++;
-            Console.WriteLine($"[EHCI] Next device address is {USB.DeviceAddr}");
+            //Console.WriteLine($"[EHCI] Next device address is {USB.DeviceAddr}");
 
             if (parent == null) 
             {
@@ -670,7 +670,7 @@ namespace guideXOS.Driver
 
                 if ((portinfo & 4) == 0)
                 {
-                    Console.WriteLine($"[EHCI] Port {port} Is not enabled");
+                    //Console.WriteLine($"[EHCI] Port {port} Is not enabled");
 
                     device.Dispose();
                     return false;
@@ -680,7 +680,7 @@ namespace guideXOS.Driver
             byte addr = SetDeviceAddr(USB.DeviceAddr, parent,device.Speed);
             if (addr == 0)
             {
-                Console.WriteLine($"[EHCI] Port {port} Failed to set device address");
+                //Console.WriteLine($"[EHCI] Port {port} Failed to set device address");
 
                 device.Dispose();
                 return false;
@@ -692,7 +692,7 @@ namespace guideXOS.Driver
             byte* _desc = GetDesc(USB.DeviceAddr, 8, parent, device.Speed);
             if (_desc == 0)
             {
-                Console.WriteLine($"[EHCI] Port {port} Failed to get descriptor");
+                //Console.WriteLine($"[EHCI] Port {port} Failed to get descriptor");
 
                 device.Dispose();
                 return false;
@@ -700,18 +700,18 @@ namespace guideXOS.Driver
 
             if (!(_desc[0] == 0x12 && _desc[1] == 0x1))
             {
-                Console.WriteLine($"[EHCI] Port {port} Invalid magic number");
+                //Console.WriteLine($"[EHCI] Port {port} Invalid magic number");
 
                 device.Dispose();
                 return false;
             }
             byte max_packet_size = _desc[7];
-            Console.WriteLine($"[EHCI] Port {port} Max Packet Size {max_packet_size}");
+            //Console.WriteLine($"[EHCI] Port {port} Max Packet Size {max_packet_size}");
 
             ConfigDesc* cdesc = (ConfigDesc*)GetConfig(USB.DeviceAddr, (byte)(sizeof(InterfaceDesc) + sizeof(ConfigDesc) + (sizeof(EndPoint) * 2)), parent, device.Speed);
             if (cdesc == 0)
             {
-                Console.WriteLine($"[EHCI] [ECHI] Port {port} Failed to get descriptor");
+                //Console.WriteLine($"[EHCI] [ECHI] Port {port} Failed to get descriptor");
 
                 device.Dispose();
                 return false;
@@ -742,12 +742,12 @@ namespace guideXOS.Driver
                 device.Dispose();
                 return false;
             }
-            Console.WriteLine($"[EHCI] Port{port} Class: {Class}");
+            //Console.WriteLine($"[EHCI] Port{port} Class: {Class}");
 
             byte config_res = SetConfig(USB.DeviceAddr, 1, parent, device.Speed);
             if (config_res == 0)
             {
-                Console.WriteLine($"[EHCI] Port {port} failed to set configuration");
+                //Console.WriteLine($"[EHCI] Port {port} failed to set configuration");
 
                 device.Dispose();
                 return false;
@@ -768,7 +768,7 @@ namespace guideXOS.Driver
             for (int i = 0; i < AvailablePorts; i++)
             {
                 uint reg_port = (uint)(BaseAddr + 0x44 + (i * 4));
-                Console.WriteLine($"[EHCI] Port {i} {((*(uint*)reg_port & 3)?"Present" : "Not present")}");
+                //Console.WriteLine($"[EHCI] Port {i} {((*(uint*)reg_port & 3)?"Present" : "Not present")}");
                 if (*(uint*)reg_port & 3)
                 {
                     USB.InitPort(i, null, 2, 2);

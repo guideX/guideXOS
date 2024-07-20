@@ -9,7 +9,13 @@ namespace guideXOS.GUI {
         /// Data
         /// </summary>
         private string Data;
+        /// <summary>
+        /// Screen Buffer
+        /// </summary>
         public Image ScreenBuf;
+        /// <summary>
+        /// Cmd
+        /// </summary>
         private string Cmd;
         /// <summary>
         /// Constructor
@@ -17,6 +23,7 @@ namespace guideXOS.GUI {
         /// <param name="X"></param>
         /// <param name="Y"></param>
         public FConsole(int X, int Y) : base(X, Y, 640, 320) {
+            guideXOS.GUI.NotificationManager.Add(new Nofity("FConsole Constructor"));
             Title = "Console";
             Cmd = string.Empty;
             Data = string.Empty;
@@ -25,115 +32,104 @@ namespace guideXOS.GUI {
             Console.WriteLine("Type help to get information!");
             Console.OnWrite += Console_OnWrite;
         }
-        public void Rebind()
-        {
-            Keyboard.OnKeyChanged += PS2Keyboard_OnKeyChanged;
+        /// <summary>
+        /// Rebind
+        /// </summary>
+        public void Rebind() {
+            Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
         }
-
-        private void PS2Keyboard_OnKeyChanged(object sender, System.ConsoleKeyInfo key)
-        {
-            if (key.KeyState == System.ConsoleKeyState.Pressed && Program.FConsole.Visible)
-            {
-                if (key.Key == System.ConsoleKey.Backspace)
-                {
+        /// <summary>
+        /// PS2 Keyboard OnChanged
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="key"></param>
+        private void Keyboard_OnKeyChanged(object sender, System.ConsoleKeyInfo key) {
+            /*
+            if (
+                key != null && 
+                key.ScanCode != 0 && 
+                NotificationManager.Add(
+                    new Nofity(key.KeyChar.ToString())
+                )) {
+            }*/
+            if (key.KeyState == System.ConsoleKeyState.Pressed && Program.FConsole != null && Program.FConsole.Visible) {
+                if (key.Key == System.ConsoleKey.Backspace) {
                     if (Data.Length != 0)
                         Data.Length -= 1;
-                }
-                else if (key.KeyChar != '\0')
-                {
+                } else if (key.KeyChar != '\0') {
                     Console_OnWrite(key.KeyChar);
-
                     string cs = key.KeyChar.ToString();
                     string cache1 = Cmd;
                     Cmd = cache1 + cs;
                     cache1.Dispose();
                 }
-
-                if (key.Key == System.ConsoleKey.Enter)
-                {
+                if (key.Key == System.ConsoleKey.Enter) {
                     if (Cmd.Length != 0) Cmd.Length -= 1;
-
-                    // when a command is invoked
-                    switch (Cmd)
-                    {
-                        case "hello":
-                            int a = 1;
-                            int b = 0;
-                            int c = a / b;
-                            break;
-
+                    switch (Cmd) {
                         case "help":
                             Console.WriteLine("help: to get this information");
-                            Console.WriteLine("shutdown: power off");
-                            Console.WriteLine("reboot: reboot this computer");
-                            Console.WriteLine("cpu: list cpu information");
-                            Console.WriteLine("hello: issue kernel panic");
+                            //Console.WriteLine("shutdown: power off");
+                            //Console.WriteLine("reboot: reboot this computer");
+                            //Console.WriteLine("cpu: list cpu information");
+                            //Console.WriteLine("hello: issue kernel panic");
                             break;
-
                         case "shutdown":
                             Power.Shutdown();
                             break;
-
                         case "cpu":
-                            Console.WriteLine("multi-processor IDs:");
-                            //for (int i = 0; i < ACPI.LocalAPIC_CPUIDs.Count; i++)
-                                //Console.WriteLine($" cpu id:{ACPI.LocalAPIC_CPUIDs[i]}");
-                            //Console.WriteLine($"frequency: {Timer.CPU_Clock/1048576}mhz");
+                            //Console.WriteLine("multi-processor IDs:");
+                            //for (int i = 0; i < ACPI.LocalAPIC_CPUIDs.Count; i++) 
+                            //Console.WriteLine($" cpu id:{ACPI.LocalAPIC_CPUIDs[i]}");
+                            //Console.WriteLine($"frequency: {Timer.CPU_Clock / 1048576}mhz");
                             break;
-
                         case "null":
-                            unsafe
-                            {
+                            unsafe {
                                 uint* ptr = null;
                                 *ptr = 0xDEADBEEF;
                             }
                             break;
-
                         case "reboot":
                             Power.Reboot();
                             break;
-
                         default:
-                            Console.Write("No such command: \"");
+                            //Console.Write("No such command: \"");
                             Console.Write(Cmd);
                             Console.WriteLine("\"");
                             break;
                     }
-
                     Cmd.Dispose();
                     Cmd = string.Empty;
-                }
-                else if (key.Key == System.ConsoleKey.Backspace) if (Cmd.Length != 0) Cmd.Length -= 1;
+                } else if (key.Key == System.ConsoleKey.Backspace)
+                    if (Cmd.Length != 0) Cmd.Length -= 1;
             }
         }
-
-        public override void OnDraw()
-        {
+        /// <summary>
+        /// On Draw
+        /// </summary>
+        public override void OnDraw() {
             base.OnDraw();
-            int w = 0, h = 0;
-
             string s0 = "_";
             string s1 = Data + s0;
-            //BitFont.DrawString("Song", 0xFFFFFFFF, s, X, Y, Width);
             DrawString(X, Y, s1, Height, Width);
             s0.Dispose();
             s1.Dispose();
-            //BitFont.DrawString("Song", 0xFFFFFFFF, Data, X, Y, 640);
         }
-
-        public void DrawString(int X, int Y, string Str,int HeightLimit = -1, int LineLimit = -1)
-        {
+        /// <summary>
+        /// Draw String
+        /// </summary>
+        /// <param name="X"></param>
+        /// <param name="Y"></param>
+        /// <param name="Str"></param>
+        /// <param name="HeightLimit"></param>
+        /// <param name="LineLimit"></param>
+        public void DrawString(int X, int Y, string Str, int HeightLimit = -1, int LineLimit = -1) {
             int w = 0, h = 0;
-            for (int i = 0; i < Str.Length; i++)
-            {
-                w += WindowManager.font.DrawChar(Framebuffer.Graphics,X + w, Y + h, Str[i]);
-                if (w + WindowManager.font.FontSize > LineLimit && LineLimit != -1 || Str[i] == '\n')
-                {
+            for (int i = 0; i < Str.Length; i++) {
+                w += WindowManager.font.DrawChar(Framebuffer.Graphics, X + w, Y + h, Str[i]);
+                if (w + WindowManager.font.FontSize > LineLimit && LineLimit != -1 || Str[i] == '\n') {
                     w = 0;
                     h += WindowManager.font.FontSize;
-
-                    if(HeightLimit != -1 && h >= HeightLimit)
-                    {
+                    if (HeightLimit != -1 && h >= HeightLimit) {
                         Framebuffer.Graphics.Copy(X, Y, X, Y + WindowManager.font.FontSize, LineLimit, HeightLimit - (WindowManager.font.FontSize));
                         Framebuffer.Graphics.FillRectangle(X, Y + HeightLimit - (WindowManager.font.FontSize), LineLimit, WindowManager.font.FontSize, 0xFF222222);
                         h -= WindowManager.font.FontSize;
@@ -141,20 +137,27 @@ namespace guideXOS.GUI {
                 }
             }
         }
-
-        private void Console_OnWrite(char chr)
-        {
-            if (Program.FConsole.Visible == false)
-            {
+        /// <summary>
+        /// Console OnWrite
+        /// </summary>
+        /// <param name="chr"></param>
+        private void Console_OnWrite(char chr) {
+            if (Program.FConsole != null && Program.FConsole.Visible == false) {
                 WindowManager.MoveToEnd(Program.FConsole);
                 Program.FConsole.Visible = true;
             }
-
             string cs = chr.ToString();
             string cache = Data;
             Data = cache + cs;
             cs.Dispose();
             cache.Dispose();
+        }
+        /// <summary>
+        /// WriteLine
+        /// </summary>
+        /// <param name="line"></param>
+        public void WriteLine(string line) {
+            Console.WriteLine(line);
         }
     }
 }

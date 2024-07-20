@@ -21,7 +21,10 @@ namespace guideXOS.GUI {
         /// </summary>
         /// <returns></returns>
         public bool IsUnderMouse() {
-            if (Control.MousePosition.X > X && Control.MousePosition.X < X + Width && Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Height) return true;
+            if (Control.MousePosition.X > X && 
+                Control.MousePosition.X < X + Width && 
+                Control.MousePosition.Y > Y && 
+                Control.MousePosition.Y < Y + Height) return true;
             return false;
         }
         /// <summary>
@@ -111,6 +114,14 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Close Button X
         /// </summary>
+        //private int MinimizeButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.MinimizeButton.Width / 2);
+        /// <summary>
+        /// Close Button Y
+        /// </summary>
+        //private int MinimizeButtonY => Y - BarHeight + (BarHeight / 2) - (WindowManager.MinimizeButton.Height / 2);
+        /// <summary>
+        /// Close Button X
+        /// </summary>
         private int CloseButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.CloseButton.Width / 2);
         /// <summary>
         /// Close Button Y
@@ -124,6 +135,7 @@ namespace guideXOS.GUI {
             WindowManager.font.DrawString(X + (Width / 2) - ((WindowManager.font.MeasureString(Title)) / 2), Y - BarHeight + (BarHeight / 4), Title);
             Framebuffer.Graphics.FillRectangle(X, Y, Width, Height, 0xFF222222);
             DrawBorder();
+            //Framebuffer.Graphics.DrawImage(MinimizeButtonX, MinimizeButtonY, WindowManager.MinimizeButton);
             Framebuffer.Graphics.DrawImage(CloseButtonX, CloseButtonY, WindowManager.CloseButton);
         }
         /// <summary>

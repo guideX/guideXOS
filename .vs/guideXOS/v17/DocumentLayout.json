@@ -3,32 +3,20 @@
   "WorkspaceRootPath": "D:\\devgitlab\\guidexos\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|D:\\devgitlab\\guidexos\\guidexos\\gui\\startmenu.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:guidexos\\gui\\startmenu.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|d:\\devgitlab\\guidexos\\guidexos\\gui\\fconsole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:guidexos\\gui\\fconsole.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|d:\\devgitlab\\guidexos\\guidexos\\defaultapps\\calculator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:guidexos\\defaultapps\\calculator.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|d:\\devgitlab\\guidexos\\kernel\\misc\\usb.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:kernel\\misc\\usb.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|D:\\devgitlab\\guidexos\\guidexos\\gui\\desktop.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:guidexos\\gui\\desktop.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|d:\\devgitlab\\guidexos\\kernel\\driver\\hid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|solutionrelative:kernel\\driver\\hid.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|D:\\devgitlab\\guidexos\\kernel\\driver\\ac97.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|solutionrelative:kernel\\driver\\ac97.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|D:\\devgitlab\\guidexos\\kernel\\fs\\filesystem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|solutionrelative:kernel\\fs\\filesystem.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|D:\\devgitlab\\guidexos\\kernel\\fs\\fatfs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|solutionrelative:kernel\\fs\\fatfs.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|D:\\devgitlab\\guidexos\\kernel\\fs\\disk.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{066034BC-37FE-4605-8BDB-C525EC29DBE4}|Kernel\\Kernel.shproj|solutionrelative:kernel\\fs\\disk.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|d:\\devgitlab\\guidexos\\guidexos\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{3880E378-077B-4F24-AD1E-9E157679C9BA}|guideXOS\\guideXOS.csproj|solutionrelative:guidexos\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -38,8 +26,47 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "FConsole.cs",
+              "DocumentMoniker": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\FConsole.cs",
+              "RelativeDocumentMoniker": "guideXOS\\GUI\\FConsole.cs",
+              "ToolTip": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\FConsole.cs*",
+              "RelativeToolTip": "guideXOS\\GUI\\FConsole.cs*",
+              "ViewState": "AQIAAJkAAAAAAAAAAAAAACYAAAA6AAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-07-20T19:07:35.165Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "USB.cs",
+              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\Misc\\USB.cs",
+              "RelativeDocumentMoniker": "Kernel\\Misc\\USB.cs",
+              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\Misc\\USB.cs",
+              "RelativeToolTip": "Kernel\\Misc\\USB.cs",
+              "ViewState": "AQIAAEMAAAAAAAAAAAAuwFAAAAAfAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-07-20T19:03:56.451Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\devgitlab\\guidexos\\guideXOS\\Program.cs",
+              "RelativeDocumentMoniker": "guideXOS\\Program.cs",
+              "ToolTip": "D:\\devgitlab\\guidexos\\guideXOS\\Program.cs",
+              "RelativeToolTip": "guideXOS\\Program.cs",
+              "ViewState": "AQIAAEYAAAAAAAAAAAAcwFkAAAAcAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2024-07-20T19:01:25.418Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Bookmark",
               "Name": "ST:128:0:{1fc202d4-d401-403c-9834-5b218574bb67}"
@@ -62,89 +89,16 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "Calculator.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\guideXOS\\DefaultApps\\Calculator.cs",
-              "RelativeDocumentMoniker": "guideXOS\\DefaultApps\\Calculator.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\guideXOS\\DefaultApps\\Calculator.cs",
-              "RelativeToolTip": "guideXOS\\DefaultApps\\Calculator.cs",
-              "ViewState": "AQIAADMAAAAAAAAAAAAAABsAAAApAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T21:33:07.05Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "StartMenu.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\StartMenu.cs",
-              "RelativeDocumentMoniker": "guideXOS\\GUI\\StartMenu.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\StartMenu.cs",
-              "RelativeToolTip": "guideXOS\\GUI\\StartMenu.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAsAAAAlAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T21:32:09.927Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "AC97.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\Driver\\AC97.cs",
-              "RelativeDocumentMoniker": "Kernel\\Driver\\AC97.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\Driver\\AC97.cs",
-              "RelativeToolTip": "Kernel\\Driver\\AC97.cs",
-              "ViewState": "AQIAADEAAAAAAAAAAABAwEUAAAAYAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T19:40:39.173Z"
-            },
-            {
-              "$type": "Document",
               "DocumentIndex": 2,
-              "Title": "Desktop.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\Desktop.cs",
-              "RelativeDocumentMoniker": "guideXOS\\GUI\\Desktop.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\guideXOS\\GUI\\Desktop.cs",
-              "RelativeToolTip": "guideXOS\\GUI\\Desktop.cs",
-              "ViewState": "AQIAAPoAAAAAAAAAAAAmwAEBAAAvAAAA",
+              "Title": "HID.cs",
+              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\Driver\\HID.cs",
+              "RelativeDocumentMoniker": "Kernel\\Driver\\HID.cs",
+              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\Driver\\HID.cs",
+              "RelativeToolTip": "Kernel\\Driver\\HID.cs",
+              "ViewState": "AQIAAG4AAAAAAAAAAAAAAHMAAAAJAAAA",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T19:38:00.071Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "FileSystem.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\FS\\FileSystem.cs",
-              "RelativeDocumentMoniker": "Kernel\\FS\\FileSystem.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\FS\\FileSystem.cs",
-              "RelativeToolTip": "Kernel\\FS\\FileSystem.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAAWAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T19:30:09.721Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "FATFS.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\FS\\FATFS.cs",
-              "RelativeDocumentMoniker": "Kernel\\FS\\FATFS.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\FS\\FATFS.cs",
-              "RelativeToolTip": "Kernel\\FS\\FATFS.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T19:29:52.8Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "Disk.cs",
-              "DocumentMoniker": "D:\\devgitlab\\guidexos\\Kernel\\FS\\Disk.cs",
-              "RelativeDocumentMoniker": "Kernel\\FS\\Disk.cs",
-              "ToolTip": "D:\\devgitlab\\guidexos\\Kernel\\FS\\Disk.cs",
-              "RelativeToolTip": "Kernel\\FS\\Disk.cs",
-              "ViewState": "AQIAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2024-07-14T19:29:52.312Z"
+              "WhenOpened": "2024-07-20T18:57:59.468Z",
+              "EditorCaption": ""
             }
           ]
         }

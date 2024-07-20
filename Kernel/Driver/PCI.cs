@@ -97,9 +97,9 @@ namespace guideXOS
 
             PCIExpress.Initialize();
 
-            Console.Write("[PCI] PCI Initialized. ");
-            Console.Write(((ulong)Devices.Count).ToString());
-            Console.WriteLine(" Devices");
+            //Console.Write("[PCI] PCI Initialized. ");
+            //Console.Write(((ulong)Devices.Count).ToString());
+            //Console.WriteLine(" Devices");
         }
 
         public static void CheckBus(ushort Bus)
@@ -134,7 +134,7 @@ namespace guideXOS
 
                 device.DeviceID = ReadRegister16(device.Bus, device.Slot, device.Function, 2);
 
-                Console.WriteLine($"[PCI {device.Bus}:{device.Slot}:{device.Function}] {VendorID.GetName(device.VendorID)} {ClassID.GetName(device.ClassID)}");
+                //Console.WriteLine($"[PCI {device.Bus}:{device.Slot}:{device.Function}] {VendorID.GetName(device.VendorID)} {ClassID.GetName(device.ClassID)}");
 
                 Devices.Add(device);
 

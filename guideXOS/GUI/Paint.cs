@@ -3,22 +3,12 @@ using guideXOS.GUI.Widgets;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-using static guideXOS.DefaultApps.Calculator;
-
-namespace guideXOS.GUI
-{
-    internal unsafe class Paint : Window
-    {
+namespace guideXOS.GUI {
+    internal unsafe class Paint : Window {
         Image img;
         Graphics g;
-
-        public Paint(int X, int Y) : base(X, Y, 490, 500)
-        {
-#if Chinese
-            Title = "画图";
-#else
+        public Paint(int X, int Y) : base(X, Y, 490, 500) {
             Title = "Paint";
-#endif
             Btns = new List<Button>();
             AddButton(10, 10, 0xFFC0392B);
             AddButton(40, 10, 0xFFE74C3C);
@@ -34,37 +24,21 @@ namespace guideXOS.GUI
             AddButton(340, 10, 0xFFE67E22);
             AddButton(370, 10, 0xFFECF0F1);
             AddButton(400, 10, 0xFFD4AC0D);
-
-#if Chinese
-            AddButton(430, 10, 0xFF333333, 50, "清除");
-#else
             AddButton(430, 10, 0xFF333333, 50, "Clear");
-#endif
-
             img = new Image(this.Width, this.Height);
             fixed (int* p = img.RawData)
                 g = new Graphics(this.Width, this.Height, (uint*)p);
             g.Clear(0xFF222222);
-
             CurrentColor = 0xFFF0F0F0;
             LastX = -1;
             LastY = -1;
         }
-
-        public override void OnDraw()
-        {
+        public override void OnDraw() {
             base.OnDraw();
-
             Framebuffer.Graphics.DrawImage(X, Y, img, false);
-
-            for (int i = 0; i < Btns.Count; i++)
-            {
+            for (int i = 0; i < Btns.Count; i++) {
                 Framebuffer.Graphics.FillRectangle(X + Btns[i].X, Y + Btns[i].Y, Btns[i].Width, Btns[i].Height, Btns[i].UIntParam);
-#if Chinese
-                if (Btns[i].Name == "清除")
-#else
                 if (Btns[i].Name == "Clear")
-#endif
                 {
                     WindowManager.font.DrawString(X + Btns[i].X + (Btns[i].Width / 2) - (WindowManager.font.MeasureString(Btns[i].Name) / 2), Y + Btns[i].Y + 2, Btns[i].Name);
                 }
@@ -76,42 +50,28 @@ namespace guideXOS.GUI
 
         uint CurrentColor;
 
-        public override void OnInput()
-        {
+        public override void OnInput() {
             base.OnInput();
 
-            if (Control.MouseButtons.HasFlag(MouseButtons.Left))
-            {
-                if (Control.MousePosition.X >= this.X && Control.MousePosition.X <= this.X + this.Width && Control.MousePosition.Y >= this.Y && Control.MousePosition.Y <= this.Y + this.Height)
-                {
+            if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
+                if (Control.MousePosition.X >= this.X && Control.MousePosition.X <= this.X + this.Width && Control.MousePosition.Y >= this.Y && Control.MousePosition.Y <= this.Y + this.Height) {
                     WindowManager.MouseHandled = true;
-                    if (Control.MousePosition.X - this.X != LastX || Control.MousePosition.Y - this.Y != LastY)
-                    {
+                    if (Control.MousePosition.X - this.X != LastX || Control.MousePosition.Y - this.Y != LastY) {
                         g.DrawLine(LastX, LastY, Control.MousePosition.X - this.X, Control.MousePosition.Y - this.Y, CurrentColor);
                     }
 
-                    for (int i = 0; i < Btns.Count; i++)
-                    {
-                        if (Control.MousePosition.X > this.X + Btns[i].X && Control.MousePosition.X < this.X + Btns[i].X + Btns[i].Width && Control.MousePosition.Y > this.Y + Btns[i].Y && Control.MousePosition.Y < this.Y + Btns[i].Y + Btns[i].Height)
-                        {
-#if Chinese
-                            if (Btns[i].Name == "清除")
-#else
+                    for (int i = 0; i < Btns.Count; i++) {
+                        if (Control.MousePosition.X > this.X + Btns[i].X && Control.MousePosition.X < this.X + Btns[i].X + Btns[i].Width && Control.MousePosition.Y > this.Y + Btns[i].Y && Control.MousePosition.Y < this.Y + Btns[i].Y + Btns[i].Height) {
                             if (Btns[i].Name == "Clear")
-#endif
                             {
                                 g.Clear(0xFF222222);
-                            }
-                            else
-                            {
+                            } else {
                                 CurrentColor = Btns[i].UIntParam;
                             }
                         }
                     }
                 }
-            }
-            else
-            {
+            } else {
                 WindowManager.MouseHandled = false;
             }
 
@@ -121,8 +81,7 @@ namespace guideXOS.GUI
 
         List<Button> Btns;
 
-        private void AddButton(int X, int Y, uint Color, int aWidth = 20, string aName = "")
-        {
+        private void AddButton(int X, int Y, uint Color, int aWidth = 20, string aName = "") {
             Btns.Add(new Button()
             {
                 X = X,

@@ -9,8 +9,8 @@ namespace guideXOS.Driver {
             Ports = new();
             ScanPorts(Channels.Primary);
             ScanPorts(Channels.Secondary);
-            if (Ports.Count == 0)
-                Console.WriteLine("[IDE] IDE controller Failed to Initialize");
+            //if (Ports.Count == 0)
+                //Console.WriteLine("[IDE] IDE controller Failed to Initialize");
         }
 
         public enum Channels {

@@ -19,7 +19,7 @@ namespace guideXOS {
 
             if (device == null) return;
 
-            Console.WriteLine("[AC97] Intel 82801AA AC97 Audio Controller Found");
+            //Console.WriteLine("[AC97] Intel 82801AA AC97 Audio Controller Found");
             device.WriteRegister(0x04, 0x04 | 0x02 | 0x01);
 
             NumDescriptors = 31;

@@ -20,11 +20,16 @@ namespace guideXOS.GUI {
         /// </summary>
         public static Image CloseButton;
         /// <summary>
+        /// Minimize Button
+        /// </summary>
+        public static Image MinimizeButton;
+        /// <summary>
         /// Initialize
         /// </summary>
         public static void Initialize() {
             Windows = new List<Window>();
             CloseButton = new PNG(File.ReadAllBytes("Images/Close.png"));
+            //MinimizeButton = new PNG(File.ReadAllBytes("Images/Close.png"));
             PNG yehei = new PNG(File.ReadAllBytes("Images/M+.png"));
             font = new IFont(yehei, "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 18);
             MouseHandled = false;
@@ -65,6 +70,5 @@ namespace guideXOS.GUI {
             get => HasWindowMoving;
             set => HasWindowMoving = value;
         }
-
     }
 }
