@@ -1,6 +1,7 @@
 using guideXOS.Graph;
 using guideXOS.GUI;
 using guideXOS.GUI.Widgets;
+using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;

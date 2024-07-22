@@ -1,5 +1,6 @@
 using guideXOS.Graph;
 using guideXOS.GUI.Widgets;
+using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
@@ -52,7 +53,7 @@ namespace guideXOS.GUI {
 
         public override void OnInput() {
             base.OnInput();
-
+            
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 if (Control.MousePosition.X >= this.X && Control.MousePosition.X <= this.X + this.Width && Control.MousePosition.Y >= this.Y && Control.MousePosition.Y <= this.Y + this.Height) {
                     WindowManager.MouseHandled = true;

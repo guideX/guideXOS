@@ -1,17 +1,12 @@
 //Reference: https://www.intel.com/content/dam/doc/manual/pci-pci-x-family-gbe-controllers-software-dev-manual.pdf
-
 using static guideXOS.Misc.MMIO;
 using System.Runtime.InteropServices;
 using System;
 using static guideXOS.NETv4;
-using static guideXOS.Misc.Interrupts;
 using guideXOS.Misc;
-using guideXOS.Driver;
-
-namespace guideXOS
-{
-    internal unsafe class Intel825xx
-    {
+using guideXOS.Kernel.Drivers;
+namespace guideXOS {
+    internal unsafe class Intel825xx {
         public static uint IOBase;
 
         public static RXDescriptor* RXDescs;
@@ -23,12 +18,10 @@ namespace guideXOS
         const int NumRX = 32;
         const int NumTX = 32;
 
-        public static void Initialize()
-        {
+        public static void Initialize() {
             PCIDevice device = null;
 
-            for (int i = 0; i < PCI.Devices.Count; i++)
-            {
+            for (int i = 0; i < PCI.Devices.Count; i++) {
                 if (
                      PCI.Devices[i] != null &&
                      PCI.Devices[i].VendorID == 0x8086 &&
@@ -128,8 +121,7 @@ namespace guideXOS
                         PCI.Devices[i].DeviceID == 0x15D7 || //IntelI219LM
                         PCI.Devices[i].DeviceID == 0x15E3    //IntelI219LM
                         )
-                    )
-                {
+                    ) {
                     device = PCI.Devices[i];
                 }
             }
@@ -147,17 +139,14 @@ namespace guideXOS
 
             WriteRegister(0x14, 0x1);
             bool HasEEPROM = false;
-            for (int i = 0; i < 1024; i++)
-            {
-                if ((ReadRegister(0x14) & 0x10) != 0)
-                {
+            for (int i = 0; i < 1024; i++) {
+                if ((ReadRegister(0x14) & 0x10) != 0) {
                     HasEEPROM = true;
                     break;
                 }
             }
 
-            if (!HasEEPROM)
-            {
+            if (!HasEEPROM) {
                 NETv4.MAC = new MACAddress(
                     In8((byte*)(IOBase + 0x5400)),
                     In8((byte*)(IOBase + 0x5401)),
@@ -167,9 +156,7 @@ namespace guideXOS
                     In8((byte*)(IOBase + 0x5405))
                     );
                 Console.Write("[Intel825xx] This controller has no EEPROM\n");
-            }
-            else
-            {
+            } else {
                 NETv4.MAC = new MACAddress(
                     (byte)(ReadROM(0) & 0xFF),
                     (byte)(ReadROM(0) >> 8),
@@ -192,23 +179,21 @@ namespace guideXOS
             ReadRegister(0xC0);
 
             Console.Write("[Intel825xx] Configuration Done \n");
-            
+
             //Bug. IRQ of device doesn't work
             Interrupts.EnableInterrupt(0x20, &OnInterrupt);
 
             NETv4.Sender = &Send;
         }
 
-        public static void Reset()
-        {
+        public static void Reset() {
             Console.Write("[Intel825xx] Reseting controller...\n");
 
             WriteRegister(0, 1 << 26);
             while (BitHelpers.IsBitSet(ReadRegister(0), 26)) ;
         }
 
-        private static void TXsetup()
-        {
+        private static void TXsetup() {
             TXDescs = Allocator.ClearAllocate<TXDescriptor>(NumTX);
 
             WriteRegister(0x3800, (uint)(ulong)TXDescs);
@@ -220,12 +205,10 @@ namespace guideXOS
             WriteRegister(0x0400, (1 << 1) | (1 << 3));
         }
 
-        private static void RXsetup()
-        {
+        private static void RXsetup() {
             RXDescs = Allocator.ClearAllocate<RXDescriptor>(NumRX);
 
-            for (uint i = 0; i < NumRX; i++)
-            {
+            for (uint i = 0; i < NumRX; i++) {
                 RXDescriptor* desc = &RXDescs[i];
                 desc->addr = (ulong)(void*)Allocator.Allocate(2048 + 16);
             }
@@ -251,8 +234,7 @@ namespace guideXOS
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct RXDescriptor
-        {
+        public struct RXDescriptor {
             public ulong addr;
             public ushort length;
             public ushort checksum;
@@ -262,8 +244,7 @@ namespace guideXOS
         }
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct TXDescriptor
-        {
+        public struct TXDescriptor {
             public ulong addr;
             public ushort length;
             public byte cso;
@@ -273,39 +254,32 @@ namespace guideXOS
             public ushort special;
         }
 
-        public static void WriteRegister(ushort Reg, uint Val)
-        {
+        public static void WriteRegister(ushort Reg, uint Val) {
             Out32((uint*)(IOBase + Reg), Val);
         }
 
-        public static uint ReadRegister(ushort Reg)
-        {
+        public static uint ReadRegister(ushort Reg) {
             return In32((uint*)(IOBase + Reg));
         }
 
-        public static ushort ReadROM(uint Addr)
-        {
+        public static ushort ReadROM(uint Addr) {
             uint Temp;
             WriteRegister(0x14, 1 | (Addr << 8));
             while (((Temp = ReadRegister(0x14)) & 0x10) == 0) ;
             return ((ushort)((Temp >> 16) & 0xFFFF));
         }
 
-        public static void OnInterrupt()
-        {
+        public static void OnInterrupt() {
             uint Status = ReadRegister(0xC0);
 
-            if ((Status & 0x04) != 0)
-            {
+            if ((Status & 0x04) != 0) {
                 Linkup();
             }
 
-            if ((Status & 0x80) != 0)
-            {
+            if ((Status & 0x80) != 0) {
                 uint _RXCurr = RXCurrentIndex;
                 RXDescriptor* desc = &RXDescs[RXCurrentIndex];
-                while ((desc->status & 0x1) != 0)
-                {
+                while ((desc->status & 0x1) != 0) {
                     NETv4.OnData((byte*)desc->addr);
                     desc->status = 0;
                     RXCurrentIndex = (RXCurrentIndex + 1) % NumRX;
@@ -314,16 +288,14 @@ namespace guideXOS
             }
         }
 
-        private static void Linkup()
-        {
+        private static void Linkup() {
             WriteRegister(0, ReadRegister(0) | 0x40);
 
             Console.Write("[Intel825xx] Waiting for network connection \n");
             while (!BitHelpers.IsBitSet(*(uint*)(IOBase + 0x08), 1)) ;
         }
 
-        public static void Send(byte* Buffer, int Length)
-        {
+        public static void Send(byte* Buffer, int Length) {
             TXDescriptor* desc = &TXDescs[TXCurrentIndex];
             desc->addr = (ulong)Buffer;
             desc->length = (ushort)Length;

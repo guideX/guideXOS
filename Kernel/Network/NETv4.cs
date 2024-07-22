@@ -1,4 +1,4 @@
-﻿using guideXOS.Driver;
+﻿using guideXOS.Kernel.Drivers;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;

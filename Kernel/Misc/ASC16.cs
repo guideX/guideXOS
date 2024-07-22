@@ -1,3 +1,5 @@
+using guideXOS.Kernel.Drivers;
+
 namespace guideXOS
 {
     public static unsafe class ASC16

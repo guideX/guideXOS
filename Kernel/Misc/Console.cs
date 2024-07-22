@@ -1,13 +1,9 @@
 #define ASCII
-
-using guideXOS.Driver;
+using guideXOS.Kernel.Drivers;
 using System;
 using System.Drawing;
-
-namespace guideXOS
-{
-    public static unsafe class Console
-    {
+namespace guideXOS {
+    public static unsafe class Console {
         public static int Width { get => Framebuffer.Width / 8; }
         public static int Height { get => Framebuffer.Height / 16; }
 
@@ -21,8 +17,7 @@ namespace guideXOS
 
         public static ConsoleColor ForegroundColor;
 
-        internal static void Setup()
-        {
+        internal static void Setup() {
             OnWrite = null;
 
             Clear();
@@ -50,13 +45,10 @@ namespace guideXOS
             ForegroundColor = ConsoleColor.White;
         }
 
-        public static void Wait(ref bool b)
-        {
+        public static void Wait(ref bool b) {
             int phase = 0;
-            while (!b)
-            {
-                switch (phase)
-                {
+            while (!b) {
+                switch (phase) {
                     case 0:
                         Console.Write('/', true);
                         break;
@@ -89,13 +81,10 @@ namespace guideXOS
             }
         }
 
-        public static void Wait(uint* provider, int bit)
-        {
+        public static void Wait(uint* provider, int bit) {
             int phase = 0;
-            while (!BitHelpers.IsBitSet(*provider, bit)) 
-            {
-                switch (phase)
-                {
+            while (!BitHelpers.IsBitSet(*provider, bit)) {
+                switch (phase) {
                     case 0:
                         Console.Write('/', true);
                         break;
@@ -128,19 +117,15 @@ namespace guideXOS
             }
         }
 
-        public static bool Wait(delegate* <bool> func,int timeOutMS = -1)
-        {
+        public static bool Wait(delegate*<bool> func, int timeOutMS = -1) {
             ulong prev = Timer.Ticks;
 
             int phase = 0;
-            while (!func())
-            {
-                if(timeOutMS >= 0 && Timer.Ticks > (prev + (uint)timeOutMS))
-                {
+            while (!func()) {
+                if (timeOutMS >= 0 && Timer.Ticks > (prev + (uint)timeOutMS)) {
                     return false;
                 }
-                switch (phase)
-                {
+                switch (phase) {
                     case 0:
                         Console.Write('/', true);
                         break;
@@ -174,26 +159,21 @@ namespace guideXOS
             return true;
         }
 
-        public static void Write(string s)
-        {
+        public static void Write(string s) {
             ConsoleColor col = Console.ForegroundColor;
-            for (byte i = 0; i < s.Length; i++)
-            {
-                if (s[i] == '[') 
-                {
+            for (byte i = 0; i < s.Length; i++) {
+                if (s[i] == '[') {
                     Console.ForegroundColor = ConsoleColor.Yellow;
                 }
                 Console.Write(s[i]);
-                if (s[i] == ']')
-                {
+                if (s[i] == ']') {
                     Console.ForegroundColor = col;
                 }
             }
             s.Dispose();
         }
 
-        public static void Back()
-        {
+        public static void Back() {
             if (CursorX == 0) return;
             WriteFramebuffer(' ');
             CursorX--;
@@ -201,29 +181,25 @@ namespace guideXOS
             UpdateCursor();
         }
 
-        public static void Write(char chr, bool dontInvoke = false)
-        {
-            if(chr == '\n') 
-            {
+        public static void Write(char chr, bool dontInvoke = false) {
+            if (chr == '\n') {
                 WriteLine();
                 return;
             }
 #if ASCII
-            if(chr >= 0x20 && chr <= 0x7E)
+            if (chr >= 0x20 && chr <= 0x7E)
 #else
             unsafe
 #endif
             {
-                if(!dontInvoke)
-                {
+                if (!dontInvoke) {
                     OnWrite?.Invoke(chr);
                 }
 
                 WriteFramebuffer(chr);
 
                 CursorX++;
-                if (CursorX == Width)
-                {
+                if (CursorX == Width) {
                     CursorX = 0;
                     CursorY++;
                 }
@@ -232,10 +208,8 @@ namespace guideXOS
             }
         }
 
-        private static void WriteFramebuffer(char chr)
-        {
-            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered)
-            {
+        private static void WriteFramebuffer(char chr) {
+            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered) {
                 int X = (Framebuffer.Graphics.Width / 2) - ((Width * 8) / 2) + (CursorX * 8);
                 int Y = (Framebuffer.Graphics.Height / 2) - ((Height * 16) / 2) + (CursorY * 16);
                 Framebuffer.Graphics.FillRectangle(X, Y, 8, 16, 0x0);
@@ -243,14 +217,11 @@ namespace guideXOS
             }
         }
 
-        public static ConsoleKeyInfo ReadKey(bool intercept = false)
-        {
+        public static ConsoleKeyInfo ReadKey(bool intercept = false) {
             Keyboard.CleanKeyInfo(true);
             while (Keyboard.KeyInfo.KeyChar == '\0') Native.Hlt();
-            if (!intercept)
-            {
-                switch (Keyboard.KeyInfo.Key) 
-                {
+            if (!intercept) {
+                switch (Keyboard.KeyInfo.Key) {
                     case ConsoleKey.Enter:
                         Console.WriteLine();
                         break;
@@ -266,14 +237,11 @@ namespace guideXOS
             return Keyboard.KeyInfo;
         }
 
-        public static string ReadLine() 
-        {
+        public static string ReadLine() {
             string s = string.Empty;
             ConsoleKeyInfo key;
-            while ((key = Console.ReadKey()).Key != ConsoleKey.Enter)
-            {
-                switch (key.Key) 
-                {
+            while ((key = Console.ReadKey()).Key != ConsoleKey.Enter) {
+                switch (key.Key) {
                     case ConsoleKey.Delete:
                     case ConsoleKey.Backspace:
                         if (s.Length == 0) continue;
@@ -293,19 +261,15 @@ namespace guideXOS
             return s;
         }
 
-        private static void MoveUp()
-        {
-            if (CursorY >= Height - 1)
-            {
+        private static void MoveUp() {
+            if (CursorY >= Height - 1) {
                 MoveUpFramebuffer();
                 CursorY--;
             }
         }
 
-        private static void MoveUpFramebuffer()
-        {
-            if(Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered)
-            {
+        private static void MoveUpFramebuffer() {
+            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered) {
                 Framebuffer.Graphics.Copy(
                     (Framebuffer.Graphics.Width / 2) - (Width * 8 / 2),
                     (Framebuffer.Graphics.Height / 2) - (Height * 16 / 2),
@@ -319,15 +283,12 @@ namespace guideXOS
             }
         }
 
-        private static void UpdateCursor()
-        {
+        private static void UpdateCursor() {
             UpdateCursorFramebuffer();
         }
 
-        private static void UpdateCursorFramebuffer()
-        {
-            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered)
-            {
+        private static void UpdateCursorFramebuffer() {
+            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered) {
                 ASC16.DrawChar('_',
                             (Framebuffer.Graphics.Width / 2) - ((Width * 8) / 2) + ((CursorX) * 8),
                             (Framebuffer.Graphics.Height / 2) - ((Height * 16) / 2) + (CursorY * 16),
@@ -336,8 +297,7 @@ namespace guideXOS
             }
         }
 
-        public static void WriteLine(string s)
-        {
+        public static void WriteLine(string s) {
             Write(s);
             OnWrite?.Invoke('\n');
             WriteFramebuffer(' ');
@@ -348,8 +308,7 @@ namespace guideXOS
             s.Dispose();
         }
 
-        public static void WriteLine()
-        {
+        public static void WriteLine() {
             OnWrite?.Invoke('\n');
             WriteFramebuffer(' ');
             CursorX = 0;
@@ -358,17 +317,14 @@ namespace guideXOS
             UpdateCursor();
         }
 
-        public static void Clear()
-        {
+        public static void Clear() {
             CursorX = 0;
             CursorY = 0;
             ClearFramebuffer();
         }
 
-        private static void ClearFramebuffer()
-        {
-            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered) 
-            {
+        private static void ClearFramebuffer() {
+            if (Framebuffer.VideoMemory != null && !Framebuffer.TripleBuffered) {
                 Framebuffer.Graphics.FillRectangle
                     (
                             (Framebuffer.Graphics.Width / 2) - ((Width * 8) / 2) + ((CursorX) * 8),

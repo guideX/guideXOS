@@ -1,8 +1,9 @@
 ﻿#if Kernel
-using guideXOS.FS;
-using guideXOS.Misc;
 using System;
 using System.Drawing;
+using guideXOS.FS;
+using guideXOS.Kernel.Drivers;
+using guideXOS.Misc;
 namespace guideXOS.GUI {
     /// <summary>
     /// Lock Screen
@@ -57,14 +58,13 @@ namespace guideXOS.GUI {
 
             while (Keyboard.KeyInfo.Key != System.ConsoleKey.Up && Keyboard.KeyInfo.Key != System.ConsoleKey.W) {
                 DrawLockscreenUI();
-
                 Framebuffer.Update();
             }
-
             DrawLockscreenUI();
             i.Dispose();
             i = Framebuffer.Graphics.Save();
 
+            /*
             Animation a1 = new Animation()
             {
                 MinimumValue = 0,
@@ -78,6 +78,7 @@ namespace guideXOS.GUI {
                 Framebuffer.Update();
             }
             Animator.DisposeAnimation(a1);
+            */
 
             Framebuffer.Graphics.Clear(0x0);
             Framebuffer.Update();
@@ -110,11 +111,9 @@ namespace guideXOS.GUI {
             _4.Dispose();
             res.Dispose();
 
-            /*
             string tips = "Press W or Up Arrow to unlock";
             WindowManager.font.DrawString((Framebuffer.Width / 2) - (WindowManager.font.MeasureString(tips) / 2), Framebuffer.Height - (Framebuffer.Height / 6), tips);
             tips.Dispose();
-            */
         }
     }
 }

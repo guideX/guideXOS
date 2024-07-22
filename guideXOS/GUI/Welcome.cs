@@ -1,4 +1,5 @@
 using guideXOS.FS;
+using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using System.Drawing;
 namespace guideXOS.GUI {

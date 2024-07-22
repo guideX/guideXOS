@@ -1,15 +1,12 @@
-﻿using System;
-using System.Diagnostics;
+﻿using guideXOS.Kernel.Drivers;
+using System;
 using System.Windows.Forms;
 
-namespace guideXOS
-{
-    internal static class Kbd2Mouse
-    {
+namespace guideXOS {
+    internal static class Kbd2Mouse {
         static bool up = false, down = false, left = false, right = false, f1 = false, f2 = false;
 
-        internal static void OnKeyChanged(ConsoleKeyInfo keyInfo)
-        {
+        internal static void OnKeyChanged(ConsoleKeyInfo keyInfo) {
             const int ratio = 10;
 
             if (keyInfo.Key == ConsoleKey.Up)
@@ -28,8 +25,7 @@ namespace guideXOS
                 keyInfo.Key == ConsoleKey.Down ||
                 keyInfo.Key == ConsoleKey.Left ||
                 keyInfo.Key == ConsoleKey.Right
-                )
-            {
+                ) {
                 int axisX = 0, axisY = 0;
                 if (left)
                     axisX -= ratio;

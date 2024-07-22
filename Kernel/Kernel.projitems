@@ -6,48 +6,49 @@
     <SharedGUID>066034bc-37fe-4605-8bdb-c525ec29dbe4</SharedGUID>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
-    <Import_RootNamespace>MOOS</Import_RootNamespace>
+    <Import_RootNamespace>guideXOS.Kernel</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)Animation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)API.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AVX.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\AC97.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\ACPI.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\ACPITimer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\EHCI.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\ES1371.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Framebuffer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\HID.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\HPET.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Hub.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\IDE.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\IOAPIC.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Keyboard.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\LocalAPIC.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\LocalAPICTimer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PCI.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PCIExpress.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PIC.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PIT.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Power.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PS2Controller.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PS2Keyboard.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\PS2Mouse.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Ramdisk.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\RTC.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\SATA.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Serial.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\SMBIOS.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\Timer.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\VMWareSVGAII.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Driver\VMwareTools.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\AC97.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\ACPI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\ACPITimer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\EHCI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\ES1371.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Framebuffer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\HID.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\HPET.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Hub.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\IDE.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\IOAPIC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Keyboard.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\LocalAPIC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\LocalAPICTimer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PCI.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PCIExpress.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PIC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PIT.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Power.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Controller.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Keyboard.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Mouse.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Ramdisk.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\RTC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\SATA.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Serial.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\SMBIOS.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\Timer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMWareSVGAII.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMwareTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\Disk.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\FATFS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\FileSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\TarFS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Graph\Graphics.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Graph\VMWareSVGAIIGraphics.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Helpers\StringHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Kbd2Mouse.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\Allocator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\ASC16.cs" />
@@ -78,9 +79,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)Network\RTL8111.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SMP.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SSE.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)stdio.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)stdlib.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)strings.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)VHD.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Libraries\stdio.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Libraries\stdlib.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Libraries\" />
   </ItemGroup>
 </Project>

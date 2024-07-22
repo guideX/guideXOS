@@ -1,4 +1,4 @@
-using guideXOS.Driver;
+using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 
 namespace guideXOS.Misc

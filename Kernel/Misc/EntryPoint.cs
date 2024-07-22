@@ -1,24 +1,13 @@
 using Internal.Runtime.CompilerHelpers;
-using guideXOS;
-using guideXOS.Driver;
 using guideXOS.FS;
-using guideXOS.Graph;
-using guideXOS.Misc;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Drawing;
 using System.Runtime;
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
-
-namespace guideXOS.Misc
-{
-    internal static unsafe class EntryPoint
-    {
+using guideXOS.Kernel.Drivers;
+namespace guideXOS.Misc {
+    internal static unsafe class EntryPoint {
         [RuntimeExport("Entry")]
-        public static void Entry(MultibootInfo* Info, IntPtr Modules, IntPtr Trampoline)
-        {
+        public static void Entry(MultibootInfo* Info, IntPtr Modules, IntPtr Trampoline) {
             Allocator.Initialize((IntPtr)0x20000000);
 
             StartupCodeHelpers.InitializeModules(Modules);
@@ -28,13 +17,10 @@ namespace guideXOS.Misc
             ASC16.Initialise();
 
             VBEInfo* info = (VBEInfo*)Info->VBEInfo;
-            if (info->PhysBase != 0)
-            {
+            if (info->PhysBase != 0) {
                 Framebuffer.Initialize(info->ScreenWidth, info->ScreenHeight, (uint*)info->PhysBase);
                 Framebuffer.Graphics.Clear(0x0);
-            }
-            else 
-            {
+            } else {
                 for (; ; ) Native.Hlt();
             }
 

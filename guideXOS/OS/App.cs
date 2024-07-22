@@ -91,6 +91,7 @@ namespace guideXOS.OS {
             _apps.Add(new App("Console", icon));
             _apps.Add(new App("Monitor", icon));
             _apps.Add(new App("StartMenu", icon));
+            _apps.Add(new App("Lock", icon));
         }
         /// <summary>
         /// Load
@@ -102,6 +103,10 @@ namespace guideXOS.OS {
             for (int i = 0; i < _apps.Count; i++) {
                 if (_apps[i].Name == name) {
                     switch (name) {
+                        case "Lock":
+                            Lockscreen.Run();
+                            b = true;
+                            break;
                         case "Calculator":
                             _apps[i].AppObject = new Calculator(300, 500);
                             b = true;

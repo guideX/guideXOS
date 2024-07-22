@@ -1,4 +1,5 @@
-﻿using guideXOS.Misc;
+﻿using guideXOS.Kernel.Helpers;
+using guideXOS.Misc;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -42,7 +43,7 @@ namespace guideXOS.FS
             {
                 sec++;
                 ulong size = mystrtoul(hdr.size, null, 8);
-                string name = string.FromASCII((nint)hdr.name, strings.strlen(hdr.name) - (hdr.name[strings.strlen(hdr.name) - 1] == '/' ? 1 : 0));
+                string name = string.FromASCII((nint)hdr.name, StringHelper.StringLength(hdr.name) - (hdr.name[StringHelper.StringLength(hdr.name) - 1] == '/' ? 1 : 0));
                 if (IsInDirectory(name, Directory))
                 {
                     FileInfo info = new FileInfo();

@@ -1,20 +1,13 @@
-using guideXOS;
-using guideXOS.Misc;
-using System;
+using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
-using System.Drawing;
-
-namespace guideXOS.Misc
-{
-    public class BitFontDescriptor
-    {
+namespace guideXOS.Misc {
+    public class BitFontDescriptor {
         public string Charset;
         public byte[] Raw;
         public int Size;
         public string Name;
 
-        public BitFontDescriptor(string aName, string aCharset, byte[] aRaw, int aSize)
-        {
+        public BitFontDescriptor(string aName, string aCharset, byte[] aRaw, int aSize) {
             Charset = aCharset;
             Raw = aRaw;
             Size = aSize;
@@ -22,27 +15,22 @@ namespace guideXOS.Misc
         }
     }
 
-    public static class BitFont
-    {
+    public static class BitFont {
         public static List<BitFontDescriptor> RegisteredBitFont;
 
-        public static void Initialize()
-        {
+        public static void Initialize() {
             RegisteredBitFont = new List<BitFontDescriptor>();
         }
 
-        public static void RegisterBitFont(BitFontDescriptor bitFontDescriptor)
-        {
+        public static void RegisterBitFont(BitFontDescriptor bitFontDescriptor) {
             RegisteredBitFont.Add(bitFontDescriptor);
         }
 
         private const int FontAlpha = 96;
         private static bool AtEdge = false;
 
-        private static int DrawChar(byte[] Raw, int Size, int Size8, uint Color, int Index, int X, int Y, bool Calculate = false)
-        {
-            if (Index < 0)
-            {
+        private static int DrawChar(byte[] Raw, int Size, int Size8, uint Color, int Index, int X, int Y, bool Calculate = false) {
+            if (Index < 0) {
                 return Size / 2;
             }
 
@@ -50,21 +38,16 @@ namespace guideXOS.Misc
             int SizePerFont = Size * Size8 * Index;
             AtEdge = false;
 
-            for (int h = 0; h < Size; h++)
-            {
-                for (int aw = 0; aw < Size8; aw++)
-                {
-                    for (int ww = 0; ww < 8; ww++)
-                    {
-                        if ((Raw[SizePerFont + (h * Size8) + aw] & (0x80 >> ww)) != 0)
-                        {
+            for (int h = 0; h < Size; h++) {
+                for (int aw = 0; aw < Size8; aw++) {
+                    for (int ww = 0; ww < 8; ww++) {
+                        if ((Raw[SizePerFont + (h * Size8) + aw] & (0x80 >> ww)) != 0) {
                             int max = (aw * 8) + ww;
 
                             int x = X + max;
                             int y = Y + h;
 
-                            if (!Calculate)
-                            {
+                            if (!Calculate) {
                                 Framebuffer.Graphics.DrawPoint(x, y, Color);
 
                                 //AA
@@ -72,13 +55,10 @@ namespace guideXOS.Misc
                                 AtEdge = false;
                             }
 
-                            if (max > MaxX)
-                            {
+                            if (max > MaxX) {
                                 MaxX = max;
                             }
-                        }
-                        else
-                        {
+                        } else {
                             AtEdge = true;
                         }
                     }
@@ -88,12 +68,9 @@ namespace guideXOS.Misc
             return MaxX;
         }
 
-        private static BitFontDescriptor GetBitFontDescriptor(string FontName)
-        {
-            for (int i = 0; i < RegisteredBitFont.Count; i++)
-            {
-                if (RegisteredBitFont[i].Name == FontName)
-                {
+        private static BitFontDescriptor GetBitFontDescriptor(string FontName) {
+            for (int i = 0; i < RegisteredBitFont.Count; i++) {
+                if (RegisteredBitFont[i].Name == FontName) {
                     return RegisteredBitFont[i];
                 }
             }
@@ -102,16 +79,14 @@ namespace guideXOS.Misc
             return null;
         }
 
-        public static int MeasureString(string FontName, string Text, int Divide = 0)
-        {
+        public static int MeasureString(string FontName, string Text, int Divide = 0) {
             BitFontDescriptor bitFontDescriptor = GetBitFontDescriptor(FontName);
 
             int Size = bitFontDescriptor.Size;
             int Size8 = Size / 8;
 
             int UsedX = 0;
-            for (int i = 0; i < Text.Length; i++)
-            {
+            for (int i = 0; i < Text.Length; i++) {
                 char c = Text[i];
                 UsedX += BitFont.DrawChar(bitFontDescriptor.Raw, Size, Size8, 0, bitFontDescriptor.Charset.IndexOf(c), 0, 0, true) + 2 + Divide;
             }
@@ -119,8 +94,7 @@ namespace guideXOS.Misc
             return UsedX;
         }
 
-        public static int DrawString(string FontName, uint color, string Text, int X, int Y, int LineWidth = -1, int Divide = 0)
-        {
+        public static int DrawString(string FontName, uint color, string Text, int X, int Y, int LineWidth = -1, int Divide = 0) {
             BitFontDescriptor bitFontDescriptor = GetBitFontDescriptor(FontName);
 
             int Size = bitFontDescriptor.Size;
@@ -128,11 +102,9 @@ namespace guideXOS.Misc
 
             int Line = 0;
             int UsedX = 0;
-            for (int i = 0; i < Text.Length; i++)
-            {
+            for (int i = 0; i < Text.Length; i++) {
                 char c = Text[i];
-                if (c == '\n' || (LineWidth != -1 && UsedX + bitFontDescriptor.Size > LineWidth))
-                {
+                if (c == '\n' || (LineWidth != -1 && UsedX + bitFontDescriptor.Size > LineWidth)) {
                     Line++;
                     UsedX = 0;
                     continue;

@@ -1,3 +1,5 @@
+using guideXOS.Kernel.Drivers;
+
 namespace guideXOS
 {
     internal static class FPSMeter

@@ -2,16 +2,12 @@
 //https://people.freebsd.org/~wpaul/RealTek/RTL8111B_8168B_Registers_DataSheet_1.0.pdf
 //TO-DO: how to power on the controller?
 
-using guideXOS.Driver;
+using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using System;
 using System.Runtime.InteropServices;
-using static guideXOS.NETv4;
-
-namespace guideXOS
-{
-    internal unsafe class RTL8111
-    {
+namespace guideXOS {
+    internal unsafe class RTL8111 {
         static uint IOBase;
 
         const int NumRX = 2048;
@@ -20,8 +16,7 @@ namespace guideXOS
         const int RXBufferSize = 2048 + 16;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        struct DMADescriptor
-        {
+        struct DMADescriptor {
             public uint command;
             public uint vlan;
             public ulong buffer;
@@ -30,12 +25,10 @@ namespace guideXOS
         static DMADescriptor* RXDescs;
         static DMADescriptor* TXDescs;
 
-        public static void Initialize()
-        {
+        public static void Initialize() {
             PCIDevice dev = null;
 
-            for (int i = 0; i < PCI.Devices.Count; i++)
-            {
+            for (int i = 0; i < PCI.Devices.Count; i++) {
                 if (
                      PCI.Devices[i] != null &&
                      PCI.Devices[i].VendorID == 0x10EC &&
@@ -44,8 +37,7 @@ namespace guideXOS
                         PCI.Devices[i].DeviceID == 0x8168 ||
                         PCI.Devices[i].DeviceID == 0x8169
                       )
-                    )
-                {
+                    ) {
                     dev = PCI.Devices[i];
                 }
             }
@@ -75,8 +67,7 @@ namespace guideXOS
             RXDescs = Allocator.ClearAllocate<DMADescriptor>(NumRX);
             TXDescs = Allocator.ClearAllocate<DMADescriptor>(NumTX);
 
-            for (int i = 0; i < NumRX; i++)
-            {
+            for (int i = 0; i < NumRX; i++) {
                 ResetRXDesc(i);
                 RXDescs[i].buffer = (ulong)Allocator.Allocate(RXBufferSize);
             }
@@ -106,17 +97,14 @@ namespace guideXOS
             NETv4.Sender = &Send;
         }
 
-        private static void ResetRXDesc(int i)
-        {
+        private static void ResetRXDesc(int i) {
             RXDescs[i].command = (1u << 31) | (RXBufferSize & 0x3FFF);
-            if (i == (NumRX - 1))
-            {
+            if (i == (NumRX - 1)) {
                 RXDescs[i].command |= (1u << 30);
             }
         }
 
-        public static void Send(byte* buffer, int length)
-        {
+        public static void Send(byte* buffer, int length) {
             DMADescriptor* desc = &TXDescs[0];
             desc->buffer = (ulong)buffer;
             desc->command = (uint)((1 << 31) | (1 << 30) | (1 << 28) | (length & 0x3FFF));
@@ -128,25 +116,19 @@ namespace guideXOS
             }
         }
 
-        public static void OnInterrupt()
-        {
+        public static void OnInterrupt() {
             ushort status = ReadRegister16(0x3E);
-            if ((status & 0x20) != 0)
-            {
+            if ((status & 0x20) != 0) {
             }
-            if ((status & 0x01) != 0)
-            {
-                for (int i = NumRX - 1; i >= 0; i--)
-                {
-                    if (!BitHelpers.IsBitSet(RXDescs[i].command, 31))
-                    {
+            if ((status & 0x01) != 0) {
+                for (int i = NumRX - 1; i >= 0; i--) {
+                    if (!BitHelpers.IsBitSet(RXDescs[i].command, 31)) {
                         NETv4.OnData((byte*)RXDescs[i].buffer);
                         ResetRXDesc(i);
                     }
                 }
             }
-            if ((status & 0x04) != 0)
-            {
+            if ((status & 0x04) != 0) {
             }
             WriteRegister16(0x3E, status);
         }

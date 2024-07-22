@@ -1,4 +1,5 @@
 using guideXOS.FS;
+using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using guideXOS.OS;
 using System.Collections.Generic;
@@ -27,9 +28,9 @@ namespace guideXOS.GUI {
         /// </summary>
         private static Image FolderIcon;
         /// <summary>
-        /// Doom Icon
+        /// Taskbar Icon
         /// </summary>
-        //private static Image DoomIcon;
+        private static Image TaskbarIcon;
         /// <summary>
         /// Start Icon
         /// </summary>
@@ -37,7 +38,7 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Prefix
         /// </summary>
-        public static string Prefix;
+        //public static string Prefix;
         /// <summary>
         /// Dir
         /// </summary>
@@ -72,15 +73,19 @@ namespace guideXOS.GUI {
         /// Initialize
         /// </summary>
         public static void Initialize() {
-            Taskbar = new Taskbar(40, new PNG(File.ReadAllBytes("Images/file.png")));
             Apps = new AppCollection();
             IndexClicked = -1;
-            FileIcon = new PNG(File.ReadAllBytes("Images/file.png"));
-            IamgeIcon = new PNG(File.ReadAllBytes("Images/Image.png"));
-            AudioIcon = new PNG(File.ReadAllBytes("Images/Audio.png"));
-            FolderIcon = new PNG(File.ReadAllBytes("Images/Folder.png"));
-            StartIcon = new PNG(File.ReadAllBytes("Images/Start.png"));
-            Prefix = " root@guidexos: ";
+            try {
+                TaskbarIcon = new PNG(File.ReadAllBytes("Images/taskbar.png"));
+                FileIcon = new PNG(File.ReadAllBytes("Images/file.png"));
+                IamgeIcon = new PNG(File.ReadAllBytes("Images/Image.png"));
+                AudioIcon = new PNG(File.ReadAllBytes("Images/Audio.png"));
+                FolderIcon = new PNG(File.ReadAllBytes("Images/Folder.png"));
+                StartIcon = new PNG(File.ReadAllBytes("Images/Start.png"));
+            } catch {
+            }
+            Taskbar = new Taskbar(40, TaskbarIcon);
+            //Prefix = " root@guidexos: ";
             Dir = "";
             imageViewer = new ImageViewer(400, 400);
             msgbox = new MessageBox(100, 300);
@@ -183,23 +188,19 @@ namespace guideXOS.GUI {
             }
 
             Taskbar.Draw();
-            //DrawTaskBar();
         }
         /// <summary>
-        /// Draw Task Bar
+        /// Last Point
         /// </summary>
-        //private static void DrawTaskBar() {
-            //Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - BarHeight, Framebuffer.Width, BarHeight, 0xDD222222);
-            //Framebuffer.Graphics.DrawImage(12, Framebuffer.Height - BarHeight + 4, StartIcon);
-            // TASK MANAGER! DON'T FORGET!
-            //string Result = $"guideXos - FPS:{FPSMeter.FPS} | CPU Usage:{ThreadPool.CPUUsage}% | Used Memory: {(Allocator.MemoryInUse / 1024)}kbytes | {RTC.Hour}:{(RTC.Minute < 10 ? "0" : "")}{RTC.Minute}";
-            //WindowManager.font.DrawString(Framebuffer.Graphics.Width - WindowManager.font.MeasureString(Result) - WindowManager.font.FontSize, Framebuffer.Height - BarHeight + (BarHeight / 2) - (WindowManager.font.FontSize / 2), Result);
-            //Result.Dispose();
-
-        //}
-
         public static Point LastPoint;
-
+        /// <summary>
+        /// Click Event
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="isDirectory"></param>
+        /// <param name="X"></param>
+        /// <param name="Y"></param>
+        /// <param name="i"></param>
         private static void ClickEvent(string name, bool isDirectory, int X, int Y, int i) {
             if (Control.MouseButtons == MouseButtons.Left) {
                 bool clickable = true;

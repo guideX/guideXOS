@@ -1,19 +1,18 @@
 using Internal.Runtime.CompilerServices;
 using guideXOS;
-using guideXOS.Driver;
 using guideXOS.Misc;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using static Internal.Runtime.CompilerHelpers.InteropHelpers;
+using guideXOS.Kernel.Helpers;
+using guideXOS.Kernel.Drivers;
 
-public static class IDT
-{
+public static class IDT {
     [DllImport("*")]
     private static extern unsafe void set_idt_entries(void* idt);
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    private struct IDTEntry
-    {
+    private struct IDTEntry {
         public ushort BaseLow;
         public ushort Selector;
         public byte Reserved0;
@@ -24,8 +23,7 @@ public static class IDT
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct IDTDescriptor
-    {
+    public struct IDTDescriptor {
         public ushort Limit;
         public ulong Base;
     }
@@ -37,14 +35,12 @@ public static class IDT
     public static bool Initialized { get; private set; }
 
 
-    public static unsafe bool Initialize()
-    {
+    public static unsafe bool Initialize() {
         idt = new IDTEntry[256];
 
         set_idt_entries(Unsafe.AsPointer(ref idt[0]));
 
-        fixed (IDTEntry* _idt = idt)
-        {
+        fixed (IDTEntry* _idt = idt) {
             idtr.Limit = (ushort)((sizeof(IDTEntry) * 256) - 1);
             idtr.Base = (ulong)_idt;
         }
@@ -55,18 +51,15 @@ public static class IDT
         return true;
     }
 
-    public static void Enable()
-    {
+    public static void Enable() {
         Native.Sti();
     }
 
-    public static void Disable()
-    {
+    public static void Disable() {
         Native.Cli();
     }
 
-    public struct RegistersStack 
-    {
+    public struct RegistersStack {
         public ulong rax;
         public ulong rcx;
         public ulong rdx;
@@ -84,8 +77,7 @@ public static class IDT
     }
 
     //https://os.phil-opp.com/returning-from-exceptions/
-    public struct InterruptReturnStack
-    {
+    public struct InterruptReturnStack {
         public ulong rip;
         public ulong cs;
         public ulong rflags;
@@ -93,22 +85,18 @@ public static class IDT
         public ulong ss;
     }
 
-    public struct IDTStackGeneric
-    {
+    public struct IDTStackGeneric {
         public RegistersStack rs;
         public ulong errorCode;
         public InterruptReturnStack irs;
     }
 
     [RuntimeExport("intr_handler")]
-    public static unsafe void intr_handler(int irq, IDTStackGeneric* stack)
-    {
-        if(irq < 0x20)
-        {
+    public static unsafe void intr_handler(int irq, IDTStackGeneric* stack) {
+        if (irq < 0x20) {
             Panic.Error($"CPU{SMP.ThisCPU} KERNEL PANIC!!!", true);
             InterruptReturnStack* irs;
-            switch (irq)
-            {
+            switch (irq) {
                 case 8:
                 case 10:
                 case 11:
@@ -131,8 +119,7 @@ public static class IDT
             Console.WriteLine($"RFlags: 0x{stack->irs.rflags.ToString("x2")}");
             Console.WriteLine($"RSP: 0x{stack->irs.rsp.ToString("x2")}");
             Console.WriteLine($"Stack Segment: 0x{stack->irs.ss.ToString("x2")}");
-            switch (irq)
-            {
+            switch (irq) {
                 case 0: Console.WriteLine("DIVIDE BY ZERO"); break;
                 case 1: Console.WriteLine("SINGLE STEP"); break;
                 case 2: Console.WriteLine("NMI"); break;
@@ -149,12 +136,9 @@ public static class IDT
                 case 13: Console.WriteLine("GENERAL PROTECTION"); break;
                 case 14:
                     ulong CR2 = Native.ReadCR2();
-                    if ((CR2 >> 5) < 0x1000)
-                    {
+                    if ((CR2 >> 5) < 0x1000) {
                         Console.WriteLine("NULL POINTER");
-                    }
-                    else
-                    {
+                    } else {
                         Console.WriteLine("PAGE FAULT");
                     }
                     break;
@@ -166,26 +150,22 @@ public static class IDT
         }
 
         //DEAD
-        if(irq == 0xFD) 
-        {
+        if (irq == 0xFD) {
             Native.Cli();
             Native.Hlt();
             for (; ; ) Native.Hlt();
         }
 
         //For main processor
-        if (SMP.ThisCPU == 0)
-        {
+        if (SMP.ThisCPU == 0) {
             //System calls
-            if (irq == 0x80)
-            {
+            if (irq == 0x80) {
                 var pCell = (MethodFixupCell*)stack->rs.rcx;
-                string name = string.FromASCII(pCell->Module->ModuleName, strings.strlen((byte*)pCell->Module->ModuleName));
+                string name = string.FromASCII(pCell->Module->ModuleName, StringHelper.StringLength((byte*)pCell->Module->ModuleName));
                 stack->rs.rax = (ulong)API.HandleSystemCall(name);
                 name.Dispose();
             }
-            switch (irq)
-            {
+            switch (irq) {
                 case 0x20:
                     //misc.asm Schedule_Next
                     if (stack->rs.rdx != 0x61666E6166696E)
@@ -195,8 +175,7 @@ public static class IDT
             Interrupts.HandleInterrupt(irq);
         }
 
-        if (irq == 0x20)
-        {
+        if (irq == 0x20) {
             ThreadPool.Schedule(stack);
         }
 

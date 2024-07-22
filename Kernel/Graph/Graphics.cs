@@ -1,80 +1,54 @@
 using System;
 using System.Drawing;
-
-namespace guideXOS.Graph
-{
-    public unsafe class Graphics
-    {
+namespace guideXOS.Graph {
+    public unsafe class Graphics {
         public uint* VideoMemory;
         public int Width;
         public int Height;
-
-        public Graphics(int width,int height,void* vm)
-        {
+        public Graphics(int width, int height, void* vm) {
             this.Width = width;
             this.Height = height;
             this.VideoMemory = (uint*)vm;
         }
-
-        public static Graphics FromImage(Image img)
-        {
+        public static Graphics FromImage(Image img) {
             fixed (int* ptr = img.RawData)
                 return new Graphics(img.Width, img.Height, ptr);
         }
-
         public virtual void Update() { }
-
-        public virtual void Clear(uint Color)
-        {
+        public virtual void Clear(uint Color) {
             Native.Stosd(VideoMemory, Color, (ulong)(Width * Height));
         }
-
-        public virtual void Copy(int dX, int dY, int sX, int sY, int Width, int Height)
-        {
-            for (int w = 0; w < Width; w++)
-            {
-                for (int h = 0; h < Height; h++)
-                {
+        public virtual void Copy(int dX, int dY, int sX, int sY, int Width, int Height) {
+            for (int w = 0; w < Width; w++) {
+                for (int h = 0; h < Height; h++) {
                     DrawPoint(dX + w, dY + h, GetPoint(sX + w, sY + h));
                 }
             }
         }
-
-        public virtual void FillRectangle(int X, int Y, int Width, int Height, uint Color)
-        {
-            for (int w = 0; w < Width; w++)
-            {
-                for (int h = 0; h < Height; h++)
-                {
+        public virtual void FillRectangle(int X, int Y, int Width, int Height, uint Color) {
+            for (int w = 0; w < Width; w++) {
+                for (int h = 0; h < Height; h++) {
                     DrawPoint(X + w, Y + h, Color);
                 }
             }
         }
-
-        public virtual void AFillRectangle(int X, int Y, int Width, int Height, uint Color)
-        {
-            for (int w = 0; w < Width; w++)
-            {
-                for (int h = 0; h < Height; h++)
-                {
+        public virtual void AFillRectangle(int X, int Y, int Width, int Height, uint Color) {
+            for (int w = 0; w < Width; w++) {
+                for (int h = 0; h < Height; h++) {
                     DrawPoint(X + w, Y + h, Color, true);
                 }
             }
         }
 
-        public virtual uint GetPoint(int X, int Y)
-        {
-            if (X > 0 && Y > 0 && X < Width && Y < Height)
-            {
+        public virtual uint GetPoint(int X, int Y) {
+            if (X > 0 && Y > 0 && X < Width && Y < Height) {
                 return VideoMemory[Width * Y + X];
             }
             return 0;
         }
 
-        public virtual void DrawPoint(int X, int Y, uint color, bool alphaBlending = false)
-        {
-            if (alphaBlending)
-            {
+        public virtual void DrawPoint(int X, int Y, uint color, bool alphaBlending = false) {
+            if (alphaBlending) {
                 uint foreground = color;
                 int fA = (byte)((foreground >> 24) & 0xFF);
                 int fR = (byte)((foreground >> 16) & 0xFF);
@@ -97,14 +71,12 @@ namespace guideXOS.Graph
                 color = Color.ToArgb((byte)newR, (byte)newG, (byte)newB);
             }
 
-            if (X > 0 && Y > 0 && X < Width && Y < Height)
-            {
+            if (X > 0 && Y > 0 && X < Width && Y < Height) {
                 VideoMemory[Width * Y + X] = color;
             }
         }
 
-        public virtual void DrawRectangle(int X, int Y, int Width, int Height, uint Color, int Weight = 1)
-        {
+        public virtual void DrawRectangle(int X, int Y, int Width, int Height, uint Color, int Weight = 1) {
             FillRectangle(X, Y, Width, Weight, Color);
 
             FillRectangle(X, Y, Weight, Height, Color);
@@ -113,51 +85,40 @@ namespace guideXOS.Graph
             FillRectangle(X, Y + (Height - Weight), Width, Weight, Color);
         }
 
-        public virtual Image Save()
-        {
+        public virtual Image Save() {
             Image image = new Image(Width, Height);
-            fixed (int* ptr = image.RawData)
-            {
+            fixed (int* ptr = image.RawData) {
                 Native.Movsd((uint*)ptr, VideoMemory, (ulong)(Width * Height));
             }
             return image;
         }
 
-        public virtual void ADrawImage(int X, int Y, Image image, byte alpha)
-        {
+        public virtual void ADrawImage(int X, int Y, Image image, byte alpha) {
             for (int h = 0; h < image.Height; h++)
-                for (int w = 0; w < image.Width; w++)
-                {
+                for (int w = 0; w < image.Width; w++) {
                     uint foreground = (uint)image.RawData[image.Width * h + w];
                     foreground &= ~0xFF000000;
                     foreground |= (uint)alpha << 24;
                     int fA = (byte)((foreground >> 24) & 0xFF);
 
-                    if (fA != 0)
-                    {
+                    if (fA != 0) {
                         DrawPoint(X + w, Y + h, foreground, true);
                     }
                 }
         }
 
-        public virtual void DrawImage(int X, int Y, Image image, bool AlphaBlending = true)
-        {
-            if (AlphaBlending) 
-            {
+        public virtual void DrawImage(int X, int Y, Image image, bool AlphaBlending = true) {
+            if (AlphaBlending) {
                 for (int h = 0; h < image.Height; h++)
-                    for (int w = 0; w < image.Width; w++)
-                    {
+                    for (int w = 0; w < image.Width; w++) {
                         uint foreground = (uint)image.RawData[image.Width * h + w];
                         int fA = (byte)((foreground >> 24) & 0xFF);
 
-                        if (fA != 0)
-                        {
+                        if (fA != 0) {
                             DrawPoint(X + w, Y + h, foreground, true);
                         }
                     }
-            }
-            else 
-            {
+            } else {
                 int _x = 0;
                 int _y = 0;
                 int clip_x = 0;
@@ -167,68 +128,59 @@ namespace guideXOS.Graph
                 if (Y < 0) _y = Y;
                 if (X + image.Width >= Width) clip_x = X - (Width - image.Width - 1);
                 if (Y + image.Height >= Height) clip_y = Y - (Height - image.Height - 1);
-                if(
-                    _x !>= -image.Width &&
-                    _y !>= -image.Height &&
+                if (
+                    _x! >= -image.Width &&
+                    _y! >= -image.Height &&
 
                     clip_x < image.Width &&
                     clip_y < image.Height
                     )
-                fixed(int* ptr = image.RawData)
-                for(int h = 1; h < image.Height + _y - clip_y + 1; h++) 
-                {
-                    Native.Movsd(VideoMemory + (Width * ((Y-_y) + h) + (X-_x)) + 1, (uint*)(ptr + ((h-_y) * image.Width) + 1 - _x), (ulong)(image.Width + _x - clip_x));
-                }
+                    fixed (int* ptr = image.RawData)
+                        for (int h = 1; h < image.Height + _y - clip_y + 1; h++) {
+                            Native.Movsd(VideoMemory + (Width * ((Y - _y) + h) + (X - _x)) + 1, (uint*)(ptr + ((h - _y) * image.Width) + 1 - _x), (ulong)(image.Width + _x - clip_x));
+                        }
             }
         }
 
-        #region Xiaolin Wu's line algorithm
         // swaps two numbers
-        void Swap(int* a, int* b)
-        {
+        void Swap(int* a, int* b) {
             int temp = *a;
             *a = *b;
             *b = temp;
         }
 
         // returns absolute value of number
-        float Absolute(float x)
-        {
+        float Absolute(float x) {
             if (x < 0) return -x;
             else return x;
         }
 
         //returns integer part of a floating point number
-        int IPartOfNumber(float x)
-        {
+        int IPartOfNumber(float x) {
             return (int)x;
         }
 
         //rounds off a number
-        int RoundNumber(float x)
-        {
+        int RoundNumber(float x) {
             return IPartOfNumber(x + 0.5f);
         }
 
         //returns fractional part of a number
-        float FPartOfNumber(float x)
-        {
+        float FPartOfNumber(float x) {
             if (x > 0) return x - IPartOfNumber(x);
             else return x - (IPartOfNumber(x) + 1);
 
         }
 
         //returns 1 - fractional part of number
-        float RFPartOfNumber(float x)
-        {
+        float RFPartOfNumber(float x) {
             return 1 - FPartOfNumber(x);
         }
 
         // draws a pixel on screen of given brightness
         // 0<=brightness<=1. We can use your own library
         // to draw on screen
-        public virtual void DrawPoint(int X, int Y, uint Color, float Brightness)
-        {
+        public virtual void DrawPoint(int X, int Y, uint Color, float Brightness) {
             byte A = (byte)((Color >> 24) & 0xFF);
             byte R = (byte)((Color >> 16) & 0xFF);
             byte G = (byte)((Color >> 8) & 0xFF);
@@ -237,19 +189,16 @@ namespace guideXOS.Graph
             DrawPoint(X, Y, System.Drawing.Color.ToArgb(A, R, G, B), true);
         }
 
-        public virtual void DrawLine(int x0, int y0, int x1, int y1, uint color)
-        {
+        public virtual void DrawLine(int x0, int y0, int x1, int y1, uint color) {
             bool steep = Absolute(y1 - y0) > Absolute(x1 - x0);
 
             // swap the co-ordinates if slope > 1 or we
             // draw backwards
-            if (steep)
-            {
+            if (steep) {
                 Swap(&x0, &y0);
                 Swap(&x1, &y1);
             }
-            if (x0 > x1)
-            {
+            if (x0 > x1) {
                 Swap(&x0, &x1);
                 Swap(&y0, &y1);
             }
@@ -266,11 +215,9 @@ namespace guideXOS.Graph
             float intersectY = y0;
 
             // main loop
-            if (steep)
-            {
+            if (steep) {
                 int x;
-                for (x = xpxl1; x <= xpxl2; x++)
-                {
+                for (x = xpxl1; x <= xpxl2; x++) {
                     // pixel coverage is determined by fractional
                     // part of y co-ordinate
                     DrawPoint(IPartOfNumber(intersectY), x, color,
@@ -279,12 +226,9 @@ namespace guideXOS.Graph
                                 FPartOfNumber(intersectY));
                     intersectY += gradient;
                 }
-            }
-            else
-            {
+            } else {
                 int x;
-                for (x = xpxl1; x <= xpxl2; x++)
-                {
+                for (x = xpxl1; x <= xpxl2; x++) {
                     // pixel coverage is determined by fractional
                     // part of y co-ordinate
                     DrawPoint(x, IPartOfNumber(intersectY), color,
@@ -296,6 +240,5 @@ namespace guideXOS.Graph
             }
 
         }
-        #endregion
     }
 }

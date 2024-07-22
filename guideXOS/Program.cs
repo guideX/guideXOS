@@ -1,7 +1,7 @@
 using guideXOS;
-using guideXOS.Driver;
 using guideXOS.FS;
 using guideXOS.GUI;
+using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using System;
 using System.Drawing;
@@ -217,8 +217,6 @@ unsafe class Program {
     public static RightMenu rightmenu;
 
     public static void SMain() {
-        Console.WriteLine("Press any key to enter desktop...");
-
         Framebuffer.TripleBuffered = true;
 
         /*
@@ -231,7 +229,7 @@ unsafe class Program {
         Wallpaper = wall.ResizeImage(Framebuffer.Width, Framebuffer.Height);
         wall.Dispose();
 
-        //Lockscreen.Run();
+        Lockscreen.Run();
         FConsole = null;
         
         var welcome = new Welcome(500, 250);
@@ -336,6 +334,11 @@ unsafe class Program {
             FPSMeter.Update();
         }
     }
+
+    //private static void Console_OnWrite(char chr) {
+        //Console.Write(chr.ToString());
+    //}
+
     /// <summary>
     /// Init Console
     /// </summary>

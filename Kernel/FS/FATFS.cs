@@ -1,16 +1,13 @@
+using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Runtime;
 using System.Runtime.InteropServices;
-
-namespace guideXOS.FS
-{
-    public unsafe class FATFS : FileSystem
-    {
+namespace guideXOS.FS {
+    public unsafe class FATFS : FileSystem {
         [DllImport("*")]
         private static extern void fatfs_init();
 
-        public FATFS()
-        {
+        public FATFS() {
             fatfs_init();
         }
 
@@ -20,8 +17,7 @@ namespace guideXOS.FS
 
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Info
-        {
+        public struct Info {
             //The maximum file length of exFAT
             public fixed char Name[255];
             public byte Attribute;
@@ -29,16 +25,14 @@ namespace guideXOS.FS
             byte C_alignment;
         }
 
-        public override List<FileInfo> GetFiles(string Directory)
-        {
+        public override List<FileInfo> GetFiles(string Directory) {
             if (Directory.Length != 0 && Directory[Directory.Length - 1] == '/') Directory[Directory.Length - 1] = '\0';
             Info* infos;
             fixed (char* p = Directory)
-            infos = get_files(p);
+                infos = get_files(p);
             int i = 0;
             List<FileInfo> files = new List<FileInfo>();
-            while (infos[i].Name[0] != 0) 
-            {
+            while (infos[i].Name[0] != 0) {
                 files.Add(new FileInfo()
                 {
                     Name = new string(infos[i].Name),
@@ -50,8 +44,7 @@ namespace guideXOS.FS
         }
 
         [RuntimeExport("get_fattime")]
-        public static uint get_fattime() 
-        {
+        public static uint get_fattime() {
             uint year = RTC.Year;
             //TO-DO 2100year
             year += 2000;
@@ -75,15 +68,13 @@ namespace guideXOS.FS
         }
 
         [RuntimeExport("RAM_disk_write")]
-        public static int RAM_disk_write(byte* buffer, ulong sector, uint count)
-        {
+        public static int RAM_disk_write(byte* buffer, ulong sector, uint count) {
             Disk.Instance.Write(sector, count, buffer);
             return 0;
         }
 
         [RuntimeExport("RAM_disk_read")]
-        public static int RAM_disk_read(byte* buffer, ulong sector, uint count)
-        {
+        public static int RAM_disk_read(byte* buffer, ulong sector, uint count) {
             Disk.Instance.Read(sector, count, buffer);
             return 0;
         }
@@ -97,19 +88,15 @@ namespace guideXOS.FS
         [DllImport("*")]
         private static extern void format_exfat();
 
-        public override void Format() 
-        {
+        public override void Format() {
             format_exfat();
         }
 
-        public override byte[] ReadAllBytes(string Name)
-        {
-            fixed (char* p = Name)
-            {
+        public override byte[] ReadAllBytes(string Name) {
+            fixed (char* p = Name) {
                 uint size = read_all_bytes((char*)p, out void* data);
                 byte[] buffer = new byte[size];
-                fixed (byte* pp = buffer)
-                {
+                fixed (byte* pp = buffer) {
                     Native.Movsb(pp, data, size);
                 }
                 Allocator.Free((System.IntPtr)data);
@@ -120,20 +107,15 @@ namespace guideXOS.FS
         [DllImport("*")]
         public static extern int f_unlink(char* filename);
 
-        public override void Delete(string Name) 
-        {
-            fixed(char* ptr = Name) 
-            {
+        public override void Delete(string Name) {
+            fixed (char* ptr = Name) {
                 f_unlink(ptr);
             }
         }
 
-        public override void WriteAllBytes(string Name, byte[] Content) 
-        {
-            fixed(char* fname = Name) 
-            {
-                fixed (byte* buffer = Content)
-                {
+        public override void WriteAllBytes(string Name, byte[] Content) {
+            fixed (char* fname = Name) {
+                fixed (byte* buffer = Content) {
                     write_all_bytes(fname, buffer, Content.Length);
                 }
             }

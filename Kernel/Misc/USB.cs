@@ -1,13 +1,10 @@
-using guideXOS.Driver;
+using guideXOS.Kernel.Drivers;
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace guideXOS.Misc
-{
-    public class USBDevice
-    {
+namespace guideXOS.Misc {
+    public class USBDevice {
         public byte USBVersion;
 
         public int Speed;
@@ -32,8 +29,7 @@ namespace guideXOS.Misc
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public unsafe struct USBRequest
-    {
+    public unsafe struct USBRequest {
         public byte RequestType;
         public byte Request;
 
@@ -41,39 +37,30 @@ namespace guideXOS.Misc
         public ushort Index;
         public ushort Length;
 
-        public void Clean() 
-        {
+        public void Clean() {
             fixed (void* p = &this)
                 Native.Stosb(p, 0, (ulong)sizeof(USBRequest));
         }
     }
 
-    public static unsafe class USB
-    {
+    public static unsafe class USB {
         public static byte NumDevice;
         public static byte DeviceAddr;
 
-        public static bool SendAndReceive(USBDevice device, USBRequest* cmd, void* buffer,USBDevice parent)
-        {
-            if (device.USBVersion == 2)
-            {
-                return EHCI.SendAndReceive(device.Address, cmd, buffer, parent,device.Speed);
-            }
-            else
-            {
+        public static bool SendAndReceive(USBDevice device, USBRequest* cmd, void* buffer, USBDevice parent) {
+            if (device.USBVersion == 2) {
+                return EHCI.SendAndReceive(device.Address, cmd, buffer, parent, device.Speed);
+            } else {
                 return false;
             }
         }
 
-        public static void OnInterrupt() 
-        {
-            if(HID.Keyboard != null)
-            {
+        public static void OnInterrupt() {
+            if (HID.Keyboard != null) {
                 HID.GetKeyboard(HID.Keyboard, out byte ScanCode, out ConsoleKey Key);
                 Keyboard.KeyInfo.KeyState = Key != ConsoleKey.None ? ConsoleKeyState.Pressed : ConsoleKeyState.Released;
 
-                if(Key != ConsoleKey.None)
-                {
+                if (Key != ConsoleKey.None) {
                     Keyboard.KeyInfo.ScanCode = ScanCode;
                     Keyboard.KeyInfo.Key = Key;
                 }
@@ -81,8 +68,7 @@ namespace guideXOS.Misc
                 Keyboard.InvokeOnKeyChanged(Keyboard.KeyInfo);
             }
 
-            if (!VMwareTools.Available && HID.Mouse != null)
-            {
+            if (!VMwareTools.Available && HID.Mouse != null) {
                 HID.GetMouse(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out MouseButtons buttons);
 
                 Control.MousePosition.X = Math.Clamp(Control.MousePosition.X + AxisX, 0, Framebuffer.Width);
@@ -92,19 +78,15 @@ namespace guideXOS.Misc
             }
         }
 
-        public static bool InitPort(int port, USBDevice parent,int version,int speed) 
-        {
-            if(version == 2)
-            {
+        public static bool InitPort(int port, USBDevice parent, int version, int speed) {
+            if (version == 2) {
                 EHCI.InitPort(port, parent, speed);
             }
             return false;
         }
 
-        public static void DriveDevice(USBDevice device)
-        {
-            switch (device.Class)
-            {
+        public static void DriveDevice(USBDevice device) {
+            switch (device.Class) {
                 case 3:
                     HID.Initialize(device);
                     break;
@@ -118,27 +100,21 @@ namespace guideXOS.Misc
             }
         }
 
-        public static void Reset()
-        {
+        public static void Reset() {
             USB.NumDevice = 0;
             USB.DeviceAddr = 0;
         }
 
-        public static void StartPolling()
-        {
+        public static void StartPolling() {
             new Thread(&LoopPoll).Start();
         }
 
-        static void LoopPoll()
-        {
+        static void LoopPoll() {
             for (; ; )
             {
-                if (USB.NumDevice != 0)
-                {
+                if (USB.NumDevice != 0) {
                     USB.OnInterrupt();
-                }
-                else
-                {
+                } else {
                     ThreadPool.Schedule_Next();
                 }
             }

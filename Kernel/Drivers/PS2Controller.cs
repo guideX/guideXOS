@@ -1,0 +1,8 @@
+﻿namespace guideXOS.Kernel.Drivers {
+    public static class PS2Controller {
+        public static void Initialize() {
+            PS2Keyboard.Initialize();
+            PS2Mouse.Initialise();
+        }
+    }
+}

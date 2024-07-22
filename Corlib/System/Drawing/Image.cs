@@ -1,3 +1,5 @@
+using System.Windows.Forms;
+
 namespace System.Drawing
 {
     public class Image
@@ -19,7 +21,17 @@ namespace System.Drawing
         {
 
         }
-
+                /// <summary>
+        /// Is Under Mouse
+        /// </summary>
+        /// <returns></returns>
+        public bool IsUnderMouse(int X, int Y) {
+            if (Control.MousePosition.X > X && 
+                Control.MousePosition.X < X + Width && 
+                Control.MousePosition.Y > Y && 
+                Control.MousePosition.Y < Y + Height) return true;
+            return false;
+        }
         public uint GetPixel(int X, int Y)
         {
             return (uint)RawData[Y * Width + X];

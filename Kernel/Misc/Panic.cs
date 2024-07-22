@@ -1,12 +1,8 @@
-using guideXOS.Driver;
+using guideXOS.Kernel.Drivers;
 using System;
-
-namespace guideXOS.Misc
-{
-    public static class Panic
-    {
-        public static void Error(string msg,bool skippable = false)
-        {
+namespace guideXOS.Misc {
+    public static class Panic {
+        public static void Error(string msg, bool skippable = false) {
             //Kill all CPUs
             LocalAPIC.SendAllInterrupt(0xFD);
             IDT.Disable();
@@ -21,8 +17,7 @@ namespace guideXOS.Misc
 
             Console.ForegroundColor = color;
 
-            if (!skippable)
-            {
+            if (!skippable) {
                 Framebuffer.Update();
                 for (; ; );
             }

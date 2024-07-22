@@ -1,5 +1,5 @@
-﻿using guideXOS.Driver;
-using guideXOS.FS;
+﻿using guideXOS.FS;
+using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using System.Drawing;
 using System.Windows.Forms;
