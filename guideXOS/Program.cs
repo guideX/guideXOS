@@ -151,6 +151,7 @@ unsafe class Program {
         //test();
         Audio.Initialize();
         AC97.Initialize();
+        if (AC97.DeviceLocated) Console.WriteLine("Device Located: " + AC97.DeviceName);
         ES1371.Initialize();
         /*
         for (; ; )

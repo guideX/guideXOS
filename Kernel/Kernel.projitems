@@ -81,8 +81,10 @@
     <Compile Include="$(MSBuildThisFileDirectory)SSE.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Libraries\stdio.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Libraries\stdlib.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Structs\BufferDescriptor.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="$(MSBuildThisFileDirectory)Drivers\Base\" />
     <Folder Include="$(MSBuildThisFileDirectory)Libraries\" />
   </ItemGroup>
 </Project>

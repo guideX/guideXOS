@@ -7,6 +7,30 @@ namespace guideXOS.Kernel.Drivers {
     /// </summary>
     public unsafe class ACPI {
         /// <summary>
+        /// Device Located
+        /// </summary>
+        public static bool DeviceLocated {
+            get {
+                return _deviceLocated;
+            }
+        }
+        /// <summary>
+        /// Device Name
+        /// </summary>
+        public static string DeviceName {
+            get {
+                return _deviceName;
+            }
+        }
+        /// <summary>
+        /// Device Located
+        /// </summary>
+        private static bool _deviceLocated;
+        /// <summary>
+        /// Device Name
+        /// </summary>
+        private static string _deviceName;
+        /// <summary>
         /// SLP TYPa
         /// </summary>
         private static short SLP_TYPa;
@@ -240,8 +264,8 @@ namespace guideXOS.Kernel.Drivers {
                     ParseDT((ACPI_HEADER*)address);
                 }
             }
-
-            //Console.WriteLine("[ACPI] ACPI Initialized");
+            _deviceLocated = true;
+            _deviceName = "[ACPI] ACPI";
         }
 
         private static void ParseDT(ACPI_HEADER* hdr) {
