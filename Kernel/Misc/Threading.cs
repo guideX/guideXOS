@@ -1,8 +1,8 @@
+using guideXOS.Kernel.Drivers;
 using Internal.Runtime.CompilerServices;
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using guideXOS.Kernel.Drivers;
 namespace guideXOS.Misc {
     public unsafe class Thread {
         public bool Terminated;

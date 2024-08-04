@@ -1,12 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime;
 
-namespace guideXOS.Misc
-{
-    public static unsafe class Audio
-    {
+namespace guideXOS.Misc {
+    public static unsafe class Audio {
         public const int SampleRate = 44100;
         public static bool HasAudioDevice;
 
@@ -16,8 +11,7 @@ namespace guideXOS.Misc
 
         public static bool CanTake;
 
-        public static void Initialize() 
-        {
+        public static void Initialize() {
             CanTake = true;
             HasAudioDevice = false;
 
@@ -29,11 +23,9 @@ namespace guideXOS.Misc
         public static int bytesWritten;
 
         [RuntimeExport("snd_write")]
-        public static int snd_write(byte* buffer, int len)
-        {
+        public static int snd_write(byte* buffer, int len) {
             CanTake = false;
-            if (bytesWritten + len > CacheSize)
-            {
+            if (bytesWritten + len > CacheSize) {
                 Native.Movsb(cache + bytesWritten - len, cache + bytesWritten, len);
                 bytesWritten -= len;
             }
@@ -45,28 +37,22 @@ namespace guideXOS.Misc
         }
 
         [RuntimeExport("snd_clear")]
-        public static void snd_clear()
-        {
+        public static void snd_clear() {
             bytesWritten = 0;
         }
 
-        public static bool require(byte* buffer)
-        {
-            if (CanTake && bytesWritten > 0)
-            {
+        public static bool require(byte* buffer) {
+            if (CanTake && bytesWritten > 0) {
                 int size = SizePerPacket > bytesWritten ? bytesWritten : SizePerPacket;
 
                 Native.Movsb(buffer, cache, size);
                 bytesWritten -= size;
-                if(bytesWritten > SizePerPacket)
-                {
+                if (bytesWritten > SizePerPacket) {
                     Native.Movsb(cache, cache + size, bytesWritten);
                 }
 
                 return true;
-            }
-            else
-            {
+            } else {
                 return false;
             }
         }

@@ -1,19 +1,15 @@
 using guideXOS.Misc;
 
-namespace guideXOS
-{
-    public static unsafe class PageTable
-    {
-        public enum PageSize
-        {
+namespace guideXOS {
+    public static unsafe class PageTable {
+        public enum PageSize {
             Typical = 4096,
             //Huge = 0x200000
         }
 
         public static ulong* PML4;
 
-        internal static void Initialise()
-        {
+        internal static void Initialise() {
             PML4 = (ulong*)SMP.SharedPageTable;
 
             Native.Stosb(PML4, 0, 0x1000);
@@ -21,17 +17,15 @@ namespace guideXOS
             ulong i = 0;
             //Map the first 4KiB-4GiB
             //Reserve 4KiB for null reference exception
-            for (i = (ulong)PageSize.Typical; i < 1024 * 1024 * 1024 * 4UL; i += (ulong)PageSize.Typical)
-            {
+            for (i = (ulong)PageSize.Typical; i < 1024 * 1024 * 1024 * 4UL; i += (ulong)PageSize.Typical) {
                 Map(i, i, PageSize.Typical);
             }
 
             Native.WriteCR3((ulong)PML4);
         }
 
-        public static ulong* GetPage(ulong VirtualAddress, PageSize pageSize = PageSize.Typical)
-        {
-            if((VirtualAddress % (ulong)PageSize.Typical) != 0) Panic.Error("Invalid address");
+        public static ulong* GetPage(ulong VirtualAddress, PageSize pageSize = PageSize.Typical) {
+            if ((VirtualAddress % (ulong)PageSize.Typical) != 0) Panic.Error("Invalid address");
 
             ulong pml4_entry = (VirtualAddress & ((ulong)0x1ff << 39)) >> 39;
             ulong pml3_entry = (VirtualAddress & ((ulong)0x1ff << 30)) >> 30;
@@ -48,8 +42,7 @@ namespace guideXOS
             }
             else 
             */
-            if (pageSize == PageSize.Typical)
-            {
+            if (pageSize == PageSize.Typical) {
                 ulong* pml1 = Next(pml2, pml2_entry);
                 return &pml1[pml1_entry];
             }
@@ -61,8 +54,7 @@ namespace guideXOS
         /// </summary>
         /// <param name="VirtualAddress"></param>
         /// <param name="PhysicalAddress"></param>
-        public static void Map(ulong VirtualAddress, ulong PhysicalAddress, PageSize pageSize = PageSize.Typical)
-        {
+        public static void Map(ulong VirtualAddress, ulong PhysicalAddress, PageSize pageSize = PageSize.Typical) {
             /*
             if (pageSize == PageSize.Huge)
             {
@@ -70,24 +62,19 @@ namespace guideXOS
             }
             else 
             */
-            if (pageSize == PageSize.Typical)
-            {
+            if (pageSize == PageSize.Typical) {
                 *GetPage(VirtualAddress, pageSize) = PhysicalAddress | 0b11;
             }
 
             Native.Invlpg(PhysicalAddress);
         }
 
-        public static ulong* Next(ulong* Directory, ulong Entry)
-        {
+        public static ulong* Next(ulong* Directory, ulong Entry) {
             ulong* p = null;
 
-            if (((Directory[Entry]) & 0x01) != 0)
-            {
+            if (((Directory[Entry]) & 0x01) != 0) {
                 p = (ulong*)(Directory[Entry] & 0x000F_FFFF_FFFF_F000);
-            }
-            else
-            {
+            } else {
                 p = (ulong*)Allocator.Allocate(0x1000);
                 Native.Stosb(p, 0, 0x1000);
 

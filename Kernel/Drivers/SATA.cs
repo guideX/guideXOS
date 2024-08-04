@@ -52,7 +52,6 @@ namespace guideXOS.Kernel.Drivers {
             public uint PRDBCount;
             public ulong CommandTableBaseAddress;
             public fixed uint Reserved1[4];
-
             public byte CommandFISLength {
                 get {
                     return (byte)(P1 & 0x1F);
@@ -63,13 +62,18 @@ namespace guideXOS.Kernel.Drivers {
                     P1 |= (byte)(value & 0x1F);
                 }
             }
+            /// <summary>
+            /// ATAPI
+            /// </summary>
 
-            public bool ATAPI {
+            public readonly bool ATAPI {
                 get {
                     return BitHelpers.IsBitSet(P1, 5);
                 }
             }
-
+            /// <summary>
+            /// Write
+            /// </summary>
             public bool Write {
                 get {
                     return BitHelpers.IsBitSet(P1, 6);
@@ -84,19 +88,21 @@ namespace guideXOS.Kernel.Drivers {
                 }
             }
 
-            public bool Prefetchable {
+            public readonly bool Prefetchable {
                 get {
                     return BitHelpers.IsBitSet(P1, 7);
                 }
             }
-
-            public bool Reset {
+            /// <summary>
+            /// Reset
+            /// </summary>
+            public readonly bool Reset {
                 get {
                     return BitHelpers.IsBitSet(P2, 0);
                 }
             }
 
-            public bool BIST {
+            public readonly bool BIST {
                 get {
                     return BitHelpers.IsBitSet(P2, 1);
                 }
@@ -106,7 +112,6 @@ namespace guideXOS.Kernel.Drivers {
                 get {
                     return BitHelpers.IsBitSet(P2, 2);
                 }
-
                 set {
                     if (value) {
                         P2 |= 1 << 2;
@@ -116,13 +121,13 @@ namespace guideXOS.Kernel.Drivers {
                 }
             }
 
-            public bool Reserved0 {
+            public readonly bool Reserved0 {
                 get {
                     return BitHelpers.IsBitSet(P2, 3);
                 }
             }
 
-            public byte PortMultiplier {
+            public readonly byte PortMultiplier {
                 get {
                     return (byte)((P2 & 0xF0) >> 4);
                 }
@@ -159,7 +164,7 @@ namespace guideXOS.Kernel.Drivers {
                         if ((Controller->PortsImplemented & (1 << k)) != 0) {
                             SATAPortType type = CheckPortType(&(&Controller->Ports)[k]);
                             if (type == SATAPortType.SATA || type == SATAPortType.ATAPI) {
-                                SATADevice sata = new SATADevice();
+                                SATADevice sata = new();
                                 sata.PortType = type;
                                 sata.HBAPort = &(&Controller->Ports)[k];
                                 Ports.Add(sata);
@@ -209,7 +214,9 @@ namespace guideXOS.Kernel.Drivers {
             [StructLayout(LayoutKind.Sequential, Pack = 1)]
             struct FIS_REG_H2D {
                 public byte FISType;
+#pragma warning disable IDE0044
                 byte PortMultiplier_Reserved0_CommandControl;
+#pragma warning restore IDE0044
                 public byte Command;
                 public byte FeatureLow;
                 public byte LBA0;
@@ -225,7 +232,7 @@ namespace guideXOS.Kernel.Drivers {
                 public byte Control;
                 public fixed byte Reserved1[4];
 
-                public byte PortMultiplier {
+                public readonly byte PortMultiplier {
                     get {
                         return (byte)(PortMultiplier_Reserved0_CommandControl & 0xF);
                     }

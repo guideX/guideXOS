@@ -4,7 +4,7 @@ namespace guideXOS.GUI {
     /// <summary>
     /// Window
     /// </summary>
-    internal class Window {
+    abstract class Window {
         /// <summary>
         /// Visible
         /// </summary>
@@ -22,9 +22,9 @@ namespace guideXOS.GUI {
         /// </summary>
         /// <returns></returns>
         public bool IsUnderMouse() {
-            if (Control.MousePosition.X > X && 
-                Control.MousePosition.X < X + Width && 
-                Control.MousePosition.Y > Y && 
+            if (Control.MousePosition.X > X &&
+                Control.MousePosition.X < X + Width &&
+                Control.MousePosition.Y > Y &&
                 Control.MousePosition.Y < Y + Height) return true;
             return false;
         }

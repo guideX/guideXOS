@@ -1,7 +1,5 @@
-namespace System
-{
-    public enum ConsoleColor
-    {
+namespace System {
+    public enum ConsoleColor {
         Black = 0x0,
         Blue = 0x1,
         Green = 0x2,

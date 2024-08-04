@@ -1,9 +1,7 @@
 using guideXOS.Misc;
-using System;
 using System.Runtime.InteropServices;
 
-static unsafe class Native
-{
+static unsafe class Native {
     [DllImport("*")]
     public static extern CPUID* CPUID(int index);
 

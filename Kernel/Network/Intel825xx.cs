@@ -1,10 +1,10 @@
 //Reference: https://www.intel.com/content/dam/doc/manual/pci-pci-x-family-gbe-controllers-software-dev-manual.pdf
-using static guideXOS.Misc.MMIO;
-using System.Runtime.InteropServices;
-using System;
-using static guideXOS.NETv4;
-using guideXOS.Misc;
 using guideXOS.Kernel.Drivers;
+using guideXOS.Misc;
+using System;
+using System.Runtime.InteropServices;
+using static guideXOS.Misc.MMIO;
+using static guideXOS.NETv4;
 namespace guideXOS {
     internal unsafe class Intel825xx {
         public static uint IOBase;

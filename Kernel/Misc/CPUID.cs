@@ -1,10 +1,8 @@
 using System.Runtime.InteropServices;
 
-namespace guideXOS.Misc
-{
+namespace guideXOS.Misc {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct CPUID
-    {
+    internal struct CPUID {
         public uint EAX;
         public uint EBX;
         public uint ECX;

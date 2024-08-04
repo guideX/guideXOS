@@ -3,8 +3,7 @@
 
 using System.Runtime.CompilerServices;
 
-namespace System
-{
+namespace System {
     // TimeSpan represents a duration of time.  A TimeSpan can be negative
     // or positive.
     //
@@ -22,8 +21,7 @@ namespace System
     // details of this type should change, or new fields added, we need to remember to add
     // an appropriate custom ILMarshaler to keep WInRT interop scenarios enabled.
     //
-    public readonly struct TimeSpan
-    {
+    public readonly struct TimeSpan {
         public const long TicksPerMillisecond = 10000;
 
         public const long TicksPerSecond = TicksPerMillisecond * 1000;   // 10,000,000
@@ -51,23 +49,19 @@ namespace System
         // method for some arithmetic operations.
         internal readonly long _ticks; // Do not rename (binary serialization)
 
-        public TimeSpan(long ticks)
-        {
+        public TimeSpan(long ticks) {
             this._ticks = ticks;
         }
 
-        public TimeSpan(int hours, int minutes, int seconds)
-        {
+        public TimeSpan(int hours, int minutes, int seconds) {
             _ticks = TimeToTicks(hours, minutes, seconds);
         }
 
         public TimeSpan(int days, int hours, int minutes, int seconds)
-            : this(days, hours, minutes, seconds, 0)
-        {
+            : this(days, hours, minutes, seconds, 0) {
         }
 
-        public TimeSpan(int days, int hours, int minutes, int seconds, int milliseconds)
-        {
+        public TimeSpan(int days, int hours, int minutes, int seconds, int milliseconds) {
             long totalMilliSeconds = ((long)days * 3600 * 24 + (long)hours * 3600 + (long)minutes * 60 + seconds) * 1000 + milliseconds;
             /*
             if (totalMilliSeconds > MaxMilliSeconds || totalMilliSeconds < MinMilliSeconds)
@@ -92,10 +86,8 @@ namespace System
 
         public double TotalHours => (double)_ticks / TicksPerHour;
 
-        public double TotalMilliseconds
-        {
-            get
-            {
+        public double TotalMilliseconds {
+            get {
                 double temp = (double)_ticks / TicksPerMillisecond;
                 if (temp > MaxMilliSeconds)
                     return (double)MaxMilliSeconds;
@@ -111,8 +103,7 @@ namespace System
 
         public double TotalSeconds => (double)_ticks / TicksPerSecond;
 
-        public TimeSpan Add(TimeSpan ts)
-        {
+        public TimeSpan Add(TimeSpan ts) {
             long result = _ticks + ts._ticks;
             // Overflow if signs of operands was identical and result's
             // sign was opposite.
@@ -128,16 +119,14 @@ namespace System
         // Compares two TimeSpan values, returning an integer that indicates their
         // relationship.
         //
-        public static int Compare(TimeSpan t1, TimeSpan t2)
-        {
+        public static int Compare(TimeSpan t1, TimeSpan t2) {
             if (t1._ticks > t2._ticks) return 1;
             if (t1._ticks < t2._ticks) return -1;
             return 0;
         }
 
         // Returns a value less than zero if this  object
-        public int CompareTo(object? value)
-        {
+        public int CompareTo(object? value) {
             if (value == null) return 1;
             /*
             if (!(value is TimeSpan))
@@ -149,21 +138,18 @@ namespace System
             return 0;
         }
 
-        public int CompareTo(TimeSpan value)
-        {
+        public int CompareTo(TimeSpan value) {
             long t = value._ticks;
             if (_ticks > t) return 1;
             if (_ticks < t) return -1;
             return 0;
         }
 
-        public static TimeSpan FromDays(double value)
-        {
+        public static TimeSpan FromDays(double value) {
             return Interval(value, TicksPerDay);
         }
 
-        public TimeSpan Duration()
-        {
+        public TimeSpan Duration() {
             /*
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_Duration);
@@ -171,37 +157,30 @@ namespace System
             return new TimeSpan(_ticks >= 0 ? _ticks : -_ticks);
         }
 
-        public override bool Equals(object? value)
-        {
-            if (value is TimeSpan)
-            {
+        public override bool Equals(object? value) {
+            if (value is TimeSpan) {
                 return _ticks == ((TimeSpan)value)._ticks;
             }
             return false;
         }
 
-        public bool Equals(TimeSpan obj)
-        {
+        public bool Equals(TimeSpan obj) {
             return _ticks == obj._ticks;
         }
 
-        public static bool Equals(TimeSpan t1, TimeSpan t2)
-        {
+        public static bool Equals(TimeSpan t1, TimeSpan t2) {
             return t1._ticks == t2._ticks;
         }
 
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             return (int)_ticks ^ (int)(_ticks >> 32);
         }
 
-        public static TimeSpan FromHours(double value)
-        {
+        public static TimeSpan FromHours(double value) {
             return Interval(value, TicksPerHour);
         }
 
-        private static TimeSpan Interval(double value, double scale)
-        {
+        private static TimeSpan Interval(double value, double scale) {
             /*
             if (double.IsNaN(value))
                 throw new ArgumentException(SR.Arg_CannotBeNaN);
@@ -210,8 +189,7 @@ namespace System
             return IntervalFromDoubleTicks(ticks);
         }
 
-        private static TimeSpan IntervalFromDoubleTicks(double ticks)
-        {
+        private static TimeSpan IntervalFromDoubleTicks(double ticks) {
             /*
             if ((ticks > long.MaxValue) || (ticks < long.MinValue) || double.IsNaN(ticks))
                 throw new OverflowException(SR.Overflow_TimeSpanTooLong);
@@ -221,18 +199,15 @@ namespace System
             return new TimeSpan((long)ticks);
         }
 
-        public static TimeSpan FromMilliseconds(double value)
-        {
+        public static TimeSpan FromMilliseconds(double value) {
             return Interval(value, TicksPerMillisecond);
         }
 
-        public static TimeSpan FromMinutes(double value)
-        {
+        public static TimeSpan FromMinutes(double value) {
             return Interval(value, TicksPerMinute);
         }
 
-        public TimeSpan Negate()
-        {
+        public TimeSpan Negate() {
             /*
             if (Ticks == TimeSpan.MinValue.Ticks)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);
@@ -240,13 +215,11 @@ namespace System
             return new TimeSpan(-_ticks);
         }
 
-        public static TimeSpan FromSeconds(double value)
-        {
+        public static TimeSpan FromSeconds(double value) {
             return Interval(value, TicksPerSecond);
         }
 
-        public TimeSpan Subtract(TimeSpan ts)
-        {
+        public TimeSpan Subtract(TimeSpan ts) {
             long result = _ticks - ts._ticks;
             // Overflow if signs of operands was different and result's
             // sign was opposite from the first argument's sign.
@@ -266,14 +239,12 @@ namespace System
 
         public double Divide(TimeSpan ts) => this / ts;
 
-        public static TimeSpan FromTicks(long value)
-        {
+        public static TimeSpan FromTicks(long value) {
             return new TimeSpan(value);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static long TimeToTicks(int hour, int minute, int second)
-        {
+        internal static long TimeToTicks(int hour, int minute, int second) {
             // totalSeconds is bounded by 2^31 * 2^12 + 2^31 * 2^8 + 2^31,
             // which is less than 2^44, meaning we won't overflow totalSeconds.
             long totalSeconds = (long)hour * 3600 + (long)minute * 60 + (long)second;
@@ -284,8 +255,7 @@ namespace System
             return totalSeconds * TicksPerSecond;
         }
 
-        public static TimeSpan operator -(TimeSpan t)
-        {
+        public static TimeSpan operator -(TimeSpan t) {
             /*
             if (t._ticks == TimeSpan.MinValue._ticks)
                 throw new OverflowException(SR.Overflow_NegateTwosCompNum);

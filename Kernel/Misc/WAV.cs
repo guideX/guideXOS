@@ -1,13 +1,9 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-namespace guideXOS.Misc
-{
-    public static unsafe class WAV
-    {
+namespace guideXOS.Misc {
+    public static unsafe class WAV {
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
-        public struct Header
-        {
+        public struct Header {
             public uint ChunkID;
             public uint ChunkSize;
             public uint Format;
@@ -23,21 +19,17 @@ namespace guideXOS.Misc
             public uint Subchunk2Size;
         }
 
-        public static void Decode(byte[] WAV, out byte[] PCM,out Header header)
-        {
-            fixed (byte* PWAV = WAV)
-            {
+        public static void Decode(byte[] WAV, out byte[] PCM, out Header header) {
+            fixed (byte* PWAV = WAV) {
                 Header* hdr = (Header*)PWAV;
 
-                if(hdr->AudioFormat != 1) 
-                {
+                if (hdr->AudioFormat != 1) {
                     PCM = null;
                     header = default;
                     return;
                 }
                 PCM = new byte[hdr->Subchunk2Size];
-                fixed (byte* PPCM = PCM)
-                {
+                fixed (byte* PPCM = PCM) {
                     Native.Movsb(PPCM, PWAV + sizeof(Header), (ulong)PCM.Length);
                 }
                 header = *hdr;

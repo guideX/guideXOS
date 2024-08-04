@@ -1,10 +1,8 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace System.Reflection.PortableExecutable
-{
+namespace System.Reflection.PortableExecutable {
     [StructLayout(LayoutKind.Sequential)]
-    struct FileHeader
-    {
+    struct FileHeader {
         public ushort Machine;
         public ushort NumberOfSections;
         public uint TimeDateStamp;

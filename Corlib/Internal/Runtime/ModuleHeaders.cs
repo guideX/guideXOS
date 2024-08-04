@@ -1,12 +1,10 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Internal.Runtime
-{
+namespace Internal.Runtime {
 
     [StructLayout(LayoutKind.Sequential)]
-    struct ModuleInfoRow
-    {
+    struct ModuleInfoRow {
         public ReadyToRunSectionType SectionId;
         public int Flags;
         public IntPtr Start;
@@ -17,8 +15,7 @@ namespace Internal.Runtime
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    internal struct ReadyToRunHeaderConstants
-    {
+    internal struct ReadyToRunHeaderConstants {
         public const uint Signature = 0x00525452; // 'RTR'
 
         public const ushort CurrentMajorVersion = 4;
@@ -27,8 +24,7 @@ namespace Internal.Runtime
 
 #pragma warning disable 0169
     [StructLayout(LayoutKind.Sequential)]
-    internal struct ReadyToRunHeader
-    {
+    internal struct ReadyToRunHeader {
         public uint Signature;      // ReadyToRunHeaderConstants.Signature
         public ushort MajorVersion;
         public ushort MinorVersion;
@@ -51,8 +47,7 @@ namespace Internal.Runtime
     // This list should be kept in sync with the runtime version at
     // https://github.com/dotnet/coreclr/blob/master/src/inc/readytorun.h
     //
-    public enum ReadyToRunSectionType : int
-    {
+    public enum ReadyToRunSectionType : int {
         //
         // CoreCLR ReadyToRun sections
         //
@@ -97,8 +92,7 @@ namespace Internal.Runtime
     }
 
     [Flags]
-    internal enum ModuleInfoFlags : int
-    {
+    internal enum ModuleInfoFlags : int {
         HasEndPointer = 0x1,
     }
 }

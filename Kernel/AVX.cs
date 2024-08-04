@@ -2,15 +2,11 @@ using guideXOS.Misc;
 using System;
 using System.Runtime.InteropServices;
 
-namespace guideXOS
-{
-    public static unsafe class AVX
-    {
-        public static void init_avx()
-        {
+namespace guideXOS {
+    public static unsafe class AVX {
+        public static void init_avx() {
             CPUID* cpuid = Native.CPUID(1);
-            if (!BitHelpers.IsBitSet(cpuid->ECX, 28))
-            {
+            if (!BitHelpers.IsBitSet(cpuid->ECX, 28)) {
                 Console.WriteLine("[AVX] Warning: this CPU doesn't support AVX!");
                 return;
             }

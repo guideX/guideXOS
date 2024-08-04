@@ -1,10 +1,8 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace System.Reflection.PortableExecutable
-{
+namespace System.Reflection.PortableExecutable {
     [StructLayout(LayoutKind.Sequential)]
-    unsafe struct SectionHeader
-    {
+    unsafe struct SectionHeader {
         public fixed byte Name[8];
         public uint PhysicalAddress_VirtualSize;
         public uint VirtualAddress;

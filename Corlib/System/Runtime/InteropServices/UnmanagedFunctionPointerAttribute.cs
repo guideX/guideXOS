@@ -1,14 +1,10 @@
-namespace System.Runtime.InteropServices
-{
-    public sealed class UnmanagedFunctionPointerAttribute : Attribute
-    {
-        public UnmanagedFunctionPointerAttribute()
-        {
+namespace System.Runtime.InteropServices {
+    public sealed class UnmanagedFunctionPointerAttribute : Attribute {
+        public UnmanagedFunctionPointerAttribute() {
             CallingConvention = CallingConvention.Winapi;
         }
 
-        public UnmanagedFunctionPointerAttribute(CallingConvention callingConvention)
-        {
+        public UnmanagedFunctionPointerAttribute(CallingConvention callingConvention) {
             CallingConvention = callingConvention;
         }
 

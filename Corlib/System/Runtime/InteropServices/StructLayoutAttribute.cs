@@ -1,9 +1,6 @@
-namespace System.Runtime.InteropServices
-{
-    public sealed class StructLayoutAttribute : Attribute
-    {
-        public StructLayoutAttribute(LayoutKind layoutKind)
-        {
+namespace System.Runtime.InteropServices {
+    public sealed class StructLayoutAttribute : Attribute {
+        public StructLayoutAttribute(LayoutKind layoutKind) {
             Value = layoutKind;
         }
 
@@ -14,8 +11,7 @@ namespace System.Runtime.InteropServices
         public CharSet CharSet;
     }
 
-    public enum LayoutKind
-    {
+    public enum LayoutKind {
         Sequential = 0,
         Explicit = 2,
         Auto = 3,

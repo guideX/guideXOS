@@ -1,8 +1,6 @@
-namespace System
-{
+namespace System {
     [Flags]
-    public enum ConsoleModifiers
-    {
+    public enum ConsoleModifiers {
         None = 0,
         Alt = 1,
         Shift = 2,

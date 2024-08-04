@@ -3,9 +3,6 @@
 
 using Internal.Runtime.CompilerServices;
 using System;
-using System.Runtime;
-
-using Debug = System.Diagnostics.Debug;
 
 namespace Internal.Runtime.CompilerHelpers {
     /// <summary>

@@ -1,59 +1,47 @@
 using System.Windows.Forms;
 
-namespace System.Drawing
-{
-    public class Image
-    {
+namespace System.Drawing {
+    public class Image {
         public int[] RawData;
         public int Bpp;
         public int Width;
         public int Height;
 
-        public Image(int width, int height)
-        {
+        public Image(int width, int height) {
             Width = width;
             Height = height;
             Bpp = 4;
             RawData = new int[width * height];
         }
 
-        public Image()
-        {
+        public Image() {
 
         }
-                /// <summary>
+        /// <summary>
         /// Is Under Mouse
         /// </summary>
         /// <returns></returns>
         public bool IsUnderMouse(int X, int Y) {
-            if (Control.MousePosition.X > X && 
-                Control.MousePosition.X < X + Width && 
-                Control.MousePosition.Y > Y && 
+            if (Control.MousePosition.X > X &&
+                Control.MousePosition.X < X + Width &&
+                Control.MousePosition.Y > Y &&
                 Control.MousePosition.Y < Y + Height) return true;
             return false;
         }
-        public uint GetPixel(int X, int Y)
-        {
+        public uint GetPixel(int X, int Y) {
             return (uint)RawData[Y * Width + X];
         }
 
-        static unsafe void Resample(void* input, void* output, int oldw, int oldh, int neww, int newh)
-        {
-            for (int i = 0; i < newh; i++)
-            {
-                for (int j = 0; j < neww; j++)
-                {
+        static unsafe void Resample(void* input, void* output, int oldw, int oldh, int neww, int newh) {
+            for (int i = 0; i < newh; i++) {
+                for (int j = 0; j < neww; j++) {
 
                     float tmp = (float)(i) / (float)(newh - 1) * (oldh - 1);
                     int l = (int)MathF.Floor(tmp);
-                    if (l < 0)
-                    {
+                    if (l < 0) {
                         l = 0;
-                    }
-                    else
-                    {
-                        if (l >= oldh - 1)
-                        {
+                    } else {
+                        if (l >= oldh - 1) {
                             l = oldh - 2;
                         }
                     }
@@ -61,14 +49,10 @@ namespace System.Drawing
                     float u = tmp - l;
                     tmp = (float)(j) / (float)(neww - 1) * (oldw - 1);
                     int c = (int)MathF.Floor(tmp);
-                    if (c < 0)
-                    {
+                    if (c < 0) {
                         c = 0;
-                    }
-                    else
-                    {
-                        if (c >= oldw - 1)
-                        {
+                    } else {
+                        if (c >= oldw - 1) {
                             c = oldw - 2;
                         }
                     }
@@ -89,27 +73,22 @@ namespace System.Drawing
                     byte red = (byte)((byte)(p1 >> 16) * d1 + (byte)(p2 >> 16) * d2 + (byte)(p3 >> 16) * d3 + (byte)(p4 >> 16) * d4);
                     byte alpha = (byte)((byte)(p1 >> 24) * d1 + (byte)(p2 >> 24) * d2 + (byte)(p3 >> 24) * d3 + (byte)(p4 >> 24) * d4);
 
-                    *((uint*)output + (i * neww) + j) = (uint)((alpha<<24) | (red << 16) | (green << 8) | (blue));
+                    *((uint*)output + (i * neww) + j) = (uint)((alpha << 24) | (red << 16) | (green << 8) | (blue));
                 }
             }
         }
 
-        public unsafe Image ResizeImage(int NewWidth, int NewHeight)
-        {
-            if(NewWidth == 0 || NewHeight == 0) 
-            {
+        public unsafe Image ResizeImage(int NewWidth, int NewHeight) {
+            if (NewWidth == 0 || NewHeight == 0) {
                 return new Image();
             }
 
             int w1 = Width, h1 = Height;
             int[] temp = new int[NewWidth * NewHeight];
 
-            fixed(int* output = temp)
-            {
-                fixed(int* input = this.RawData) 
-                {
-                    lock (null)
-                    {
+            fixed (int* output = temp) {
+                fixed (int* input = this.RawData) {
+                    lock (null) {
                         Resample(input, output, Width, Height, NewWidth, NewHeight);
                     }
                 }
@@ -125,8 +104,7 @@ namespace System.Drawing
             return image;
         }
 
-        public override void Dispose()
-        {
+        public override void Dispose() {
             RawData.Dispose();
             base.Dispose();
         }

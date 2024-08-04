@@ -62,7 +62,8 @@ namespace guideXOS.Kernel.Drivers {
                 }
                 Native.Movsd(SecondBuffer, FirstBuffer, (ulong)(Width * Height));
             }
-            if (Graphics != null) Graphics.Update();
+            //if (Graphics != null) Graphics?.Update();
+            Graphics?.Update();
         }
 
         public static void Initialize(ushort XRes, ushort YRes, uint* FB) {

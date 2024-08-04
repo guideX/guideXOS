@@ -1,7 +1,5 @@
-namespace System
-{
-    public struct ConsoleKeyInfo
-    {
+namespace System {
+    public struct ConsoleKeyInfo {
         public int ScanCode;
         public ConsoleKey Key;
         public char KeyChar;

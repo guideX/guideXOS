@@ -1,10 +1,8 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace Internal.Runtime.CompilerServices
-{
-    public static unsafe class Unsafe
-    {
+namespace Internal.Runtime.CompilerServices {
+    public static unsafe class Unsafe {
         [Intrinsic]
         public static extern ref T Add<T>(ref T source, int elementOffset);
 
@@ -28,15 +26,13 @@ namespace Internal.Runtime.CompilerServices
 
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ref T AddByteOffset<T>(ref T source, IntPtr byteOffset)
-        {
+        public static ref T AddByteOffset<T>(ref T source, IntPtr byteOffset) {
             for (; ; );
         }
 
         [Intrinsic]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static ref T AddByteOffset<T>(ref T source, nuint byteOffset)
-        {
+        internal static ref T AddByteOffset<T>(ref T source, nuint byteOffset) {
             return ref AddByteOffset(ref source, (IntPtr)(void*)byteOffset);
         }
     }

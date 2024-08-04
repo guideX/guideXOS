@@ -101,7 +101,7 @@ namespace guideXOS.Kernel.Drivers {
                     DeviceHeader* Dev = (DeviceHeader*)FuncAddress;
                     if (Dev->Header.DeviceID == 0 || Dev->Header.DeviceID == 0xFFFF) return;
 
-                    PCIDevice device = new PCIDevice();
+                    PCIDevice device = new();
                     device.Segment = Segment;
                     device.Bus = Bus;
                     device.Slot = Slot;

@@ -1,5 +1,4 @@
 //https://www.dmtf.org/sites/default/files/standards/documents/DSP0134_3.5.0.pdf
-using System;
 using System.Runtime.InteropServices;
 namespace guideXOS.Kernel.Drivers {
     public static unsafe class SMBIOS {

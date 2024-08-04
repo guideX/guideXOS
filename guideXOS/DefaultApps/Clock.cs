@@ -1,6 +1,6 @@
-using System;
 using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
+using System;
 namespace guideXOS.DefaultApps {
     /// <summary>
     /// Clock

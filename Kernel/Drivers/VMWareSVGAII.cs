@@ -1,10 +1,8 @@
 using System;
 namespace guideXOS.Kernel.Drivers {
     [Obsolete("This driver does not support unbuffered mode")]
-    public unsafe class VMWareSVGAII
-    {
-        public enum Register : ushort
-        {
+    public unsafe class VMWareSVGAII {
+        public enum Register : ushort {
             ID = 0,
             Enable = 1,
             Width = 2,
@@ -20,43 +18,38 @@ namespace guideXOS.Kernel.Drivers {
             FifoNumRegisters = 293
         }
 
-        private enum ID : uint
-        {
+        private enum ID : uint {
             Magic = 0x900000,
             V2 = (Magic << 8) | 2,
         }
 
-        public enum FIFO : uint
-        {
+        public enum FIFO : uint {
             Min = 0,
             Max = 4,
             NextCmd = 8,
             Stop = 12
         }
 
-        private enum FIFOCommand
-        {
+        private enum FIFOCommand {
             Update = 1
         }
 
-        private enum IOPortOffset : byte
-        {
+        private enum IOPortOffset : byte {
             Index = 0,
             Value = 1,
         }
 
-        private ushort IndexPort;
-        private ushort ValuePort;
+        private readonly ushort IndexPort;
+        private readonly ushort ValuePort;
         public uint* Video_Memory;
         private byte* FIFO_Memory;
-        private PCIDevice device;
+        private readonly PCIDevice device;
         public uint height;
         public uint width;
         public uint depth;
 
 
-        public VMWareSVGAII()
-        {
+        public VMWareSVGAII() {
             device = PCI.GetDevice(0x15AD, 0x0405);
             device.WriteRegister(0x04, 0x04 | 0x02 | 0x01);
             uint basePort = device.Bar0 & ~(0xFU);
@@ -69,8 +62,7 @@ namespace guideXOS.Kernel.Drivers {
             InitializeFIFO();
         }
 
-        protected void InitializeFIFO()
-        {
+        protected void InitializeFIFO() {
             FIFO_Memory = (byte*)ReadRegister(Register.MemStart);
             *(uint*)&FIFO_Memory[(uint)FIFO.Min] = (uint)Register.FifoNumRegisters * 4;
             *(uint*)&FIFO_Memory[(uint)FIFO.Max] = (uint)ReadRegister(Register.MemSize);
@@ -79,8 +71,7 @@ namespace guideXOS.Kernel.Drivers {
             WriteRegister(Register.ConfigDone, 1);
         }
 
-        public void SetMode(uint width, uint height, uint depth = 32)
-        {
+        public void SetMode(uint width, uint height, uint depth = 32) {
             Disable();
             this.depth = (depth / 8);
             this.width = width;
@@ -92,27 +83,23 @@ namespace guideXOS.Kernel.Drivers {
             InitializeFIFO();
         }
 
-        protected void WriteRegister(Register register, uint value)
-        {
+        protected void WriteRegister(Register register, uint value) {
             Native.Out32(IndexPort, (uint)register);
             Native.Out32(ValuePort, value);
         }
 
-        protected uint ReadRegister(Register register)
-        {
+        protected uint ReadRegister(Register register) {
             Native.Out32(IndexPort, (uint)register);
             return Native.In32(ValuePort);
         }
 
-        protected void SetFIFO(FIFO cmd, uint value)
-        {
+        protected void SetFIFO(FIFO cmd, uint value) {
             *(uint*)&FIFO_Memory[(uint)cmd] = value;
         }
 
         uint nextcmd = 1172;
 
-        public void Update()
-        {
+        public void Update() {
             if (nextcmd == 1212) { nextcmd = 1172; }
 
             SetFIFO((FIFO)(nextcmd), (uint)FIFOCommand.Update);
@@ -136,13 +123,11 @@ namespace guideXOS.Kernel.Drivers {
             nextcmd += 4;
         }
 
-        public void Enable()
-        {
+        public void Enable() {
             WriteRegister(Register.Enable, 1);
         }
 
-        public void Disable()
-        {
+        public void Disable() {
             WriteRegister(Register.Enable, 0);
         }
     }

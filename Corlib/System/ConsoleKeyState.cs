@@ -1,7 +1,5 @@
-namespace System
-{
-    public enum ConsoleKeyState
-    {
+namespace System {
+    public enum ConsoleKeyState {
         None,
         Pressed,
         Released,

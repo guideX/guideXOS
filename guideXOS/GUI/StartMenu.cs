@@ -1,5 +1,4 @@
 ﻿using guideXOS.Kernel.Drivers;
-using System;
 namespace guideXOS.GUI {
     /// <summary>
     /// Start Menu
@@ -9,10 +8,10 @@ namespace guideXOS.GUI {
         /// X
         /// </summary>
         private static readonly int _x = 15;
-        private static readonly int _mouseX = 11;
-        private static readonly int _mouseX2 = 17;
-        private static readonly int _mouseY = 729;
-        private static readonly int _mouseY2 = 770;
+        //private static readonly int _mouseX = 11;
+        //private static readonly int _mouseX2 = 17;
+        //private static readonly int _mouseY = 729;
+        //private static readonly int _mouseY2 = 770;
         /// <summary>
         /// Y
         /// </summary>
@@ -35,6 +34,7 @@ namespace guideXOS.GUI {
         /// <summary>
         /// X
         /// </summary>
+        /*
         public static int X {
             get {
                 return _x;
@@ -58,14 +58,16 @@ namespace guideXOS.GUI {
                 return _y2;
             }
         }
+        */
         /// <summary>
         /// Draw
         /// </summary>
-        public void Draw() {
+        public static void Draw() {
             var addedTop = 0;
             for (int i = 0; i < Desktop.Apps.Length; i++) {
                 Framebuffer.Graphics.DrawImage(_x2, _y2 + addedTop, Desktop.Apps.Icon(i));
-                addedTop = addedTop + 50;
+                //addedTop = addedTop + 50;
+                addedTop += 50;
             }
         }
     }

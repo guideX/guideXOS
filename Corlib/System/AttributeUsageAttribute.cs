@@ -1,27 +1,22 @@
-namespace System
-{
-    public sealed class AttributeUsageAttribute : Attribute
-    {
+namespace System {
+    public sealed class AttributeUsageAttribute : Attribute {
         public AttributeTargets ValidOn { get; set; }
         public bool AllowMultiple { get; set; }
         public bool Inherited { get; set; }
 
-        public AttributeUsageAttribute(AttributeTargets validOn)
-        {
+        public AttributeUsageAttribute(AttributeTargets validOn) {
             ValidOn = validOn;
             Inherited = true;
         }
 
-        public AttributeUsageAttribute(AttributeTargets validOn, bool allowMultiple, bool inherited)
-        {
+        public AttributeUsageAttribute(AttributeTargets validOn, bool allowMultiple, bool inherited) {
             ValidOn = validOn;
             AllowMultiple = allowMultiple;
             Inherited = inherited;
         }
     }
 
-    public enum AttributeTargets
-    {
+    public enum AttributeTargets {
         Assembly = 0x0001,
         Module = 0x0002,
         Class = 0x0004,

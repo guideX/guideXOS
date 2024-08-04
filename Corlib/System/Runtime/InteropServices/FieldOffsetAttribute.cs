@@ -1,9 +1,6 @@
-namespace System.Runtime.InteropServices
-{
-    public sealed class FieldOffsetAttribute : Attribute
-    {
-        public FieldOffsetAttribute(int offset)
-        {
+namespace System.Runtime.InteropServices {
+    public sealed class FieldOffsetAttribute : Attribute {
+        public FieldOffsetAttribute(int offset) {
             Value = offset;
         }
 

@@ -1,9 +1,7 @@
 using System;
 
-namespace Internal.Runtime.CompilerHelpers
-{
-    internal static class SynchronizedMethodHelpers
-    {
+namespace Internal.Runtime.CompilerHelpers {
+    internal static class SynchronizedMethodHelpers {
         private static void MonitorEnter(object obj, ref bool lockTaken) { lockTaken = true; }
 
         private static void MonitorExit(object obj, ref bool lockTaken) { lockTaken = false; }

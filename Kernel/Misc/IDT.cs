@@ -1,11 +1,11 @@
-using Internal.Runtime.CompilerServices;
 using guideXOS;
+using guideXOS.Kernel.Drivers;
+using guideXOS.Kernel.Helpers;
 using guideXOS.Misc;
+using Internal.Runtime.CompilerServices;
 using System.Runtime;
 using System.Runtime.InteropServices;
 using static Internal.Runtime.CompilerHelpers.InteropHelpers;
-using guideXOS.Kernel.Helpers;
-using guideXOS.Kernel.Drivers;
 
 public static class IDT {
     [DllImport("*")]

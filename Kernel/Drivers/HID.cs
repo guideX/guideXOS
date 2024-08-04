@@ -1,7 +1,7 @@
+using guideXOS.Misc;
 using System;
 using System.Windows.Forms;
 using static System.ConsoleKey;
-using guideXOS.Misc;
 namespace guideXOS.Kernel.Drivers {
     /// <summary>
     /// Human Interface Device

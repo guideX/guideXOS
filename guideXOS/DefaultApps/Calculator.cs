@@ -13,11 +13,11 @@ namespace guideXOS.DefaultApps {
         /// <summary>
         /// Image
         /// </summary>
-        private Image image;
+        private readonly Image image;
         /// <summary>
         /// Graphics
         /// </summary>
-        private Graphics g;
+        private readonly Graphics g;
         /// <summary>
         /// Constructor
         /// </summary>
@@ -183,7 +183,8 @@ namespace guideXOS.DefaultApps {
                         Num2 = 0;
                     }
                 } else if (opreation == Opreation.Star) {
-                    Num1 = Num1 * Num2;
+                    //Num1 = Num1 * Num2;
+                    Num1 *= Num2;
                     NotificationManager.Add(new Nofity("Multiply " + Num1 + " by " + Num2, NotificationLevel.None));
                 } else if (opreation == Opreation.None) {
                     Num2 = 0;
@@ -191,7 +192,7 @@ namespace guideXOS.DefaultApps {
                 ValueToDisplay = Num1;
             }
         }
-        List<Button> Btns;
+        readonly List<Button> Btns;
         /// <summary>
         /// Add Button
         /// </summary>

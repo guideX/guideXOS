@@ -1,10 +1,8 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace System.Reflection.PortableExecutable
-{
+namespace System.Reflection.PortableExecutable {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct OptionalHeaders64
-    {
+    struct OptionalHeaders64 {
         public ushort Magic;
         public byte MajorLinkerVersion;
         public byte MinorLinkerVersion;

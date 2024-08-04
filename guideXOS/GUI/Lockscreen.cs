@@ -1,9 +1,9 @@
 ﻿#if Kernel
-using System;
-using System.Drawing;
 using guideXOS.FS;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
+using System;
+using System.Drawing;
 namespace guideXOS.GUI {
     /// <summary>
     /// Lock Screen

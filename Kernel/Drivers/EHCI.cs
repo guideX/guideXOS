@@ -624,7 +624,7 @@ namespace guideXOS.Kernel.Drivers {
         }
 
         public static bool InitPort(int port, USBDevice parent, int speed) {
-            USBDevice device = new USBDevice();
+            USBDevice device = new();
             device.USBVersion = 2;
             device.Speed = speed;
 

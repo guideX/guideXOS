@@ -1,12 +1,10 @@
 using guideXOS.Misc;
 namespace guideXOS.Kernel.Drivers {
-    public static class Timer
-    {
+    public static class Timer {
         public static ulong Bus_Clock;
         public static ulong CPU_Clock;
 
-        public static void Initialize()
-        {
+        public static void Initialize() {
             //PIT.Initialise(1000);
             HPET.Initialize();
 
@@ -18,18 +16,14 @@ namespace guideXOS.Kernel.Drivers {
             LocalAPICTimer.StartTimer(1000, 0x20);
         }
 
-        private static ulong EstimateCPUSpeed()
-        {
+        private static ulong EstimateCPUSpeed() {
             ulong prev = Native.Rdtsc();
             ACPITimer.SleepMicroseconds(100000);
             ulong next = Native.Rdtsc();
-            ulong cpuclock = 0;
-            if (next > prev) 
-            {
+            ulong cpuclock;
+            if (next > prev) {
                 cpuclock = next - prev;
-            }
-            else 
-            {
+            } else {
                 //Overflow
                 cpuclock = prev - next;
             }
@@ -39,22 +33,18 @@ namespace guideXOS.Kernel.Drivers {
 
         public static ulong Ticks { get; private set; }
 
-        internal static void OnInterrupt()
-        {
+        internal static void OnInterrupt() {
             //This method is only for bootstrap CPU
-            if(SMP.ThisCPU == 0)
-            {
+            if (SMP.ThisCPU == 0) {
                 Ticks++;
 
-                if (ThreadPool.Locked)
-                {
+                if (ThreadPool.Locked) {
                     Ticks--;
                 }
             }
         }
 
-        public static void Sleep(ulong millisecond)
-        {
+        public static void Sleep(ulong millisecond) {
             ulong T = Ticks;
             while (Ticks < (T + millisecond)) Native.Hlt();
         }

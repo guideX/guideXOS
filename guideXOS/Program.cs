@@ -15,7 +15,7 @@ unsafe class Program {
     /// <summary>
     /// Main
     /// </summary>
-    static void Main() { 
+    static void Main() {
     }
     /// <summary>
     /// DLL Import
@@ -39,7 +39,7 @@ unsafe class Program {
     /// </summary>
     /// <returns></returns>
     private static bool USBMouseTest() {
-        HID.GetMouse(HID.Mouse, out sbyte AxisX, out sbyte AxisY, out var Buttons);
+        HID.GetMouse(HID.Mouse, out _ /*sbyte AxisX*/, out _ /*sbyte AxisY*/, out var Buttons);
         return Buttons != MouseButtons.None;
     }
     /// <summary>
@@ -47,7 +47,7 @@ unsafe class Program {
     /// </summary>
     /// <returns></returns>
     private static bool USBKeyboardTest() {
-        HID.GetKeyboard(HID.Keyboard, out var ScanCode, out var Key);
+        HID.GetKeyboard(HID.Keyboard, out var ScanCode, out _/*var Key*/);
         return ScanCode != 0;
     }
     /// <summary>
@@ -232,8 +232,9 @@ unsafe class Program {
 
         Lockscreen.Run();
         FConsole = null;
-        
-        var welcome = new Welcome(500, 250);
+
+        //var welcome = new Welcome(500, 250);
+        _ = new Welcome(500, 250);
 
         rightmenu = new RightMenu();
         rightClicked = false;
@@ -260,7 +261,7 @@ unsafe class Program {
                 );
         }
 
-        Animation EA = new Animation()
+        Animation EA = new()
         {
             MinimumValue = 0,
             MaximumValue = SizedScreens.Length - 1,
@@ -337,7 +338,7 @@ unsafe class Program {
     }
 
     //private static void Console_OnWrite(char chr) {
-        //Console.Write(chr.ToString());
+    //Console.Write(chr.ToString());
     //}
 
     /// <summary>

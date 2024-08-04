@@ -1,5 +1,5 @@
-using System;
 using guideXOS.Misc;
+using System;
 namespace guideXOS.Kernel.Drivers {
     [Obsolete("Use ACPI Timer or Local APIC Timer")]
     public class PIT {

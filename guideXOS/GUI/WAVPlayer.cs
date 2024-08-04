@@ -4,10 +4,8 @@ using guideXOS.Misc;
 using System.Drawing;
 using System.Windows.Forms;
 
-namespace guideXOS.GUI
-{
-    internal unsafe class WAVPlayer : Window
-    {
+namespace guideXOS.GUI {
+    internal unsafe class WAVPlayer : Window {
         static byte[] _pcm;
         static int _index;
         static WAV.Header _header;
@@ -19,8 +17,7 @@ namespace guideXOS.GUI
 
         public static bool playing;
 
-        public WAVPlayer(int X, int Y) : base(X, Y, 200, 200)
-        {
+        public WAVPlayer(int X, int Y) : base(X, Y, 200, 200) {
             audiopause = new PNG(File.ReadAllBytes("Images/audiopause.png"));
             audioplay = new PNG(File.ReadAllBytes("Images/audioplay.png"));
             Title = "WAV Player";
@@ -35,26 +32,20 @@ namespace guideXOS.GUI
 
         bool clickLock;
 
-        public override void OnInput()
-        {
+        public override void OnInput() {
             base.OnInput();
 
-            if (Control.MouseButtons.HasFlag(MouseButtons.Left))
-            {
-                if (IsUnderMouse() && !clickLock)
-                {
+            if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
+                if (IsUnderMouse() && !clickLock) {
                     playing = !playing;
                     clickLock = true;
                 }
-            }
-            else
-            {
+            } else {
                 clickLock = false;
             }
         }
 
-        public override void OnDraw()
-        {
+        public override void OnDraw() {
             base.OnDraw();
 
             string s = $"Playing: {_song_name}";
@@ -65,8 +56,7 @@ namespace guideXOS.GUI
             Framebuffer.Graphics.DrawImage(X + (Width / 2 - audioplay.Width / 2), Y + (Height / 2 - audioplay.Height / 2), playing ? audiopause : audioplay);
         }
 
-        public void Play(byte[] wav,string name = "unknown")
-        {
+        public void Play(byte[] wav, string name = "unknown") {
             _index = 0;
             WAV.Decode(wav, out var pcm, out var hdr);
             wav.Dispose();
@@ -78,16 +68,13 @@ namespace guideXOS.GUI
             playing = true;
         }
 
-        public static void DoPlay()
-        {
-            if (_pcm != null && _player.Visible && playing)
-            {
-                if(Audio.bytesWritten != 0)return;
-                
+        public static void DoPlay() {
+            if (_pcm != null && _player.Visible && playing) {
+                if (Audio.bytesWritten != 0) return;
+
                 if (_index + Audio.CacheSize > _pcm.Length) _index = 0;
 
-                fixed (byte* buffer = _pcm)
-                {
+                fixed (byte* buffer = _pcm) {
                     _index += Audio.CacheSize;
                     Audio.snd_write(buffer + _index, Audio.CacheSize);
                 }

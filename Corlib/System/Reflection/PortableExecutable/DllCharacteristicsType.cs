@@ -1,7 +1,5 @@
-﻿namespace System.Reflection.PortableExecutable
-{
-    enum DllCharacteristicsType : ushort
-    {
+﻿namespace System.Reflection.PortableExecutable {
+    enum DllCharacteristicsType : ushort {
         RES_0 = 0x0001,
         RES_1 = 0x0002,
         RES_2 = 0x0004,

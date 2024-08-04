@@ -1,10 +1,8 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace System.Reflection.PortableExecutable
-{
+namespace System.Reflection.PortableExecutable {
     [StructLayout(LayoutKind.Sequential)]
-    unsafe struct DOSHeader
-    {
+    unsafe struct DOSHeader {
         public ushort e_magic;              // Magic number
         public ushort e_cblp;               // Bytes on last page of file
         public ushort e_cp;                 // Pages in file

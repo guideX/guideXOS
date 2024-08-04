@@ -1,24 +1,20 @@
-namespace System
-{
+namespace System {
+#nullable enable
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.Enum |
         AttributeTargets.Interface | AttributeTargets.Constructor | AttributeTargets.Method | AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Event | AttributeTargets.Delegate,
         Inherited = false)]
-    public sealed class ObsoleteAttribute : Attribute
-    {
-        public ObsoleteAttribute()
-        {
+    public sealed class ObsoleteAttribute : Attribute {
+        public ObsoleteAttribute() {
             Message = null;
             IsError = false;
         }
 
-        public ObsoleteAttribute(string? message)
-        {
+        public ObsoleteAttribute(string? message) {
             Message = message;
             IsError = false;
         }
 
-        public ObsoleteAttribute(string? message, bool error)
-        {
+        public ObsoleteAttribute(string? message, bool error) {
             Message = message;
             IsError = error;
         }

@@ -3,10 +3,8 @@ using System;
 using System.Runtime;
 using System.Runtime.InteropServices;
 
-namespace Internal.Runtime.CompilerHelpers
-{
-    public unsafe class StartupCodeHelpers
-    {
+namespace Internal.Runtime.CompilerHelpers {
+    public unsafe class StartupCodeHelpers {
         [RuntimeExport("__imp_GetCurrentThreadId")]
         public static int __imp_GetCurrentThreadId() => 0;
 
@@ -17,15 +15,13 @@ namespace Internal.Runtime.CompilerHelpers
         static void FailFast() { while (true) ; }
 
         [RuntimeExport("memset")]
-        static unsafe void MemSet(byte* ptr, int c, int count)
-        {
+        static unsafe void MemSet(byte* ptr, int c, int count) {
             for (byte* p = ptr; p < ptr + count; p++)
                 *p = (byte)c;
         }
 
         [RuntimeExport("memcpy")]
-        static unsafe void MemCpy(byte* dest, byte* src, ulong count)
-        {
+        static unsafe void MemCpy(byte* dest, byte* src, ulong count) {
             for (ulong i = 0; i < count; i++) dest[i] = src[i];
         }
 
@@ -51,8 +47,7 @@ namespace Internal.Runtime.CompilerHelpers
         static void RhpPinvokeReturn(IntPtr frame) { }
 
         [RuntimeExport("RhpNewFast")]
-        static unsafe object RhpNewFast(EEType* pEEType)
-        {
+        static unsafe object RhpNewFast(EEType* pEEType) {
             var size = pEEType->BaseSize;
 
             // Round to next power of 8
@@ -61,7 +56,7 @@ namespace Internal.Runtime.CompilerHelpers
 
             var data = malloc(size);
             var obj = Unsafe.As<IntPtr, object>(ref data);
-            MemSet((byte*)data,0, (int)size);
+            MemSet((byte*)data, 0, (int)size);
             *(IntPtr*)data = (IntPtr)pEEType;
 
             return obj;
@@ -71,8 +66,7 @@ namespace Internal.Runtime.CompilerHelpers
         public static extern nint malloc(ulong size);
 
         [RuntimeExport("RhpNewArray")]
-        internal static unsafe object RhpNewArray(EEType* pEEType, int length)
-        {
+        internal static unsafe object RhpNewArray(EEType* pEEType, int length) {
             var size = pEEType->BaseSize + (ulong)length * pEEType->ComponentSize;
 
             // Round to next power of 8
@@ -81,7 +75,7 @@ namespace Internal.Runtime.CompilerHelpers
 
             var data = malloc(size);
             var obj = Unsafe.As<IntPtr, object>(ref data);
-            MemSet((byte*)data,0, (int)size);
+            MemSet((byte*)data, 0, (int)size);
             *(IntPtr*)data = (IntPtr)pEEType;
 
             var b = (byte*)data;
@@ -92,28 +86,23 @@ namespace Internal.Runtime.CompilerHelpers
         }
 
         [RuntimeExport("RhpAssignRef")]
-        static unsafe void RhpAssignRef(void** address, void* obj)
-        {
+        static unsafe void RhpAssignRef(void** address, void* obj) {
             *address = obj;
         }
 
         [RuntimeExport("RhpByRefAssignRef")]
-        static unsafe void RhpByRefAssignRef(void** address, void* obj)
-        {
+        static unsafe void RhpByRefAssignRef(void** address, void* obj) {
             *address = obj;
         }
 
         [RuntimeExport("RhpCheckedAssignRef")]
-        static unsafe void RhpCheckedAssignRef(void** address, void* obj)
-        {
+        static unsafe void RhpCheckedAssignRef(void** address, void* obj) {
             *address = obj;
         }
 
         [RuntimeExport("RhpStelemRef")]
-        static unsafe void RhpStelemRef(Array array, int index, object obj)
-        {
-            fixed (int* n = &array._numComponents)
-            {
+        static unsafe void RhpStelemRef(Array array, int index, object obj) {
+            fixed (int* n = &array._numComponents) {
                 var ptr = (byte*)n;
                 ptr += sizeof(void*);   // Array length is padded to 8 bytes on 64-bit
                 ptr += index * array.m_pEEType->ComponentSize;  // Component size should always be 8, seeing as it's a pointer...
@@ -123,8 +112,7 @@ namespace Internal.Runtime.CompilerHelpers
         }
 
         [RuntimeExport("RhTypeCast_IsInstanceOfClass")]
-        public static unsafe object RhTypeCast_IsInstanceOfClass(EEType* pTargetType, object obj)
-        {
+        public static unsafe object RhTypeCast_IsInstanceOfClass(EEType* pTargetType, object obj) {
             if (obj == null)
                 return null;
 
@@ -133,8 +121,7 @@ namespace Internal.Runtime.CompilerHelpers
 
             var bt = obj.m_pEEType->RawBaseType;
 
-            while (true)
-            {
+            while (true) {
                 if (bt == null)
                     return null;
 
@@ -145,23 +132,19 @@ namespace Internal.Runtime.CompilerHelpers
             }
         }
 
-        public static void InitializeModules(IntPtr Modules) 
-        {
-            for (int i = 0; ; i++)
-            {
+        public static void InitializeModules(IntPtr Modules) {
+            for (int i = 0; ; i++) {
                 if (((IntPtr*)Modules)[i].Equals(IntPtr.Zero))
                     break;
 
                 var header = (ReadyToRunHeader*)((IntPtr*)Modules)[i];
                 var sections = (ModuleInfoRow*)(header + 1);
 
-                if(header->Signature != ReadyToRunHeaderConstants.Signature) 
-                {
+                if (header->Signature != ReadyToRunHeaderConstants.Signature) {
                     FailFast();
                 }
 
-                for (int k = 0; k < header->NumberOfSections; k++)
-                {
+                for (int k = 0; k < header->NumberOfSections; k++) {
                     if (sections[k].SectionId == ReadyToRunSectionType.GCStaticRegion)
                         InitializeStatics(sections[k].Start, sections[k].End);
 
@@ -176,30 +159,23 @@ namespace Internal.Runtime.CompilerHelpers
                 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 };
         }
 
-        private static unsafe void RunEagerClassConstructors(IntPtr cctorTableStart, IntPtr cctorTableEnd)
-        {
-            for (IntPtr* tab = (IntPtr*)cctorTableStart; tab < (IntPtr*)cctorTableEnd; tab++)
-            {
+        private static unsafe void RunEagerClassConstructors(IntPtr cctorTableStart, IntPtr cctorTableEnd) {
+            for (IntPtr* tab = (IntPtr*)cctorTableStart; tab < (IntPtr*)cctorTableEnd; tab++) {
                 ((delegate*<void>)(*tab))();
             }
         }
 
-        static unsafe void InitializeStatics(IntPtr rgnStart, IntPtr rgnEnd)
-        {
-            for (IntPtr* block = (IntPtr*)rgnStart; block < (IntPtr*)rgnEnd; block++)
-            {
+        static unsafe void InitializeStatics(IntPtr rgnStart, IntPtr rgnEnd) {
+            for (IntPtr* block = (IntPtr*)rgnStart; block < (IntPtr*)rgnEnd; block++) {
                 var pBlock = (IntPtr*)*block;
                 var blockAddr = (long)(*pBlock);
 
-                if ((blockAddr & GCStaticRegionConstants.Uninitialized) == GCStaticRegionConstants.Uninitialized)
-                {
+                if ((blockAddr & GCStaticRegionConstants.Uninitialized) == GCStaticRegionConstants.Uninitialized) {
                     var obj = RhpNewFast((EEType*)(blockAddr & ~GCStaticRegionConstants.Mask));
 
-                    if ((blockAddr & GCStaticRegionConstants.HasPreInitializedData) == GCStaticRegionConstants.HasPreInitializedData)
-                    {
+                    if ((blockAddr & GCStaticRegionConstants.HasPreInitializedData) == GCStaticRegionConstants.HasPreInitializedData) {
                         IntPtr pPreInitDataAddr = *(pBlock + 1);
-                        fixed(byte* p = &obj.GetRawData())
-                        {
+                        fixed (byte* p = &obj.GetRawData()) {
                             MemCpy(p, (byte*)pPreInitDataAddr, obj.GetRawDataSize());
                         }
                     }

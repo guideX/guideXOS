@@ -1,12 +1,9 @@
-namespace System.Runtime.CompilerServices
-{
-    public sealed class MethodImplAttribute : Attribute
-    {
+namespace System.Runtime.CompilerServices {
+    public sealed class MethodImplAttribute : Attribute {
         public MethodImplAttribute(MethodImplOptions methodImplOptions) { }
     }
 
-    public enum MethodImplOptions
-    {
+    public enum MethodImplOptions {
         Unmanaged = 0x0004,
         NoInlining = 0x0008,
         NoOptimization = 0x0040,

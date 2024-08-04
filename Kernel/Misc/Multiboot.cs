@@ -1,10 +1,8 @@
 using System.Runtime.InteropServices;
 
-namespace guideXOS
-{
+namespace guideXOS {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public unsafe struct MultibootInfo
-    {
+    public unsafe struct MultibootInfo {
         public uint Flags;
         public uint MemLow;
         public uint MemHigh;
@@ -30,18 +28,15 @@ namespace guideXOS
         public uint VBEInterfaceOff;
         public uint VBEInterfaceLen;
 
-        public uint* Mods 
-        {
-            get 
-            {
+        public uint* Mods {
+            get {
                 return (uint*)ModAddr;
             }
         }
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct VBEInfo
-    {
+    public struct VBEInfo {
         public ushort Attributes;
         public byte WindowA;
         public byte WindowB;

@@ -1,7 +1,5 @@
-namespace System.Windows.Forms
-{
-    public enum MouseButtons
-    {
+namespace System.Windows.Forms {
+    public enum MouseButtons {
         Left = 0x100000,
         None = 0x0,
         Right = 0x200000,

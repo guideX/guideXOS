@@ -39,8 +39,7 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.DrawImage(X, Y, img, false);
             for (int i = 0; i < Btns.Count; i++) {
                 Framebuffer.Graphics.FillRectangle(X + Btns[i].X, Y + Btns[i].Y, Btns[i].Width, Btns[i].Height, Btns[i].UIntParam);
-                if (Btns[i].Name == "Clear")
-                {
+                if (Btns[i].Name == "Clear") {
                     WindowManager.font.DrawString(X + Btns[i].X + (Btns[i].Width / 2) - (WindowManager.font.MeasureString(Btns[i].Name) / 2), Y + Btns[i].Y + 2, Btns[i].Name);
                 }
             }
@@ -53,7 +52,7 @@ namespace guideXOS.GUI {
 
         public override void OnInput() {
             base.OnInput();
-            
+
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 if (Control.MousePosition.X >= this.X && Control.MousePosition.X <= this.X + this.Width && Control.MousePosition.Y >= this.Y && Control.MousePosition.Y <= this.Y + this.Height) {
                     WindowManager.MouseHandled = true;
@@ -63,8 +62,7 @@ namespace guideXOS.GUI {
 
                     for (int i = 0; i < Btns.Count; i++) {
                         if (Control.MousePosition.X > this.X + Btns[i].X && Control.MousePosition.X < this.X + Btns[i].X + Btns[i].Width && Control.MousePosition.Y > this.Y + Btns[i].Y && Control.MousePosition.Y < this.Y + Btns[i].Y + Btns[i].Height) {
-                            if (Btns[i].Name == "Clear")
-                            {
+                            if (Btns[i].Name == "Clear") {
                                 g.Clear(0xFF222222);
                             } else {
                                 CurrentColor = Btns[i].UIntParam;

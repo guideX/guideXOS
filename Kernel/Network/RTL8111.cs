@@ -1,8 +1,4 @@
-﻿//Realtek 8168/8169/8111 series NIC driver
-//https://people.freebsd.org/~wpaul/RealTek/RTL8111B_8168B_Registers_DataSheet_1.0.pdf
-//TO-DO: how to power on the controller?
-
-using guideXOS.Kernel.Drivers;
+﻿using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using System;
 using System.Runtime.InteropServices;

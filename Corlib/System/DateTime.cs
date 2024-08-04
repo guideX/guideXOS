@@ -1,12 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace System
-{
+namespace System {
     // This value type represents a date and time.  Every DateTime
     // object has a private field (Ticks) of type Int64 that stores the
     // date and time as the number of 100 nanosecond intervals since
@@ -38,8 +36,7 @@ namespace System
     //
     //
     [StructLayout(LayoutKind.Auto)]
-    public readonly partial struct DateTime
-    {
+    public readonly partial struct DateTime {
         // Number of 100ns ticks per time unit
         private const long TicksPerMillisecond = 10000;
         private const long TicksPerSecond = TicksPerMillisecond * 1000;
@@ -127,8 +124,7 @@ namespace System
         // argument specifies the date as the number of 100-nanosecond intervals
         // that have elapsed since 1/1/0001 12:00am.
         //
-        public DateTime(long ticks)
-        {
+        public DateTime(long ticks) {
             /*
             if (ticks < MinTicks || ticks > MaxTicks)
                 throw new ArgumentOutOfRangeException(nameof(ticks), SR.ArgumentOutOfRange_DateTimeBadTicks);
@@ -136,8 +132,7 @@ namespace System
             _dateData = (ulong)ticks;
         }
 
-        private DateTime(ulong dateData)
-        {
+        private DateTime(ulong dateData) {
             this._dateData = dateData;
         }
 
@@ -169,8 +164,7 @@ namespace System
         // Constructs a DateTime from a given year, month, and day. The
         // time-of-day of the resulting DateTime is always midnight.
         //
-        public DateTime(int year, int month, int day)
-        {
+        public DateTime(int year, int month, int day) {
             _dateData = (ulong)DateToTicks(year, month, day);
         }
 
@@ -188,8 +182,7 @@ namespace System
         // Constructs a DateTime from a given year, month, day, hour,
         // minute, and second.
         //
-        public DateTime(int year, int month, int day, int hour, int minute, int second)
-        {
+        public DateTime(int year, int month, int day, int hour, int minute, int second) {
             /*
             if (second == 60 && s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified))
             {
@@ -257,15 +250,12 @@ namespace System
         // Constructs a DateTime from a given year, month, day, hour,
         // minute, and second.
         //
-        public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond)
-        {
-            if (millisecond < 0 || millisecond >= MillisPerSecond)
-            {
+        public DateTime(int year, int month, int day, int hour, int minute, int second, int millisecond) {
+            if (millisecond < 0 || millisecond >= MillisPerSecond) {
                 //throw new ArgumentOutOfRangeException(nameof(millisecond), SR.Format(SR.ArgumentOutOfRange_Range, 0, MillisPerSecond - 1));
             }
 
-            if (second == 60 /*&& s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified)*/)
-            {
+            if (second == 60 /*&& s_systemSupportsLeapSeconds && IsValidTimeWithLeapSeconds(year, month, day, hour, minute, second, DateTimeKind.Unspecified)*/) {
                 // if we have leap second (second = 60) then we'll need to check if it is valid time.
                 // if it is valid, then we adjust the second to 59 so DateTime will consider this second is last second
                 // in the specified minute.
@@ -517,18 +507,14 @@ namespace System
         // or equal to d that denotes a valid day in month m1 of year
         // y1.
         //
-        public DateTime AddMonths(int months)
-        {
+        public DateTime AddMonths(int months) {
             //if (months < -120000 || months > 120000) throw new ArgumentOutOfRangeException(nameof(months), SR.ArgumentOutOfRange_DateTimeBadMonths);
             GetDate(out int y, out int m, out int d);
             int i = m - 1 + months;
-            if (i >= 0)
-            {
+            if (i >= 0) {
                 m = i % 12 + 1;
                 y += i / 12;
-            }
-            else
-            {
+            } else {
                 m = 12 + (i + 1) % 12;
                 y += (i - 11) / 12;
             }
@@ -560,8 +546,7 @@ namespace System
         // 100-nanosecond ticks to this DateTime. The value argument
         // is permitted to be negative.
         //
-        public DateTime AddTicks(long value)
-        {
+        public DateTime AddTicks(long value) {
             long ticks = InternalTicks;
             /*
             if (value > MaxTicks - ticks || value < MinTicks - ticks)
@@ -573,11 +558,9 @@ namespace System
         }
 
         // TryAddTicks is exact as AddTicks except it doesn't throw
-        internal bool TryAddTicks(long value, out DateTime result)
-        {
+        internal bool TryAddTicks(long value, out DateTime result) {
             long ticks = InternalTicks;
-            if (value > MaxTicks - ticks || value < MinTicks - ticks)
-            {
+            if (value > MaxTicks - ticks || value < MinTicks - ticks) {
                 result = default;
                 return false;
             }
@@ -593,8 +576,7 @@ namespace System
         // DateTime becomes 2/28. Otherwise, the month, day, and time-of-day
         // parts of the result are the same as those of this DateTime.
         //
-        public DateTime AddYears(int value)
-        {
+        public DateTime AddYears(int value) {
             /*
             if (value < -10000 || value > 10000)
             {
@@ -609,8 +591,7 @@ namespace System
         // Compares two DateTime values, returning an integer that indicates
         // their relationship.
         //
-        public static int Compare(DateTime t1, DateTime t2)
-        {
+        public static int Compare(DateTime t1, DateTime t2) {
             long ticks1 = t1.InternalTicks;
             long ticks2 = t2.InternalTicks;
             if (ticks1 > ticks2) return 1;
@@ -624,8 +605,7 @@ namespace System
         // occurs.  Null is considered less than any instance.
         //
         // Returns a value less than zero if this  object
-        public int CompareTo(object? value)
-        {
+        public int CompareTo(object? value) {
             if (value == null) return 1;
             /*
             if (!(value is DateTime))
@@ -637,16 +617,14 @@ namespace System
             return Compare(this, (DateTime)value);
         }
 
-        public int CompareTo(DateTime value)
-        {
+        public int CompareTo(DateTime value) {
             return Compare(this, value);
         }
 
         // Returns the tick count corresponding to the given year, month, and day.
         // Will check the if the parameters are valid.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static long DateToTicks(int year, int month, int day)
-        {
+        private static long DateToTicks(int year, int month, int day) {
             /*
             if (year < 1 || year > 9999 || month < 1 || month > 12 || day < 1)
             {
@@ -670,8 +648,7 @@ namespace System
         // Return the tick count corresponding to the given hour, minute, second.
         // Will check the if the parameters are valid.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static long TimeToTicks(int hour, int minute, int second)
-        {
+        private static long TimeToTicks(int hour, int minute, int second) {
             // TimeSpan.TimeToTicks is a family access function which does no error checking, so
             // we need to put some error checking out here.
             /*
@@ -687,8 +664,7 @@ namespace System
         // Returns the number of days in the month given by the year and
         // month arguments.
         //
-        public static int DaysInMonth(int year, int month)
-        {
+        public static int DaysInMonth(int year, int month) {
             /*
             if (month < 1 || month > 12) throw new ArgumentOutOfRangeException(nameof(month), SR.ArgumentOutOfRange_Month);
             */
@@ -699,8 +675,7 @@ namespace System
 
         // Converts an OLE Date to a tick count.
         // This function is duplicated in COMDateTime.cpp
-        internal static long DoubleDateToTicks(double value)
-        {
+        internal static long DoubleDateToTicks(double value) {
             // The check done this way will take care of NaN
             /*
             if (!(value < OADateMaxAsDouble) || !(value > OADateMinAsDouble))
@@ -712,8 +687,7 @@ namespace System
             // The interesting thing here is when you have a value like 12.5 it all positive 12 days and 12 hours from 01/01/1899
             // However if you a value of -12.25 it is minus 12 days but still positive 6 hours, almost as though you meant -11.75 all negative
             // This line below fixes up the millis in the negative case
-            if (millis < 0)
-            {
+            if (millis < 0) {
                 millis -= (millis % MillisPerDay) * 2;
             }
 
@@ -730,17 +704,14 @@ namespace System
         // is equal to the value of this DateTime. Returns false
         // otherwise.
         //
-        public override bool Equals(object? value)
-        {
-            if (value is DateTime)
-            {
+        public override bool Equals(object? value) {
+            if (value is DateTime) {
                 return InternalTicks == ((DateTime)value).InternalTicks;
             }
             return false;
         }
 
-        public bool Equals(DateTime value)
-        {
+        public bool Equals(DateTime value) {
             return InternalTicks == value.InternalTicks;
         }
 
@@ -748,8 +719,7 @@ namespace System
         // the two DateTime values are equal, or false if they are
         // not equal.
         //
-        public static bool Equals(DateTime t1, DateTime t2)
-        {
+        public static bool Equals(DateTime t1, DateTime t2) {
             return t1.InternalTicks == t2.InternalTicks;
         }
 
@@ -809,8 +779,7 @@ namespace System
 
         // A version of ToBinary that uses the real representation and does not adjust local times. This is needed for
         // scenarios where the serialized data must maintain compatibility
-        internal static DateTime FromBinaryRaw(long dateData)
-        {
+        internal static DateTime FromBinaryRaw(long dateData) {
             long ticks = dateData & (long)TicksMask;
             /*
             if (ticks < MinTicks || ticks > MaxTicks)
@@ -917,10 +886,8 @@ namespace System
         // corresponds to this DateTime with the time-of-day part set to
         // zero (midnight).
         //
-        public DateTime Date
-        {
-            get
-            {
+        public DateTime Date {
+            get {
                 long ticks = InternalTicks;
                 return new DateTime((ulong)(ticks - ticks % TicksPerDay) | InternalKind);
             }
@@ -928,8 +895,7 @@ namespace System
 
         // Returns a given date part of this DateTime. This method is used
         // to compute the year, day-of-year, month, or day part.
-        private int GetDatePart(int part)
-        {
+        private int GetDatePart(int part) {
             long ticks = InternalTicks;
             // n = number of days since 1/1/0001
             int n = (int)(ticks / TicksPerDay);
@@ -952,8 +918,7 @@ namespace System
             // Last year has an extra day, so decrement result if 4
             if (y1 == 4) y1 = 3;
             // If year was requested, compute and return it
-            if (part == DatePartYear)
-            {
+            if (part == DatePartYear) {
                 return y400 * 400 + y100 * 100 + y4 * 4 + y1 + 1;
             }
             // n = day number within year
@@ -978,8 +943,7 @@ namespace System
         // Exactly the same as GetDatePart, except computing all of
         // year/month/day rather than just one of them. Used when all three
         // are needed rather than redoing the computations for each.
-        internal void GetDate(out int year, out int month, out int day)
-        {
+        internal void GetDate(out int year, out int month, out int day) {
             long ticks = InternalTicks;
             // n = number of days since 1/1/0001
             int n = (int)(ticks / TicksPerDay);
@@ -1079,8 +1043,7 @@ namespace System
 
         // Returns the hash code for this DateTime.
         //
-        public override int GetHashCode()
-        {
+        public override int GetHashCode() {
             long ticks = InternalTicks;
             return unchecked((int)ticks) ^ (int)(ticks >> 32);
         }
@@ -1131,19 +1094,17 @@ namespace System
                 RTC.Minute,
                 RTC.Second);
         */
-        public static DateTime Now
-        {
-            get
-            {
+        public static DateTime Now {
+            get {
                 ulong time = GetTime();
 
-                int century =     (int)((time & 0xFF_00_00_00_00_00_00_00)>>56);
-                int year =        (int)((time & 0x00_FF_00_00_00_00_00_00)>>48);
-                int month =       (int)((time & 0x00_00_FF_00_00_00_00_00)>>40);
-                int day =         (int)((time & 0x00_00_00_FF_00_00_00_00)>>32);
-                int hour =        (int)((time & 0x00_00_00_00_FF_00_00_00)>>24);
-                int minute =      (int)((time & 0x00_00_00_00_00_FF_00_00)>>16);
-                int second =      (int)((time & 0x00_00_00_00_00_00_FF_00)>>8);
+                int century = (int)((time & 0xFF_00_00_00_00_00_00_00) >> 56);
+                int year = (int)((time & 0x00_FF_00_00_00_00_00_00) >> 48);
+                int month = (int)((time & 0x00_00_FF_00_00_00_00_00) >> 40);
+                int day = (int)((time & 0x00_00_00_FF_00_00_00_00) >> 32);
+                int hour = (int)((time & 0x00_00_00_00_FF_00_00_00) >> 24);
+                int minute = (int)((time & 0x00_00_00_00_00_FF_00_00) >> 16);
+                int second = (int)((time & 0x00_00_00_00_00_00_FF_00) >> 8);
 
                 year += century * 100;
 
@@ -1189,8 +1150,7 @@ namespace System
         // year is a leap year, or false if not.
         //
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsLeapYear(int year)
-        {
+        public static bool IsLeapYear(int year) {
             /*
             if (year < 1 || year > 9999)
             {
@@ -1277,13 +1237,11 @@ namespace System
         }
         */
 
-        public TimeSpan Subtract(DateTime value)
-        {
+        public TimeSpan Subtract(DateTime value) {
             return new TimeSpan(InternalTicks - value.InternalTicks);
         }
 
-        public DateTime Subtract(TimeSpan value)
-        {
+        public DateTime Subtract(TimeSpan value) {
             long ticks = InternalTicks;
             long valueTicks = value._ticks;
             /*
@@ -1296,8 +1254,7 @@ namespace System
         }
 
         // This function is duplicated in COMDateTime.cpp
-        private static double TicksToOADate(long value)
-        {
+        private static double TicksToOADate(long value) {
             if (value == 0)
                 return 0.0;  // Returns OleAut's zero'ed date value.
             if (value < TicksPerDay) // This is a fix for VB. They want the default day to be 1/1/0001 rathar then 12/30/1899.
@@ -1309,8 +1266,7 @@ namespace System
             // Currently, our max date == OA's max date (12/31/9999), so we don't
             // need an overflow check in that direction.
             long millis = (value - DoubleDateOffset) / TicksPerMillisecond;
-            if (millis < 0)
-            {
+            if (millis < 0) {
                 long frac = millis % MillisPerDay;
                 if (frac != 0) millis -= (MillisPerDay + frac) * 2;
             }
@@ -1319,8 +1275,7 @@ namespace System
 
         // Converts the DateTime instance into an OLE Automation compatible
         // double date.
-        public double ToOADate()
-        {
+        public double ToOADate() {
             return TicksToOADate(InternalTicks);
         }
 
@@ -1429,8 +1384,7 @@ namespace System
         }
         */
 
-        public override string ToString()
-        {
+        public override string ToString() {
             return $"{Year}/{Month}/{Day} {Hour}:{Minute}:{Second}";
         }
 
@@ -1516,8 +1470,7 @@ namespace System
         }
         */
 
-        public static DateTime operator +(DateTime d, TimeSpan t)
-        {
+        public static DateTime operator +(DateTime d, TimeSpan t) {
             long ticks = d.InternalTicks;
             long valueTicks = t._ticks;
             /*
@@ -1529,8 +1482,7 @@ namespace System
             return new DateTime((ulong)(ticks + valueTicks) | d.InternalKind);
         }
 
-        public static DateTime operator -(DateTime d, TimeSpan t)
-        {
+        public static DateTime operator -(DateTime d, TimeSpan t) {
             long ticks = d.InternalTicks;
             long valueTicks = t._ticks;
             /*

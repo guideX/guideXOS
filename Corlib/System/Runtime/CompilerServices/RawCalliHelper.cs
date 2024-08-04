@@ -1,11 +1,9 @@
 using System.Runtime.InteropServices;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     // These functions will be filled in by IL transforms
     [McgIntrinsics]
-    internal unsafe class RawCalliHelper
-    {
+    internal unsafe class RawCalliHelper {
         //public static void StdCall(IntPtr fn) { }
         public static ulong StdCall<T>(IntPtr fn, T a1) where T : unmanaged => 0;
         public static ulong StdCall<T>(IntPtr fn, T* a1) where T : unmanaged => 0;

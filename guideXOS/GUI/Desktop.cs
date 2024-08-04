@@ -67,7 +67,7 @@ namespace guideXOS.GUI {
         /// </summary>
         public static void Update() {
             var fileIcon = Icons.FileIcon;
-            List <FileInfo> names = File.GetFiles(Dir);
+            List<FileInfo> names = File.GetFiles(Dir);
             int Devide = 60;
             int X = Devide;
             int Y = Devide;
@@ -208,7 +208,7 @@ namespace guideXOS.GUI {
                 //guideXOS.GUI.NotificationManager.Add(new Nofity("New Dir: " + Dir));
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
-                PNG png = new PNG(buffer);
+                PNG png = new(buffer);
                 buffer.Dispose();
                 imageViewer.SetImage(png);
                 png.Dispose();
@@ -216,7 +216,7 @@ namespace guideXOS.GUI {
                 imageViewer.Visible = true;
             } else if (name.EndsWith(".bmp")) {
                 byte[] buffer = File.ReadAllBytes(path);
-                Bitmap png = new Bitmap(buffer);
+                Bitmap png = new(buffer);
                 buffer.Dispose();
                 imageViewer.SetImage(png);
                 png.Dispose();

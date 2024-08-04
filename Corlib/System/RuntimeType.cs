@@ -1,6 +1,4 @@
-namespace System
-{
-    internal class RuntimeType
-    {
+namespace System {
+    internal class RuntimeType {
     }
 }

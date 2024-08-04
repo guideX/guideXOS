@@ -1,9 +1,7 @@
 using System.Runtime.CompilerServices;
 
-namespace System
-{
-    public unsafe struct UIntPtr
-    {
+namespace System {
+    public unsafe struct UIntPtr {
         void* _value;
 
         public UIntPtr(void* value) { _value = value; }
@@ -30,8 +28,7 @@ namespace System
 
         public static explicit operator void*(UIntPtr value) => value._value;
 
-        public static explicit operator int(UIntPtr value)
-        {
+        public static explicit operator int(UIntPtr value) {
             var l = (long)value._value;
 
             return checked((int)l);
@@ -49,18 +46,15 @@ namespace System
         public static UIntPtr operator +(UIntPtr a, ulong b)
             => new UIntPtr((byte*)a._value + b);
 
-        public static bool operator ==(UIntPtr a, UIntPtr b)
-        {
+        public static bool operator ==(UIntPtr a, UIntPtr b) {
             return a._value == b._value;
         }
 
-        public static bool operator !=(UIntPtr a, UIntPtr b)
-        {
+        public static bool operator !=(UIntPtr a, UIntPtr b) {
             return !(a._value == b._value);
         }
 
-        public override string ToString()
-        {
+        public override string ToString() {
             return ((ulong)_value).ToString();
         }
     }

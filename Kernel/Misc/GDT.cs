@@ -2,11 +2,9 @@ using Internal.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 
-static class GDT
-{
+static class GDT {
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct GDTEntry
-    {
+    struct GDTEntry {
         public ushort LimitLow;
         public ushort BaseLow;
         public byte BaseMid;
@@ -16,15 +14,13 @@ static class GDT
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct GDTDescriptor
-    {
+    public struct GDTDescriptor {
         public ushort Limit;
         public ulong Base;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct TSSEntry
-    {
+    struct TSSEntry {
         public ushort LimitLow;
         public ushort BaseLow;
         public byte BaseMidLow;
@@ -36,8 +32,7 @@ static class GDT
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct TSS
-    {
+    struct TSS {
         public uint Reserved0;
         public uint Rsp0Low;
         public uint Rsp0High;
@@ -67,8 +62,7 @@ static class GDT
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    struct GDTS
-    {
+    struct GDTS {
         public GDTEntry Empty;
         public GDTEntry KernelCode;
         public GDTEntry KernelData;
@@ -81,8 +75,7 @@ static class GDT
     public static GDTDescriptor gdtr;
 
 
-    public static void Initialise()
-    {
+    public static void Initialise() {
         gdts.KernelCode.LimitLow = 0xFFFF;
         gdts.KernelCode.Access = 0x9A;
         gdts.KernelCode.LimitHigh_Flags = 0xAF;
@@ -91,10 +84,8 @@ static class GDT
         gdts.KernelData.Access = 0x92;
         gdts.KernelData.LimitHigh_Flags = 0xCF;
 
-        unsafe
-        {
-            fixed (TSS* _tss = &tss)
-            {
+        unsafe {
+            fixed (TSS* _tss = &tss) {
                 var addr = (ulong)_tss;
                 gdts.TSS.LimitLow = (ushort)(Unsafe.SizeOf<TSS>() - 1);
                 gdts.TSS.BaseLow = (ushort)(addr & 0xFFFF);
@@ -106,10 +97,8 @@ static class GDT
             }
         }
 
-        unsafe
-        {
-            fixed (GDTS* _gdts = &gdts)
-            {
+        unsafe {
+            fixed (GDTS* _gdts = &gdts) {
                 gdtr.Limit = (ushort)(Unsafe.SizeOf<GDTEntry>() * 3 - 1);
                 gdtr.Base = (ulong)_gdts;
             }

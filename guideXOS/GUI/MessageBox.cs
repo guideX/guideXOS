@@ -21,7 +21,7 @@ namespace guideXOS.GUI {
         /// On Draw
         /// </summary>
         public override void OnDraw() {
-            if (this._message != null) 
+            if (this._message != null)
                 this.Width = WindowManager.font.MeasureString(_message);
             base.OnDraw();
             if (this._message != null) {

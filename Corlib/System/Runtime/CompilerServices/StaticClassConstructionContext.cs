@@ -1,12 +1,10 @@
 using System.Runtime.InteropServices;
 
-namespace System.Runtime.CompilerServices
-{
+namespace System.Runtime.CompilerServices {
     // This data structure is a contract with the compiler. It holds the address of a static
     // constructor and a flag that specifies whether the constructor already executed.
     [StructLayout(LayoutKind.Sequential)]
-    public struct StaticClassConstructionContext
-    {
+    public struct StaticClassConstructionContext {
         // Pointer to the code for the static class constructor method. This is initialized by the
         // binder/runtime.
         public IntPtr cctorMethodAddress;

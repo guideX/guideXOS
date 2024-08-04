@@ -1,6 +1,3 @@
-using System.Runtime.CompilerServices;
-
-namespace System
-{
+namespace System {
     public struct RuntimeFieldHandle { }
 }

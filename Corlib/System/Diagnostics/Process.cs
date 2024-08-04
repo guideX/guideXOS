@@ -2,14 +2,10 @@ using Internal.Runtime.CompilerHelpers;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 
-namespace System.Diagnostics
-{
-    public static unsafe class Process
-    {
-        public static void Start(byte[] exe)
-        {
-            fixed (byte* ptr = exe)
-            {
+namespace System.Diagnostics {
+    public static unsafe class Process {
+        public static void Start(byte[] exe) {
+            fixed (byte* ptr = exe) {
                 DOSHeader* doshdr = (DOSHeader*)ptr;
                 NtHeaders64* nthdr = (NtHeaders64*)(ptr + doshdr->e_lfanew);
 
@@ -25,8 +21,7 @@ namespace System.Diagnostics
 
                 IntPtr moduleSeg = IntPtr.Zero;
                 SectionHeader* sections = ((SectionHeader*)(newPtr + newdoshdr->e_lfanew + sizeof(NtHeaders64)));
-                for (int i = 0; i < newnthdr->FileHeader.NumberOfSections; i++)
-                {
+                for (int i = 0; i < newnthdr->FileHeader.NumberOfSections; i++) {
                     if (*(ulong*)sections[i].Name == 0x73656C75646F6D2E) moduleSeg = (IntPtr)((ulong)newPtr + sections[i].VirtualAddress);
                     memcpy((byte*)((ulong)newPtr + sections[i].VirtualAddress), ptr + sections[i].PointerToRawData, sections[i].SizeOfRawData);
                 }
@@ -49,22 +44,18 @@ namespace System.Diagnostics
         [DllImport("StartThread")]
         static extern void StartThread(delegate*<void> func);
 
-        static void FixImageRelocations(DOSHeader* dos_header, NtHeaders64* nt_header, long delta)
-        {
+        static void FixImageRelocations(DOSHeader* dos_header, NtHeaders64* nt_header, long delta) {
             ulong size;
             long* intruction;
             DataDirectory* reloc_block =
                 (DataDirectory*)(nt_header->OptionalHeader.BaseRelocationTable.VirtualAddress +
                     (ulong)dos_header);
 
-            while (reloc_block->VirtualAddress)
-            {
+            while (reloc_block->VirtualAddress) {
                 size = (ulong)((reloc_block->Size - sizeof(DataDirectory)) / sizeof(ushort));
                 ushort* fixup = (ushort*)((ulong)reloc_block + (ulong)sizeof(DataDirectory));
-                for (ulong i = 0; i < size; i++, fixup++)
-                {
-                    if (10 == *fixup >> 12)
-                    {
+                for (ulong i = 0; i < size; i++, fixup++) {
+                    if (10 == *fixup >> 12) {
                         intruction = (long*)(reloc_block->VirtualAddress + (ulong)dos_header + (*fixup & 0xfffu));
                         *intruction += delta;
                     }

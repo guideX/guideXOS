@@ -1,7 +1,5 @@
-namespace System.Drawing
-{
-    public struct Color
-    {
+namespace System.Drawing {
+    public struct Color {
         public static Color AliceBlue { get { return FromArgb(240, 248, 255); } }
         public static Color LightSalmon { get { return FromArgb(255, 160, 122); } }
         public static Color AntiqueWhite { get { return FromArgb(250, 235, 215); } }
@@ -145,100 +143,79 @@ namespace System.Drawing
 
         public uint ARGB;
 
-        public byte A
-        {
-            get
-            {
+        public byte A {
+            get {
                 return ((byte)((ARGB >> 24) & 0xFF));
             }
-            set
-            {
+            set {
                 ARGB &= ~0xFF000000;
                 ARGB |= (uint)(value << 24);
             }
         }
 
-        public byte R
-        {
-            get
-            {
+        public byte R {
+            get {
                 return ((byte)((ARGB >> 16) & 0xFF));
             }
-            set
-            {
+            set {
                 ARGB &= ~0x00FF0000U;
                 ARGB |= (uint)(value << 16);
             }
         }
 
-        public byte G
-        {
-            get
-            {
+        public byte G {
+            get {
                 return ((byte)((ARGB >> 8) & 0xFF));
             }
-            set
-            {
+            set {
                 ARGB &= ~0x0000FF00U;
                 ARGB |= (uint)(value << 8);
             }
         }
 
-        public byte B
-        {
-            get
-            {
+        public byte B {
+            get {
                 return ((byte)((ARGB >> 0) & 0xFF));
             }
-            set
-            {
+            set {
                 ARGB &= ~0x000000FFU;
                 ARGB |= (uint)(value << 0);
             }
         }
 
-        public static bool operator ==(Color a, Color b)
-        {
+        public static bool operator ==(Color a, Color b) {
             return Equals(a, b);
         }
 
-        public static bool operator !=(Color a, Color b)
-        {
+        public static bool operator !=(Color a, Color b) {
             return !Equals(a, b);
         }
 
-        public static bool Equals(Color a, Color b)
-        {
+        public static bool Equals(Color a, Color b) {
             return a.ARGB == b.ARGB;
         }
 
-        public uint ToArgb()
-        {
+        public uint ToArgb() {
             return ARGB;
         }
 
-        public static uint ToArgb(byte r, byte g, byte b)
-        {
+        public static uint ToArgb(byte r, byte g, byte b) {
             return (uint)(255 << 24 | r << 16 | g << 8 | b);
         }
 
-        public static uint ToArgb(byte a, byte r, byte g, byte b)
-        {
+        public static uint ToArgb(byte a, byte r, byte g, byte b) {
             return (uint)(a << 24 | r << 16 | g << 8 | b);
         }
 
-        public static Color FromArgb(byte red, byte green, byte blue)
-        {
+        public static Color FromArgb(byte red, byte green, byte blue) {
             return new Color() { ARGB = ToArgb(red, green, blue) };
         }
 
-        public static Color FromArgb(byte alpha, byte red, byte green, byte blue)
-        {
+        public static Color FromArgb(byte alpha, byte red, byte green, byte blue) {
             return new Color() { ARGB = ToArgb(alpha, red, green, blue) };
         }
 
-        public static Color FromArgb(uint argb)
-        {
+        public static Color FromArgb(uint argb) {
             return new Color() { ARGB = argb };
         }
     }

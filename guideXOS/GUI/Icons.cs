@@ -18,7 +18,7 @@ namespace guideXOS.GUI {
         /// Iamge Icon
         /// </summary>
         public static Image IamgeIcon {
-            get { 
+            get {
                 return new PNG(File.ReadAllBytes("Images/Image.png"));
             }
         }

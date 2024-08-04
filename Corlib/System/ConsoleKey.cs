@@ -1,7 +1,5 @@
-namespace System
-{
-    public enum ConsoleKey : byte
-    {
+namespace System {
+    public enum ConsoleKey : byte {
         None = 0,
         Backspace = 8,
         Tab,

@@ -1,9 +1,6 @@
-namespace guideXOS.Misc
-{
-    public static class ClassID
-    {
-        public static string GetName(byte id) 
-        {
+namespace guideXOS.Misc {
+    public static class ClassID {
+        public static string GetName(byte id) {
             if (id == 0x00) return "Unclassified device";
             if (id == 0x01) return "Mass storage controller";
             if (id == 0x02) return "Network controller";

@@ -177,11 +177,11 @@ abstract unsafe class Allocator {
     /// <typeparam name="T"></typeparam>
     /// <param name="num"></param>
     /// <returns></returns>
-    #pragma warning disable CS8500
+#pragma warning disable CS8500
     public static T* ClearAllocate<T>(int num) where T : struct {
         return (T*)ClearAllocate(num, sizeof(T));
     }
-    #pragma warning restore CS8500
+#pragma warning restore CS8500
     /// <summary>
     /// Clear Allocate
     /// </summary>

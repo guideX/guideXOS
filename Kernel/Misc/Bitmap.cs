@@ -1,14 +1,9 @@
-﻿using guideXOS;
-using System.Drawing;
+﻿using System.Drawing;
 
-namespace guideXOS.Misc
-{
-    public unsafe class Bitmap : Image
-    {
-        public Bitmap(byte[] data)
-        {
-            fixed (byte* p = data)
-            {
+namespace guideXOS.Misc {
+    public unsafe class Bitmap : Image {
+        public Bitmap(byte[] data) {
+            fixed (byte* p = data) {
 
                 uint _Size;
                 uint _DataSectionOffset;
@@ -22,14 +17,12 @@ namespace guideXOS.Misc
                 _Height = *(uint*)(p + 0x16);
                 _Bpp = *(p + 0x1C);
 
-                if (p[0] != (byte)'B' && p[1] != (byte)'M')
-                {
+                if (p[0] != (byte)'B' && p[1] != (byte)'M') {
                     Console.WriteLine("This is not a bitmap");
                     return;
                 }
 
-                if (_Bpp != 24 && _Bpp != 32)
-                {
+                if (_Bpp != 24 && _Bpp != 32) {
                     Console.WriteLine("Only support 24bit or 32bit bitmap");
                     return;
                 }
@@ -42,19 +35,15 @@ namespace guideXOS.Misc
                 int[] temp = new int[Width];
                 uint w = 0;
                 uint h = (uint)Height - 1;
-                for (uint i = 0; i < this.Width * this.Height * (_Bpp / 8); i += (_Bpp / 8))
-                {
-                    if (w == Width)
-                    {
-                        for (uint k = 0; k < temp.Length; k++)
-                        {
+                for (uint i = 0; i < this.Width * this.Height * (_Bpp / 8); i += (_Bpp / 8)) {
+                    if (w == Width) {
+                        for (uint k = 0; k < temp.Length; k++) {
                             RawData[Width * h + k] = temp[k];
                         }
                         w = 0;
                         h--;
                     }
-                    switch (_Bpp)
-                    {
+                    switch (_Bpp) {
                         case 24:
                             temp[w] = (int)((*(uint*)(p + _DataSectionOffset + i) & 0x00FFFFFF) | 0xFF000000);
                             break;
