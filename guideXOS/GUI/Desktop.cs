@@ -1,7 +1,9 @@
+using guideXOS.DefaultApps;
 using guideXOS.FS;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using guideXOS.OS;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -10,7 +12,8 @@ namespace guideXOS.GUI {
     /// <summary>
     /// Desktop
     /// </summary>
-    internal static class Desktop {
+    public static class Desktop {
+        #region "public variables"
         /// <summary>
         /// Dir
         /// </summary>
@@ -36,18 +39,32 @@ namespace guideXOS.GUI {
         /// </summary>
         public static AppCollection Apps;
         /// <summary>
-        /// Is At Root
+        /// Last Point
         /// </summary>
-        public static bool IsAtRoot {
-            get => Desktop.Dir.Length < 1;
-        }
+        public static Point LastPoint;
+        #endregion
+        #region "private variables"
+        /// <summary>
+        /// Click Lock
+        /// </summary>
+        private static bool _clickLock = false;
+        /// <summary>
+        /// Index Clicked
+        /// </summary>
+        private static int _indexClicked;
+        /// <summary>
+        /// Bar Height
+        /// </summary>
+        private const int _barHeight = 40;
+        #endregion
+        #region "methods"
         /// <summary>
         /// Initialize
         /// </summary>
         public static void Initialize() {
             Apps = new AppCollection();
-            IndexClicked = -1;
-            Taskbar = new Taskbar(40, Icons.TaskbarIcon);
+            _indexClicked = -1;
+            Taskbar = new Taskbar(_barHeight, Icons.TaskbarIcon);
             Dir = "";
             imageViewer = new ImageViewer(400, 400);
             msgbox = new MessageBox(100, 300);
@@ -59,10 +76,6 @@ namespace guideXOS.GUI {
             LastPoint.Y = -1;
         }
         /// <summary>
-        /// Bar Height
-        /// </summary>
-        const int BarHeight = 40;
-        /// <summary>
         /// Update
         /// </summary>
         public static void Update() {
@@ -71,7 +84,8 @@ namespace guideXOS.GUI {
             int Devide = 60;
             int X = Devide;
             int Y = Devide;
-            if (IsAtRoot) {
+            var isAtRoot = Desktop.Dir.Length < 1;
+            if (isAtRoot) {
                 for (int i = 0; i < Apps.Length; i++) {
                     if (Y + fileIcon.Height + Devide > Framebuffer.Graphics.Height - Devide) {
                         Y = Devide;
@@ -83,13 +97,12 @@ namespace guideXOS.GUI {
                     Y += Icons.FileIcon.Height + Devide;
                 }
             }
-
             for (int i = 0; i < names.Count; i++) {
                 if (Y + fileIcon.Height + Devide > Framebuffer.Graphics.Height - Devide) {
                     Y = Devide;
                     X += fileIcon.Width + Devide;
                 }
-                ClickEvent(names[i].Name, names[i].Attribute == FileAttribute.Directory, X, Y, i + (IsAtRoot ? Apps.Length : 0));
+                ClickEvent(names[i].Name, names[i].Attribute == FileAttribute.Directory, X, Y, i + (isAtRoot ? Apps.Length : 0));
                 if (names[i].Name.EndsWith(".png") || names[i].Name.EndsWith(".bmp")) {
                     Framebuffer.Graphics.DrawImage(X, Y, Icons.IamgeIcon);
                 } else if (names[i].Name.EndsWith(".wav")) {
@@ -153,10 +166,6 @@ namespace guideXOS.GUI {
             Taskbar.Draw();
         }
         /// <summary>
-        /// Last Point
-        /// </summary>
-        public static Point LastPoint;
-        /// <summary>
         /// Click Event
         /// </summary>
         /// <param name="name"></param>
@@ -174,21 +183,18 @@ namespace guideXOS.GUI {
                         }
                 }
 
-                if (!WindowManager.HasWindowMoving && clickable && !ClickLock && Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.FileIcon.Width && Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.FileIcon.Height) {
-                    IndexClicked = i;
+                if (!WindowManager.HasWindowMoving && clickable && !_clickLock && Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.FileIcon.Width && Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.FileIcon.Height) {
+                    _indexClicked = i;
                     OnClick(name, isDirectory, X, Y);
                 }
             } else {
-                ClickLock = false;
+                _clickLock = false;
             }
-
-            if (IndexClicked == i) {
+            if (_indexClicked == i) {
                 int w = (int)(Icons.FileIcon.Width * 1.5f);
                 Framebuffer.Graphics.AFillRectangle(X + ((Icons.FileIcon.Width / 2) - (w / 2)), Y, w, Icons.FileIcon.Height * 2, 0x7F2E86C1);
             }
         }
-        static bool ClickLock = false;
-        static int IndexClicked;
         /// <summary>
         /// On Click
         /// </summary>
@@ -197,15 +203,22 @@ namespace guideXOS.GUI {
         /// <param name="itemX"></param>
         /// <param name="itemY"></param>
         public static void OnClick(string name, bool isDirectory, int itemX, int itemY) {
-            //if (!string.IsNullOrWhiteSpace(name)) { guideXOS.GUI.NotificationManager.Add(new Nofity("Clicked: " + name)); }
-            ClickLock = true;
-            string devider = "/";
-            string path = Dir + name;
+            _clickLock = true;
+            var slash = "/";
+            var path = Dir + name;
             if (isDirectory) {
-                string newd = Dir + name + devider;
+                var d = Dir + name + slash;
                 Dir.Dispose();
-                Dir = newd;
-                //guideXOS.GUI.NotificationManager.Add(new Nofity("New Dir: " + Dir));
+                Dir = d;
+            } else if (name.EndsWith(".txt")) {
+                var n = new Notepad(40, 40);
+                var b = File.ReadAllBytes(path);
+                TXT txt = new TXT(BitConverter.ToString(b));
+                b.Dispose();
+                n.SetText(txt);
+                txt.Dispose();
+                WindowManager.MoveToEnd(n);
+                n.Visible = true;
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 PNG png = new(buffer);
@@ -231,8 +244,8 @@ namespace guideXOS.GUI {
                     byte[] buffer = File.ReadAllBytes(path);
                     unsafe {
                         //name will be disposed after this loop so create a new one
-                        fixed (char* ptr = name)
-                            wavplayer.Play(buffer, new string(ptr));
+                        //fixed (char* ptr = name)
+                            //wavplayer.Play(buffer, new string(ptr));
                     }
                 } else {
                     msgbox.X = itemX + 75;
@@ -249,7 +262,8 @@ namespace guideXOS.GUI {
                 msgbox.Visible = true;
             }
             path.Dispose();
-            devider.Dispose();
+            slash.Dispose();
         }
+        #endregion
     }
 }

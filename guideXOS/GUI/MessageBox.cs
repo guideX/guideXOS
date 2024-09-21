@@ -3,7 +3,7 @@ namespace guideXOS.GUI {
     /// <summary>
     /// Message Box
     /// </summary>
-    internal class MessageBox : Window {
+    public class MessageBox : Window {
         /// <summary>
         /// Message
         /// </summary>

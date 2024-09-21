@@ -4,7 +4,7 @@ namespace guideXOS.GUI {
     /// <summary>
     /// Window
     /// </summary>
-    abstract class Window {
+    public abstract class Window {
         /// <summary>
         /// Visible
         /// </summary>

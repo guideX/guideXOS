@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace System {
-    public sealed unsafe class String {
+    public unsafe class String {
         [Intrinsic]
         public static readonly string Empty = "";
 

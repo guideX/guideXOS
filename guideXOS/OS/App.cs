@@ -92,6 +92,7 @@ namespace guideXOS.OS {
             _apps.Add(new App("Monitor", icon));
             _apps.Add(new App("StartMenu", icon));
             _apps.Add(new App("Lock", icon));
+            _apps.Add(new App("Notepad", icon));
         }
         /// <summary>
         /// Load
@@ -121,6 +122,10 @@ namespace guideXOS.OS {
                             break;
                         case "Paint":
                             _apps[i].AppObject = new Paint(500, 200);
+                            b = true;
+                            break;
+                        case "Notepad":
+                            _apps[i].AppObject = new Notepad(500, 200);
                             b = true;
                             break;
                         case "Console":

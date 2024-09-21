@@ -13,6 +13,10 @@ using System.Windows.Forms;
 /// </summary>
 unsafe class Program {
     /// <summary>
+    /// Desktop
+    /// </summary>
+    //public static Desktop Desktop;
+    /// <summary>
     /// Main
     /// </summary>
     static void Main() {
@@ -56,7 +60,7 @@ unsafe class Program {
     [RuntimeExport("KMain")]
     static void KMain() {
         Animator.Initialize();
-
+/*
 #if USBDebug
         Hub.Initialize();
         HID.Initialize();
@@ -93,7 +97,7 @@ unsafe class Program {
                 }
             }
         }
-#else
+#else*/
         Hub.Initialize();
         HID.Initialize();
         EHCI.Initialize();
@@ -133,7 +137,7 @@ unsafe class Program {
         if (HID.Keyboard == null) {
             Console.WriteLine("USB Keyboard not present");
         }
-#endif
+//#endif
 
         //Sized width to 512
         Cursor = new PNG(File.ReadAllBytes("Images/Cursor.png"));

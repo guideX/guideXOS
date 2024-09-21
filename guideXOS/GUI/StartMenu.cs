@@ -3,7 +3,7 @@ namespace guideXOS.GUI {
     /// <summary>
     /// Start Menu
     /// </summary>
-    internal class StartMenu : Window {
+    public class StartMenu : Window {
         /// <summary>
         /// X
         /// </summary>
