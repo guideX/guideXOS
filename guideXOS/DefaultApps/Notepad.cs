@@ -1,10 +1,11 @@
-﻿using guideXOS.GUI;
+﻿/*
+using guideXOS.GUI;
 using guideXOS.Misc;
 namespace guideXOS.DefaultApps {
     /// <summary>
     /// Notepad
     /// </summary>
-    public class Notepad : Window {
+    internal class Notepad : Window {
         private TXT _txt;
         /// <summary>
         /// Set Text
@@ -34,4 +35,4 @@ namespace guideXOS.DefaultApps {
 
         }
     }
-}
+}*/

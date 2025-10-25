@@ -125,10 +125,10 @@ namespace guideXOS.OS {
                             _apps[i].AppObject = new Paint(500, 200);
                             b = true;
                             break;
-                        case "Notepad":
-                            _apps[i].AppObject = new Notepad(500, 200);
-                            b = true;
-                            break;
+                        //case "Notepad":
+                        //_apps[i].AppObject = new Notepad(500, 200);
+                        //b = true;
+                        //break;
                         case "Console":
                             Program.InitConsole();
                             b = true;
