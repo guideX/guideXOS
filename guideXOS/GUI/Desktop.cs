@@ -57,94 +57,119 @@ namespace guideXOS.GUI {
             wavplayer.Visible = false;
             LastPoint.X = -1;
             LastPoint.Y = -1;
+            _dirCacheDirty = true;
+            _dirCacheFor = null;
+            _dirCache = null;
         }
         /// <summary>
         /// Bar Height
         /// </summary>
         const int BarHeight = 40;
+        static List<FileInfo> _dirCache;
+        static string _dirCacheFor;
+        static bool _dirCacheDirty;
+
+        static void ClearDirCache() {
+            if (_dirCache != null) {
+                for (int i = 0; i < _dirCache.Count; i++) {
+                    _dirCache[i].Dispose();
+                }
+                _dirCache.Dispose();
+                _dirCache = null;
+            }
+            _dirCacheFor = null;
+        }
+
+        static List<FileInfo> GetDirectoryEntries() {
+            if (_dirCache == null || _dirCacheDirty || _dirCacheFor == null || _dirCacheFor != Dir) {
+                // Dispose previous cache
+                ClearDirCache();
+                // Refresh cache for current Dir
+                _dirCache = File.GetFiles(Dir);
+                _dirCacheFor = Dir;
+                _dirCacheDirty = false;
+            }
+            return _dirCache;
+        }
+
+        static bool IsMouseOverAnyVisibleWindow() {
+            for (int d = 0; d < WindowManager.Windows.Count; d++) {
+                if (WindowManager.Windows[d].Visible && WindowManager.Windows[d].IsUnderMouse())
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Update
         /// </summary>
         /// <param name="fileIcon"></param>
         public static void Update(Image fileIcon) {
-            //var fileIcon = Icons.FileIcon;
-            List<FileInfo> names = File.GetFiles(Dir);
-            int Devide = 60;
-            int X = Devide;
-            int Y = Devide;
+            var names = GetDirectoryEntries();
+
+            // Precompute frequently used values
+            int devide = 60;
+            int fw = fileIcon.Width;
+            int fh = fileIcon.Height;
+            int screenH = Framebuffer.Graphics.Height;
+            int x = devide;
+            int y = devide;
+
+            // Compute clickability once per frame
+            bool leftDown = Control.MouseButtons.HasFlag(MouseButtons.Left);
+            bool mouseBlocked = WindowManager.HasWindowMoving || WindowManager.MouseHandled || IsMouseOverAnyVisibleWindow();
+            bool clickable = leftDown && !mouseBlocked;
+
             if (IsAtRoot) {
                 for (int i = 0; i < Apps.Length; i++) {
-                    if (Y + fileIcon.Height + Devide > Framebuffer.Graphics.Height - Devide) {
-                        Y = Devide;
-                        X += fileIcon.Width + Devide;
+                    if (y + fh + devide > screenH - devide) {
+                        y = devide;
+                        x += fw + devide;
                     }
-                    ClickEvent(Apps.Name(i), false, X, Y, i);
-                    Framebuffer.Graphics.DrawImage(X, Y, Apps.Icon(i));
-                    WindowManager.font.DrawString(X, Y + fileIcon.Height, Apps.Name(i), fileIcon.Width + 8, WindowManager.font.FontSize * 3);
-                    Y += Icons.FileIcon.Height + Devide;
+                    ClickEvent(Apps.Name(i), false, x, y, i, clickable, leftDown);
+                    Framebuffer.Graphics.DrawImage(x, y, Apps.Icon(i));
+                    WindowManager.font.DrawString(x, y + fh, Apps.Name(i), fw + 8, WindowManager.font.FontSize * 3);
+                    y += Icons.FileIcon.Height + devide;
                 }
             }
 
             for (int i = 0; i < names.Count; i++) {
-                if (Y + fileIcon.Height + Devide > Framebuffer.Graphics.Height - Devide) {
-                    Y = Devide;
-                    X += fileIcon.Width + Devide;
+                if (y + fh + devide > screenH - devide) {
+                    y = devide;
+                    x += fw + devide;
                 }
-                ClickEvent(names[i].Name, names[i].Attribute == FileAttribute.Directory, X, Y, i + (IsAtRoot ? Apps.Length : 0));
-                if (names[i].Name.EndsWith(".png") || names[i].Name.EndsWith(".bmp")) {
-                    Framebuffer.Graphics.DrawImage(X, Y, Icons.IamgeIcon);
-                } else if (names[i].Name.EndsWith(".wav")) {
-                    Framebuffer.Graphics.DrawImage(X, Y, Icons.AudioIcon);
-                } else if (names[i].Attribute == FileAttribute.Directory) {
-                    Framebuffer.Graphics.DrawImage(X, Y, Icons.FolderIcon);
+                string n = names[i].Name;
+                bool isDir = names[i].Attribute == FileAttribute.Directory;
+
+                ClickEvent(n, isDir, x, y, i + (IsAtRoot ? Apps.Length : 0), clickable, leftDown);
+
+                // Choose icon by extension/type
+                if (n.EndsWith(".png") || n.EndsWith(".bmp")) {
+                    Framebuffer.Graphics.DrawImage(x, y, Icons.IamgeIcon);
+                } else if (n.EndsWith(".wav")) {
+                    Framebuffer.Graphics.DrawImage(x, y, Icons.AudioIcon);
+                } else if (isDir) {
+                    Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                 } else {
-                    Framebuffer.Graphics.DrawImage(X, Y, fileIcon);
+                    Framebuffer.Graphics.DrawImage(x, y, fileIcon);
                 }
-                WindowManager.font.DrawString(X, Y + fileIcon.Height, names[i].Name, fileIcon.Width + 8, WindowManager.font.FontSize * 3);
-                Y += fileIcon.Height + Devide;
-                names[i].Dispose();
+                WindowManager.font.DrawString(x, y + fh, n, fw + 8, WindowManager.font.FontSize * 3);
+                y += fh + devide;
             }
-            names.Dispose();
-            if (Control.MouseButtons.HasFlag(MouseButtons.Left) && !WindowManager.HasWindowMoving && !WindowManager.MouseHandled) {
+
+            // Selection marquee with a single normalized rect draw
+            if (leftDown && !WindowManager.HasWindowMoving && !WindowManager.MouseHandled) {
+                int mx = Control.MousePosition.X;
+                int my = Control.MousePosition.Y;
                 if (LastPoint.X == -1 && LastPoint.Y == -1) {
-                    LastPoint.X = Control.MousePosition.X;
-                    LastPoint.Y = Control.MousePosition.Y;
+                    LastPoint.X = mx;
+                    LastPoint.Y = my;
                 } else {
-                    if (Control.MousePosition.X > LastPoint.X && Control.MousePosition.Y > LastPoint.Y) {
-                        Framebuffer.Graphics.AFillRectangle(
-                            LastPoint.X,
-                            LastPoint.Y,
-                            Control.MousePosition.X - LastPoint.X,
-                            Control.MousePosition.Y - LastPoint.Y,
-                            0x7F2E86C1);
-                    }
-
-                    if (Control.MousePosition.X < LastPoint.X && Control.MousePosition.Y < LastPoint.Y) {
-                        Framebuffer.Graphics.AFillRectangle(
-                            Control.MousePosition.X,
-                            Control.MousePosition.Y,
-                            LastPoint.X - Control.MousePosition.X,
-                            LastPoint.Y - Control.MousePosition.Y,
-                            0x7F2E86C1);
-                    }
-
-                    if (Control.MousePosition.X < LastPoint.X && Control.MousePosition.Y > LastPoint.Y) {
-                        Framebuffer.Graphics.AFillRectangle(
-                            Control.MousePosition.X,
-                            LastPoint.Y,
-                            LastPoint.X - Control.MousePosition.X,
-                            Control.MousePosition.Y - LastPoint.Y,
-                            0x7F2E86C1);
-                    }
-
-                    if (Control.MousePosition.X > LastPoint.X && Control.MousePosition.Y < LastPoint.Y) {
-                        Framebuffer.Graphics.AFillRectangle(
-                            LastPoint.X,
-                            Control.MousePosition.Y,
-                            Control.MousePosition.X - LastPoint.X,
-                            LastPoint.Y - Control.MousePosition.Y,
-                            0x7F2E86C1);
-                    }
+                    int rx = LastPoint.X < mx ? LastPoint.X : mx;
+                    int ry = LastPoint.Y < my ? LastPoint.Y : my;
+                    int rw = (LastPoint.X < mx ? mx - LastPoint.X : LastPoint.X - mx);
+                    int rh = (LastPoint.Y < my ? my - LastPoint.Y : LastPoint.Y - my);
+                    Framebuffer.Graphics.AFillRectangle(rx, ry, rw, rh, 0x7F2E86C1);
                 }
             } else {
                 LastPoint.X = -1;
@@ -165,17 +190,13 @@ namespace guideXOS.GUI {
         /// <param name="X"></param>
         /// <param name="Y"></param>
         /// <param name="i"></param>
-        private static void ClickEvent(string name, bool isDirectory, int X, int Y, int i) {
-            if (Control.MouseButtons == MouseButtons.Left) {
-                bool clickable = true;
-                for (int d = 0; d < WindowManager.Windows.Count; d++) {
-                    if (WindowManager.Windows[d].Visible)
-                        if (WindowManager.Windows[d].IsUnderMouse()) {
-                            clickable = false;
-                        }
-                }
-
-                if (!WindowManager.HasWindowMoving && clickable && !ClickLock && Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.FileIcon.Width && Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.FileIcon.Height) {
+        /// <param name="clickable"></param>
+        /// <param name="leftDown"></param>
+        private static void ClickEvent(string name, bool isDirectory, int X, int Y, int i, bool clickable, bool leftDown) {
+            if (leftDown) {
+                if (!WindowManager.HasWindowMoving && clickable && !ClickLock &&
+                    Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.FileIcon.Width &&
+                    Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.FileIcon.Height) {
                     IndexClicked = i;
                     OnClick(name, isDirectory, X, Y);
                 }
@@ -206,6 +227,10 @@ namespace guideXOS.GUI {
                 string newd = Dir + name + devider;
                 Dir.Dispose();
                 Dir = newd;
+
+                // Mark directory cache dirty so it refreshes next frame
+                _dirCacheDirty = true;
+                IndexClicked = -1;
                 //guideXOS.GUI.NotificationManager.Add(new Nofity("New Dir: " + Dir));
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
