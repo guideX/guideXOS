@@ -74,10 +74,12 @@ namespace guideXOS.GUI {
             int menuY = bottomY - menuH - Gap;
 
             if (leftDown) {
-                // Click on Shutdown
+                // Click on Shutdown -> show confirm dialog instead of immediate shutdown
                 if (mx >= shutdownX && mx <= shutdownX + ShutdownBtnW &&
                     my >= bottomY && my <= bottomY + ShutdownBtnH) {
-                    Power.Shutdown();
+                    var dlg = new ShutdownDialog();
+                    WindowManager.MoveToEnd(dlg);
+                    dlg.Visible = true;
                     return;
                 }
 

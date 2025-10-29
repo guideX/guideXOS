@@ -39,43 +39,85 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - _barHeight, Framebuffer.Width, _barHeight, 0xCC222222);
             Framebuffer.Graphics.DrawImage(12, Framebuffer.Height - _barHeight + 4, _startIcon);
 
-            // Clock (bottom-right) - HH:MM:SS with manual zero-padding; dispose temporary strings to prevent leaks
-            string colon = ":";
+            int textW, textX, textY;
+            int hitX0, hitY0, hitX1, hitY1;
 
-            int hourValue = _clockUse12Hour ? ((RTC.Hour % 12 == 0) ? 12 : (RTC.Hour % 12)) : RTC.Hour;
-            string shour = hourValue.ToString();
-            if (hourValue < 10) { string tmp = "0" + shour; shour.Dispose(); shour = tmp; }
+            if (_clockUse12Hour) {
+                // 12-hour format: h:MM AM/PM (no leading zero on hour, no seconds)
+                string colon = ":";
+                string space = " ";
+                bool isPM = RTC.Hour >= 12;
+                string suffix = isPM ? "PM" : "AM";
 
-            string sminute = RTC.Minute.ToString();
-            if (RTC.Minute < 10) { string tmp = "0" + sminute; sminute.Dispose(); sminute = tmp; }
+                int hour12 = (RTC.Hour % 12 == 0) ? 12 : (RTC.Hour % 12);
+                string shour = hour12.ToString(); // no padding
 
-            string ssecond = RTC.Second.ToString();
-            if (RTC.Second < 10) { string tmp = "0" + ssecond; ssecond.Dispose(); ssecond = tmp; }
+                string sminute = RTC.Minute.ToString();
+                if (RTC.Minute < 10) { string tmp = "0" + sminute; sminute.Dispose(); sminute = tmp; }
 
-            // Build HH:MM:SS step-by-step to control temporaries
-            string time = shour + colon; // HH:
-            string tmp2 = time + sminute; time.Dispose(); time = tmp2; // HH:MM
-            string tmp3 = time + colon; time.Dispose(); time = tmp3;   // HH:MM:
-            string tmp4 = time + ssecond; time.Dispose(); time = tmp4; // HH:MM:SS
+                // Build h:MM AM/PM
+                string time = shour + colon;            // h:
+                string t2 = time + sminute; time.Dispose(); time = t2; // h:MM
+                string t3 = time + space;  time.Dispose(); time = t3;   // h:MM 
+                string t4 = time + suffix; time.Dispose(); time = t4;   // h:MM AM/PM
 
-            int textW = WindowManager.font.MeasureString(time);
-            int textX = Framebuffer.Width - 12 - textW;
-            int textY = Framebuffer.Height - _barHeight + ((_barHeight - WindowManager.font.FontSize) / 2);
-            WindowManager.font.DrawString(textX, textY, time);
+                textW = WindowManager.font.MeasureString(time);
+                textX = Framebuffer.Width - 12 - textW;
+                textY = Framebuffer.Height - _barHeight + ((_barHeight - WindowManager.font.FontSize) / 2);
+                WindowManager.font.DrawString(textX, textY, time);
 
-            // Hit test area for clock
-            int hitX0 = textX;
-            int hitY0 = Framebuffer.Height - _barHeight;
-            int hitX1 = textX + textW;
-            int hitY1 = Framebuffer.Height;
+                // Hit test area for clock
+                hitX0 = textX;
+                hitY0 = Framebuffer.Height - _barHeight;
+                hitX1 = textX + textW;
+                hitY1 = Framebuffer.Height;
 
-            // Dispose temps
-            colon.Dispose();
-            shour.Dispose();
-            sminute.Dispose();
-            ssecond.Dispose();
-            time.Dispose();
+                // Dispose temps
+                colon.Dispose();
+                space.Dispose();
+                shour.Dispose();
+                sminute.Dispose();
+                suffix.Dispose();
+                time.Dispose();
+            } else {
+                // 24-hour format: HH:MM:SS
+                string colon = ":";
 
+                string shour = RTC.Hour.ToString();
+                if (RTC.Hour < 10) { string tmp = "0" + shour; shour.Dispose(); shour = tmp; }
+
+                string sminute = RTC.Minute.ToString();
+                if (RTC.Minute < 10) { string tmp = "0" + sminute; sminute.Dispose(); sminute = tmp; }
+
+                string ssecond = RTC.Second.ToString();
+                if (RTC.Second < 10) { string tmp = "0" + ssecond; ssecond.Dispose(); ssecond = tmp; }
+
+                // Build HH:MM:SS step-by-step to control temporaries
+                string time = shour + colon; // HH:
+                string tmp2 = time + sminute; time.Dispose(); time = tmp2; // HH:MM
+                string tmp3 = time + colon; time.Dispose(); time = tmp3;   // HH:MM:
+                string tmp4 = time + ssecond; time.Dispose(); time = tmp4; // HH:MM:SS
+
+                textW = WindowManager.font.MeasureString(time);
+                textX = Framebuffer.Width - 12 - textW;
+                textY = Framebuffer.Height - _barHeight + ((_barHeight - WindowManager.font.FontSize) / 2);
+                WindowManager.font.DrawString(textX, textY, time);
+
+                // Hit test area for clock
+                hitX0 = textX;
+                hitY0 = Framebuffer.Height - _barHeight;
+                hitX1 = textX + textW;
+                hitY1 = Framebuffer.Height;
+
+                // Dispose temps
+                colon.Dispose();
+                shour.Dispose();
+                sminute.Dispose();
+                ssecond.Dispose();
+                time.Dispose();
+            }
+
+            // Input handling
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 int mx = Control.MousePosition.X;
                 int my = Control.MousePosition.Y;
