@@ -7,9 +7,9 @@
 /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\\lib\10.0.26100.0\\um\x64"
 "obj\debug\net9.0\win-x64\native\guideXOS.res"
 /fixed /base:0x10000000 /map:Kernel.map
-"D:\devgitlab\guideXOS\guideXOS_d7deb2979faa6e1c2fdae47c8a71fac30976ec66\x64\Debug\NativeLib.lib"
-"D:\devgitlab\guideXOS\guideXOS_d7deb2979faa6e1c2fdae47c8a71fac30976ec66\x64\Debug\LibC.lib"
-"D:\devgitlab\guideXOS\guideXOS_d7deb2979faa6e1c2fdae47c8a71fac30976ec66\x64\Debug\Doom.lib"
+"D:\devgitlab\guideXOS\guideXOS\x64\Debug\NativeLib.lib"
+"D:\devgitlab\guideXOS\guideXOS\x64\Debug\LibC.lib"
+"D:\devgitlab\guideXOS\guideXOS\x64\Debug\Doom.lib"
 "C:\Users\DarthguideX\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\7.0.0-preview.2.22152.2\sdk\bootstrapper.lib"
 "C:\Users\DarthguideX\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\7.0.0-preview.2.22152.2\sdk\Runtime.WorkstationGC.lib"
 "C:\Users\DarthguideX\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\7.0.0-preview.2.22152.2\sdk\System.IO.Compression.Native.Aot.lib"

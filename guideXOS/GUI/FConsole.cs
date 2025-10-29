@@ -1,5 +1,6 @@
 using guideXOS.Kernel.Drivers;
 using System.Drawing;
+
 namespace guideXOS.GUI {
     /// <summary>
     /// FConsole
@@ -29,8 +30,8 @@ namespace guideXOS.GUI {
             Data = string.Empty;
             ScreenBuf = new Image(640, 320);
             Rebind();
-            Console.WriteLine("Type help to get information!");
             Console.OnWrite += Console_OnWrite;
+            Console.WriteLine("Type help to get information!");
         }
         /// <summary>
         /// Rebind
@@ -44,63 +45,59 @@ namespace guideXOS.GUI {
         /// <param name="sender"></param>
         /// <param name="key"></param>
         private void Keyboard_OnKeyChanged(object sender, System.ConsoleKeyInfo key) {
-            /*
-            if (
-                key != null && 
-                key.ScanCode != 0 && 
-                NotificationManager.Add(
-                    new Nofity(key.KeyChar.ToString())
-                )) {
-            }*/
-            if (key.KeyState == System.ConsoleKeyState.Pressed && Program.FConsole != null && Program.FConsole.Visible) {
-                if (key.Key == System.ConsoleKey.Backspace) {
-                    if (Data.Length != 0)
-                        Data.Length -= 1;
-                } else if (key.KeyChar != '\0') {
-                    Console_OnWrite(key.KeyChar);
-                    string cs = key.KeyChar.ToString();
-                    string cache1 = Cmd;
-                    Cmd = cache1 + cs;
-                    cache1.Dispose();
+            // Handle input for this window instance when it's visible.
+            if (key.KeyState != System.ConsoleKeyState.Pressed || !this.Visible) return;
+
+            if (key.Key == System.ConsoleKey.Backspace) {
+                if (Cmd.Length > 0) Cmd = Cmd.Substring(0, Cmd.Length - 1);
+                if (Data.Length > 0) Data = Data.Substring(0, Data.Length - 1);
+                return;
+            }
+
+            if (key.Key == System.ConsoleKey.Enter) {
+                // Execute command on Enter
+                switch (Cmd) {
+                    case "help":
+                        Console.WriteLine("help: to get this information");
+                        //Console.WriteLine("shutdown: power off");
+                        //Console.WriteLine("reboot: reboot this computer");
+                        //Console.WriteLine("cpu: list cpu information");
+                        //Console.WriteLine("hello: issue kernel panic");
+                        break;
+                    case "shutdown":
+                        Power.Shutdown();
+                        break;
+                    case "cpu":
+                        //Console.WriteLine("multi-processor IDs:");
+                        //for (int i = 0; i < ACPI.LocalAPIC_CPUIDs.Count; i++)
+                        //    Console.WriteLine($" cpu id:{ACPI.LocalAPIC_CPUIDs[i]}");
+                        //Console.WriteLine($"frequency: {Timer.CPU_Clock / 1048576}mhz");
+                        break;
+                    case "null":
+                        unsafe {
+                            uint* ptr = null;
+                            *ptr = 0xDEADBEEF;
+                        }
+                        break;
+                    case "reboot":
+                        Power.Reboot();
+                        break;
+                    default:
+                        Console.WriteLine($"No such command: \"{Cmd}\"");
+                        break;
                 }
-                if (key.Key == System.ConsoleKey.Enter) {
-                    if (Cmd.Length != 0) Cmd.Length -= 1;
-                    switch (Cmd) {
-                        case "help":
-                            Console.WriteLine("help: to get this information");
-                            //Console.WriteLine("shutdown: power off");
-                            //Console.WriteLine("reboot: reboot this computer");
-                            //Console.WriteLine("cpu: list cpu information");
-                            //Console.WriteLine("hello: issue kernel panic");
-                            break;
-                        case "shutdown":
-                            Power.Shutdown();
-                            break;
-                        case "cpu":
-                            //Console.WriteLine("multi-processor IDs:");
-                            //for (int i = 0; i < ACPI.LocalAPIC_CPUIDs.Count; i++) 
-                            //Console.WriteLine($" cpu id:{ACPI.LocalAPIC_CPUIDs[i]}");
-                            //Console.WriteLine($"frequency: {Timer.CPU_Clock / 1048576}mhz");
-                            break;
-                        case "null":
-                            unsafe {
-                                uint* ptr = null;
-                                *ptr = 0xDEADBEEF;
-                            }
-                            break;
-                        case "reboot":
-                            Power.Reboot();
-                            break;
-                        default:
-                            //Console.Write("No such command: \"");
-                            Console.Write(Cmd);
-                            Console.WriteLine("\"");
-                            break;
-                    }
-                    Cmd.Dispose();
-                    Cmd = string.Empty;
-                } else if (key.Key == System.ConsoleKey.Backspace)
-                    if (Cmd.Length != 0) Cmd.Length -= 1;
+
+                // Move cursor to next line visually.
+                Console_OnWrite('\n');
+
+                Cmd = string.Empty;
+                return;
+            }
+
+            if (key.KeyChar != '\0') {
+                // Echo character and append to current command buffer once.
+                Console_OnWrite(key.KeyChar);
+                Cmd += key.KeyChar;
             }
         }
         /// <summary>
@@ -108,11 +105,8 @@ namespace guideXOS.GUI {
         /// </summary>
         public override void OnDraw() {
             base.OnDraw();
-            string s0 = "_";
-            string s1 = Data + s0;
+            string s1 = Data + "_";
             DrawString(X, Y, s1, Height, Width);
-            s0.Dispose();
-            s1.Dispose();
         }
         /// <summary>
         /// Draw String
@@ -126,12 +120,12 @@ namespace guideXOS.GUI {
             int w = 0, h = 0;
             for (int i = 0; i < Str.Length; i++) {
                 w += WindowManager.font.DrawChar(Framebuffer.Graphics, X + w, Y + h, Str[i]);
-                if (w + WindowManager.font.FontSize > LineLimit && LineLimit != -1 || Str[i] == '\n') {
+                if ((LineLimit != -1 && w + WindowManager.font.FontSize > LineLimit) || Str[i] == '\n') {
                     w = 0;
                     h += WindowManager.font.FontSize;
                     if (HeightLimit != -1 && h >= HeightLimit) {
-                        Framebuffer.Graphics.Copy(X, Y, X, Y + WindowManager.font.FontSize, LineLimit, HeightLimit - (WindowManager.font.FontSize));
-                        Framebuffer.Graphics.FillRectangle(X, Y + HeightLimit - (WindowManager.font.FontSize), LineLimit, WindowManager.font.FontSize, 0xFF222222);
+                        Framebuffer.Graphics.Copy(X, Y, X, Y + WindowManager.font.FontSize, LineLimit, HeightLimit - WindowManager.font.FontSize);
+                        Framebuffer.Graphics.FillRectangle(X, Y + HeightLimit - WindowManager.font.FontSize, LineLimit, WindowManager.font.FontSize, 0xFF222222);
                         h -= WindowManager.font.FontSize;
                     }
                 }
@@ -146,11 +140,7 @@ namespace guideXOS.GUI {
                 WindowManager.MoveToEnd(Program.FConsole);
                 Program.FConsole.Visible = true;
             }
-            string cs = chr.ToString();
-            string cache = Data;
-            Data = cache + cs;
-            cs.Dispose();
-            cache.Dispose();
+            Data += chr;
         }
         /// <summary>
         /// WriteLine
