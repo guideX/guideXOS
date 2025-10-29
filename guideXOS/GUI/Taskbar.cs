@@ -30,12 +30,10 @@ namespace guideXOS.GUI {
         /// Draw Task Bar
         /// </summary>
         public void Draw() {
-            Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - _barHeight, Framebuffer.Width, _barHeight, 0xDD222222);
+            // Use solid fill to avoid per-pixel alpha blending across full width
+            Framebuffer.Graphics.FillRectangle(0, Framebuffer.Height - _barHeight, Framebuffer.Width, _barHeight, 0xFF222222);
             Framebuffer.Graphics.DrawImage(12, Framebuffer.Height - _barHeight + 4, _startIcon);
-            // TASK MANAGER! DON'T FORGET!
-            //string Result = $"guideXos - FPS:{FPSMeter.FPS} | CPU Usage:{ThreadPool.CPUUsage}% | Used Memory: {(Allocator.MemoryInUse / 1024)}kbytes | {RTC.Hour}:{(RTC.Minute < 10 ? "0" : "")}{RTC.Minute}";
-            //WindowManager.font.DrawString(Framebuffer.Graphics.Width - WindowManager.font.MeasureString(Result) - WindowManager.font.FontSize, Framebuffer.Height - BarHeight + (BarHeight / 2) - (WindowManager.font.FontSize / 2), Result);
-            //Result.Dispose();
+
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 if (Control.MousePosition.X > 15 && Control.MousePosition.X < 35 && Control.MousePosition.Y > 700 && Control.MousePosition.Y < 800) {
                     if (StartMenu == null) {
