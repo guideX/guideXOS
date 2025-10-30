@@ -58,6 +58,30 @@ namespace guideXOS.FS {
         /// <param name="name"></param>
         /// <returns></returns>
         public static byte[] ReadAllBytes(string name) => Instance.ReadAllBytes(name);
+        /// <summary>
+        /// Write All Bytes
+        /// </summary>
+        /// <param name="name"></param>
+        /// <param name="content"></param>
+        public static void WriteAllBytes(string name, byte[] content) => Instance.WriteAllBytes(name, content);
+        /// <summary>
+        /// Exists (directory scan)
+        /// </summary>
+        /// <param name="name"></param>
+        public static bool Exists(string name) {
+            string dir = "";
+            string just = name;
+            int last = name.LastIndexOf('/');
+            if (last >= 0) {
+                dir = name.Substring(0, last + 1);
+                just = name.Substring(last + 1);
+            }
+            var list = GetFiles(dir);
+            for (int i = 0; i < list.Count; i++) {
+                if (list[i].Name == just) return true;
+            }
+            return false;
+        }
     }
     /// <summary>
     /// File System

@@ -80,7 +80,10 @@ namespace guideXOS.GUI {
             }
             _dirCacheFor = null;
         }
-
+        /// <summary>
+        /// Get Directory Entries
+        /// </summary>
+        /// <returns></returns>
         static List<FileInfo> GetDirectoryEntries() {
             if (_dirCache == null || _dirCacheDirty || _dirCacheFor == null || _dirCacheFor != Dir) {
                 // Dispose previous cache

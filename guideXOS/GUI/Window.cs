@@ -56,7 +56,8 @@ namespace guideXOS.GUI {
             this.Visible = true;
             WindowManager.Windows.Add(this);
             Title = "Window1";
-            WindowManager.MoveToEnd(this);
+            // Do not force MoveToEnd here to avoid modifying the list during input iteration
+            // Callers can bring to front explicitly when appropriate
         }
         /// <summary>
         /// Bar Height
@@ -132,23 +133,27 @@ namespace guideXOS.GUI {
         /// On Draw
         /// </summary>
         public virtual void OnDraw() {
+            if (Framebuffer.Graphics == null || WindowManager.font == null) return;
             // Semi-transparent title bar and content
             Framebuffer.Graphics.AFillRectangle(X, Y - BarHeight, Width, BarHeight, 0xCC111111);
-            WindowManager.font.DrawString(
-                X + (Width / 2) - (WindowManager.font.MeasureString(Title) / 2),
-                Y - BarHeight + (BarHeight / 4),
-                Title
-            );
+            string title = Title;
+            if (title == null) title = string.Empty;
+            int measured = WindowManager.font.MeasureString(title);
+            int tx = X + (Width / 2) - (measured / 2);
+            int ty = Y - BarHeight + (BarHeight / 4);
+            WindowManager.font.DrawString(tx, ty, title);
             Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
             DrawBorder();
             //Framebuffer.Graphics.DrawImage(MinimizeButtonX, MinimizeButtonY, WindowManager.MinimizeButton);
-            Framebuffer.Graphics.DrawImage(CloseButtonX, CloseButtonY, WindowManager.CloseButton);
+            if (WindowManager.CloseButton != null)
+                Framebuffer.Graphics.DrawImage(CloseButtonX, CloseButtonY, WindowManager.CloseButton);
         }
         /// <summary>
         /// Draw Border
         /// </summary>
         /// <param name="HasBar"></param>
         public void DrawBorder(bool HasBar = true) {
+            if (Framebuffer.Graphics == null) return;
             Framebuffer.Graphics.DrawRectangle(X - 1, Y - (HasBar ? BarHeight : 0) - 1, Width + 2, (HasBar ? BarHeight : 0) + Height + 2, 0xFF333333, 1);
         }
     }
