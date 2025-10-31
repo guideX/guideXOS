@@ -96,6 +96,15 @@ namespace guideXOS.GUI {
                         return;
                     }
                     iy += fh + 16;
+                    // Disk Manager
+                    int dwh = Icons.FolderIcon.Height; int dww = Icons.FolderIcon.Width;
+                    if (mx >= rcX && mx <= rcX + dww && my >= iy && my <= iy + dwh) {
+                        var dm = new DiskManager(340, 260);
+                        WindowManager.MoveToEnd(dm);
+                        dm.Visible = true;
+                        return;
+                    }
+                    iy += dwh + 16;
                     // Recent Documents (toggle popup)
                     int iconW = Icons.FileIcon.Width;
                     int iconH = Icons.FileIcon.Height;
@@ -180,6 +189,10 @@ namespace guideXOS.GUI {
             var cfIcon = Icons.FolderIcon;
             Framebuffer.Graphics.DrawImage(rcX, rcCursorY, cfIcon);
             WindowManager.font.DrawString(rcX + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), "Computer Files");
+            rcCursorY += cfIcon.Height + 16;
+            // Disk Manager icon + label
+            Framebuffer.Graphics.DrawImage(rcX, rcCursorY, cfIcon);
+            WindowManager.font.DrawString(rcX + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), "Disk Manager");
             rcCursorY += cfIcon.Height + 16;
             // Recent Documents with popout
             var docIcon = Icons.FileIcon;
