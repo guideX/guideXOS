@@ -66,6 +66,8 @@ static class GDT {
         public GDTEntry Empty;
         public GDTEntry KernelCode;
         public GDTEntry KernelData;
+        public GDTEntry UserCode;
+        public GDTEntry UserData;
         public TSSEntry TSS;
     }
 
@@ -74,15 +76,30 @@ static class GDT {
     static GDTS gdts;
     public static GDTDescriptor gdtr;
 
+    public const ushort KernelCodeSelector = 0x08;
+    public const ushort KernelDataSelector = 0x10;
+    public const ushort UserCodeSelector = 0x18 | 3; // RPL 3
+    public const ushort UserDataSelector = 0x20 | 3; // RPL 3
+    public const ushort TssSelector = 0x28; // occupies two entries
+
+    static void FillEntry(ref GDTEntry e, uint baseAddr, uint limit, byte access, byte flags) {
+        e.LimitLow = (ushort)(limit & 0xFFFF);
+        e.BaseLow = (ushort)(baseAddr & 0xFFFF);
+        e.BaseMid = (byte)((baseAddr >> 16) & 0xFF);
+        e.Access = access;
+        e.LimitHigh_Flags = (byte)(((limit >> 16) & 0x0F) | (flags & 0xF0));
+        e.BaseHigh = (byte)((baseAddr >> 24) & 0xFF);
+    }
 
     public static void Initialise() {
-        gdts.KernelCode.LimitLow = 0xFFFF;
-        gdts.KernelCode.Access = 0x9A;
-        gdts.KernelCode.LimitHigh_Flags = 0xAF;
-
-        gdts.KernelData.LimitLow = 0xFFFF;
-        gdts.KernelData.Access = 0x92;
-        gdts.KernelData.LimitHigh_Flags = 0xCF;
+        // Kernel code: DPL=0, executable, readable
+        FillEntry(ref gdts.KernelCode, 0, 0xFFFFF, 0x9A, 0xA0 | 0x0F);
+        // Kernel data: DPL=0, writable
+        FillEntry(ref gdts.KernelData, 0, 0xFFFFF, 0x92, 0xC0 | 0x0F);
+        // User code: DPL=3, executable, readable
+        FillEntry(ref gdts.UserCode, 0, 0xFFFFF, 0xFA, 0xA0 | 0x0F);
+        // User data: DPL=3, writable
+        FillEntry(ref gdts.UserData, 0, 0xFFFFF, 0xF2, 0xC0 | 0x0F);
 
         unsafe {
             fixed (TSS* _tss = &tss) {
@@ -92,18 +109,30 @@ static class GDT {
                 gdts.TSS.BaseMidLow = (byte)((addr >> 16) & 0xFF);
                 gdts.TSS.BaseMidHigh = (byte)((addr >> 24) & 0xFF);
                 gdts.TSS.BaseHigh = (uint)(addr >> 32);
-                gdts.TSS.Access = 0x89;
-                gdts.TSS.LimitHigh_Flags = 0x80;
+                gdts.TSS.Access = 0x89; // present, type 64-bit TSS (available)
+                gdts.TSS.LimitHigh_Flags = 0x00;
+
+                // Disable I/O for user-mode by default
+                tss.IOMapBase = (ushort)Unsafe.SizeOf<TSS>();
             }
         }
 
         unsafe {
             fixed (GDTS* _gdts = &gdts) {
-                gdtr.Limit = (ushort)(Unsafe.SizeOf<GDTEntry>() * 3 - 1);
+                gdtr.Limit = (ushort)(Unsafe.SizeOf<GDTS>() - 1);
                 gdtr.Base = (ulong)_gdts;
             }
         }
 
         Native.Load_GDT(ref gdtr);
+
+        // Note: Loading TR requires a native implementation (ltr). Until provided in NativeLib,
+        // keep TSS defined but do not call ltr to avoid link errors.
+        // Native.Load_TR(TssSelector);
+    }
+
+    public static void SetKernelStack(ulong rsp0) {
+        tss.Rsp0Low = (uint)(rsp0 & 0xFFFF_FFFF);
+        tss.Rsp0High = (uint)(rsp0 >> 32);
     }
 }

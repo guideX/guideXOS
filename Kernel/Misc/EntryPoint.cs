@@ -30,7 +30,19 @@ namespace guideXOS.Misc {
             Console.Setup();
             IDT.Disable();
             GDT.Initialise();
+
+            // Set initial kernel stack for privilege transitions
+            {
+                const ulong kStackSize = 64 * 1024;
+                ulong rsp0 = (ulong)Allocator.Allocate(kStackSize) + kStackSize;
+                GDT.SetKernelStack(rsp0);
+            }
+
             IDT.Initialize();
+
+            // Make syscall vector user-accessible via int 0x80
+            IDT.AllowUserSoftwareInterrupt(0x80);
+
             Interrupts.Initialize();
             IDT.Enable();
 

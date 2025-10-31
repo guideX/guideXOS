@@ -3,7 +3,7 @@ using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using guideXOS.OS;
 using System.Collections.Generic;
-using System.Diagnostics;
+//using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using guideXOS.Graph;
@@ -308,7 +308,7 @@ namespace guideXOS.GUI {
                 RecentManager.AddDocument(path, Icons.IamgeIcon);
             } else if (name.EndsWith(".mue")) {
                 byte[] buffer = File.ReadAllBytes(path);
-                Process.Start(buffer);
+                System.Diagnostics.Process.Start(buffer);
                 RecentManager.AddDocument(path, Icons.FileIcon);
             } else if (name.EndsWith(".wav")) {
                 if (Audio.HasAudioDevice) {

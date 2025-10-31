@@ -70,7 +70,10 @@ namespace guideXOS.DefaultApps {
             if (k >= ConsoleKey.A && k <= ConsoleKey.Z) {
                 bool upper = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift) ^ Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.CapsLock);
                 char c = (char)('a' + (k - ConsoleKey.A));
-                return upper ? c.ToUpper() : c;
+                if (upper && c >= 'a' && c <= 'z') {
+                    return (char)('A' + (c - 'a'));
+                }
+                return c;
             }
             if (k >= ConsoleKey.D0 && k <= ConsoleKey.D9) {
                 // No shifted symbol mapping for simplicity

@@ -59,6 +59,17 @@ public static class IDT {
         Native.Cli();
     }
 
+    public static unsafe void AllowUserSoftwareInterrupt(byte vector) {
+        if (!Initialized) return;
+        // Set DPL=3 for the given vector gate to allow int from ring3
+        fixed (IDTEntry* p = idt) {
+            IDTEntry* e = &p[vector];
+            // Type 0xEE? preserve type, set DPL bits (bits 5-6) to 3 and Present bit
+            e->Type_Attributes = (byte)((e->Type_Attributes & 0x9F) | (3 << 5) | 0x80);
+        }
+        Native.Load_IDT(ref idtr);
+    }
+
     public struct RegistersStack {
         public ulong rax;
         public ulong rcx;
