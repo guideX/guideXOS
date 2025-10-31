@@ -50,7 +50,7 @@ namespace guideXOS.GUI {
                 bool in1 = (mx >= item1X && mx <= item1X + item1W && my >= item1Y && my <= item1Y + item1H);
 
                 if (in0) {
-                    WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 360, 320);
+                    WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 360, 420);
                     this.Visible = false;
                     return;
                 }
