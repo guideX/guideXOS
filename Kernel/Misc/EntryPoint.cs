@@ -73,8 +73,8 @@ namespace guideXOS.Misc {
             Console.WriteLine((Info->Mods[0]).ToString("x2"));
             //Console.WriteLine("[Initrd] Initializing Ramdisk");
             new Ramdisk((IntPtr)(Info->Mods[0]));
-            //new FATFS();
-            new TarFS();
+            // Initialize filesystem: Auto-detect FAT (12/16/32) or TAR
+            new AutoFS();
 
             // While we are still here (single core boot), animate splash a bit
             for (int i = 0; i < 120; i++) { // ~2 seconds at 60Hz

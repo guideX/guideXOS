@@ -115,7 +115,7 @@ namespace guideXOS.GUI {
         }
         /// <summary>
         /// Close Button X
-        /// </summary>
+        /// </summary> 
         //private int MinimizeButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.MinimizeButton.Width / 2);
         /// <summary>
         /// Close Button Y
