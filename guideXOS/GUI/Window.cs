@@ -53,6 +53,7 @@ namespace guideXOS.GUI {
             this.Y = Y;
             this.Width = Width;
             this.Height = Height;
+            ClampToScreen();
             this.Visible = true;
             WindowManager.Windows.Add(this);
             Title = "Window1";
@@ -111,6 +112,7 @@ namespace guideXOS.GUI {
             if (Move) {
                 X = Control.MousePosition.X - OffsetX;
                 Y = Control.MousePosition.Y - OffsetY;
+                ClampToScreen();
             }
         }
         /// <summary>
@@ -155,6 +157,17 @@ namespace guideXOS.GUI {
         public void DrawBorder(bool HasBar = true) {
             if (Framebuffer.Graphics == null) return;
             Framebuffer.Graphics.DrawRectangle(X - 1, Y - (HasBar ? BarHeight : 0) - 1, Width + 2, (HasBar ? BarHeight : 0) + Height + 2, 0xFF333333, 1);
+        }
+        /// <summary>
+        /// Clamp To Screen
+        /// </summary>
+        private void ClampToScreen() {
+            int maxX = Framebuffer.Width - Width;
+            if (X > maxX) X = maxX;
+            if (X < 0) X = 0;
+            int maxY = Framebuffer.Height - Height;
+            if (Y > maxY) Y = maxY;
+            if (Y < BarHeight) Y = BarHeight;
         }
     }
 }

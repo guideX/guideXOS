@@ -15,6 +15,7 @@ namespace guideXOS.GUI {
         private string _currentPath;
         private string _fileName;
         private List<FileInfo> _entries;
+        private int _selectedIndex;
         private bool _clickLock;
         private readonly Action<string> _onSave;
         private int _padding = 10;
@@ -33,9 +34,8 @@ namespace guideXOS.GUI {
             _currentPath = startPath ?? "";
             _fileName = defaultName ?? "untitled.txt";
             _entries = new List<FileInfo>();
-            _onSave = onSave;
-            _clickLock = false;
-            _fnameFocus = true;
+            _selectedIndex = -1;
+            _onSave = onSave; _clickLock = false; _fnameFocus = true;
             // Adjust row height based on icon size
             int minRow = Icons.FileIcon != null ? Icons.FileIcon.Height + 10 : 36;
             if (minRow > _rowH) _rowH = minRow;
@@ -46,6 +46,7 @@ namespace guideXOS.GUI {
         private void RefreshEntries() {
             if (_entries != null) { for (int i = 0; i < _entries.Count; i++) _entries[i].Dispose(); _entries.Clear(); }
             _entries = File.GetFiles(_currentPath);
+            _selectedIndex = _entries.Count > 0 ? 0 : -1;
         }
 
         private void GoUp() {
@@ -66,13 +67,24 @@ namespace guideXOS.GUI {
 
             // Escape cancels dialog
             if (key.Key == ConsoleKey.Escape) { this.Visible = false; return; }
-
-            if (!_fnameFocus) return;
-
-            if (key.Key == ConsoleKey.Backspace) { if (_fileName.Length > 0) _fileName = _fileName.Substring(0, _fileName.Length - 1); return; }
             if (key.Key == ConsoleKey.Enter) { SaveAction(); return; }
+
+            // Arrow navigation over list
+            if (!_fnameFocus && _entries.Count > 0) {
+                switch (key.Key) {
+                    case ConsoleKey.UpArrow: if (_selectedIndex > 0) _selectedIndex--; return;
+                    case ConsoleKey.DownArrow: if (_selectedIndex < _entries.Count - 1) _selectedIndex++; return;
+                    case ConsoleKey.Home: _selectedIndex = 0; return;
+                    case ConsoleKey.End: _selectedIndex = _entries.Count - 1; return;
+                }
+            }
+
+            // Typing in filename box
+            if (!_fnameFocus) return;
+            if (key.Key == ConsoleKey.Backspace) { if (_fileName.Length > 0) _fileName = _fileName.Substring(0, _fileName.Length - 1); return; }
+            if (key.Key == ConsoleKey.Tab) { _fnameFocus = false; return; }
             // spaces
-            if (key.Key == ConsoleKey.Space || Keyboard.KeyInfo.ScanCode == 57) { _fileName += " "; return; }
+            if (key.Key == ConsoleKey.Space || Keyboard.KeyInfo.ScanCode == 57 || Keyboard.KeyInfo.ScanCode == 44) { _fileName += " "; return; }
             if (key.Key >= ConsoleKey.A && key.Key <= ConsoleKey.Z) { char c = (char)('a' + (key.Key - ConsoleKey.A)); _fileName += c; return; }
             if (key.Key >= ConsoleKey.D0 && key.Key <= ConsoleKey.D9) { char c = (char)('0' + (key.Key - ConsoleKey.D0)); _fileName += c; return; }
             switch (key.Key) {
@@ -121,27 +133,11 @@ namespace guideXOS.GUI {
                     // Up
                     if (mx >= upX && mx <= upX + upW && my >= upY && my <= upY + upH) { GoUp(); _clickLock = true; return; }
                     // Filename focus
-                    if (mx >= fnX && mx <= fnX + fnW && my >= fnY && my <= fnY + fnH) { _fnameFocus = true; _clickLock = true; return; } else { if (my >= listY && my <= listY + listH && mx >= listX && mx <= listX + listW) _fnameFocus = false; }
+                    if (mx >= fnX && mx <= fnX + fnW && my >= fnY && my <= fnY + fnH) { _fnameFocus = true; _clickLock = true; return; } else { if (my >= listY && my <= listY + listH && mx >= listX && mx <= listX + listW) { _fnameFocus = false; int idx = (my - listY) / _rowH; if (idx >= 0 && idx < _entries.Count) _selectedIndex = idx; } }
                     // Save
                     if (mx >= saveX && mx <= saveX + _btnW && my >= fnY && my <= fnY + _btnH) { SaveAction(); _clickLock = true; return; }
                     // Cancel
                     if (mx >= cancelX && mx <= cancelX + _btnW && my >= fnY && my <= fnY + _btnH) { this.Visible = false; _clickLock = true; return; }
-
-                    // List click: compute index
-                    if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + listH) {
-                        int idx = (my - listY) / _rowH;
-                        if (idx >= 0 && idx < _entries.Count) {
-                            var e = _entries[idx];
-                            if (e.Attribute == FileAttribute.Directory) {
-                                // enter dir
-                                _currentPath = _currentPath + e.Name + "/";
-                                RefreshEntries();
-                            } else {
-                                _fileName = e.Name;
-                            }
-                            _clickLock = true; return;
-                        }
-                    }
                 }
             } else { _clickLock = false; }
         }
@@ -160,7 +156,7 @@ namespace guideXOS.GUI {
             for (int i = 0; i < _entries.Count; i++) {
                 var e = _entries[i];
                 // row bg alternating
-                uint rowBg = ((i & 1) == 0) ? 0xFF303030u : 0xFF2B2B2Bu;
+                uint rowBg = (i == _selectedIndex) ? 0xFF404040u : ((i & 1) == 0 ? 0xFF303030u : 0xFF2B2B2Bu);
                 Framebuffer.Graphics.FillRectangle(listX, y, listW, _rowH, rowBg);
                 var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon : Icons.FileIcon;
                 int iconY = y + (_rowH / 2 - iconH / 2);
