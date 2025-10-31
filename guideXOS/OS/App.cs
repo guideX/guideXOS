@@ -125,10 +125,10 @@ namespace guideXOS.OS {
                             _apps[i].AppObject = new Paint(500, 200);
                             b = true;
                             break;
-                        //case "Notepad":
-                        //_apps[i].AppObject = new Notepad(500, 200);
-                        //b = true;
-                        //break;
+                        case "Notepad":
+                            _apps[i].AppObject = new Notepad(360, 200);
+                            b = true;
+                            break;
                         case "Console":
                             Program.InitConsole();
                             b = true;
@@ -166,17 +166,13 @@ namespace guideXOS.OS {
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public string Name(int id) {
-            return _apps[id].Name;
-        }
+        public string Name(int id) { return _apps[id].Name; }
         /// <summary>
         /// Icon
         /// </summary>
         /// <param name="id"></param>
         /// <returns></returns>
-        public Image Icon(int id) {
-            return _apps[id].Icon;
-        }
+        public Image Icon(int id) { return _apps[id].Icon; }
         #endregion
     }
 }
