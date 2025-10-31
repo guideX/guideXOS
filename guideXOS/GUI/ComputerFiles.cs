@@ -3,6 +3,7 @@ using guideXOS.Kernel.Drivers;
 using guideXOS.Graph;
 using System.Windows.Forms;
 using guideXOS.Misc;
+using System.Collections.Generic;
 
 namespace guideXOS.GUI {
     // File explorer window with drive list, navigation toolbar, grid icons, resizing and vertical scrollbar
@@ -33,9 +34,17 @@ namespace guideXOS.GUI {
         private int _resizeStartW, _resizeStartH;
         private const int ResizeHandle = 14;
 
+        // Cached entries for performance
+        private List<FileInfo> _entriesCache;
+        private string _entriesCacheFor;
+        private bool _entriesDirty;
+
         public ComputerFiles(int X, int Y, int W = 640, int H = 480) : base(X, Y, W, H) {
             Title = "Computer Files";
             LoadIcons();
+            _entriesDirty = true;
+            _entriesCacheFor = null;
+            _entriesCache = null;
         }
 
         private void LoadIcons() {
@@ -46,6 +55,29 @@ namespace guideXOS.GUI {
             try { _iconFolder = new PNG(File.ReadAllBytes(folderPath)); } catch { _iconFolder = Icons.FolderIcon; }
             try { _iconDoc = new PNG(File.ReadAllBytes(docPath)); } catch { _iconDoc = Icons.FileIcon; }
         }
+
+        private void ClearEntriesCache() {
+            if (_entriesCache != null) {
+                for (int i = 0; i < _entriesCache.Count; i++) _entriesCache[i].Dispose();
+                _entriesCache.Dispose();
+                _entriesCache = null;
+            }
+            _entriesCacheFor = null;
+        }
+
+        private void EnsureEntries() {
+            if (_showDrives) return;
+            if (_entriesCache != null && !_entriesDirty && _entriesCacheFor != null && _entriesCacheFor == _currentPath) return;
+            // Refresh cache
+            ClearEntriesCache();
+            Busy.Push();
+            _entriesCache = File.GetFiles(_currentPath);
+            Busy.Pop();
+            _entriesCacheFor = _currentPath;
+            _entriesDirty = false;
+        }
+
+        private void MarkEntriesDirty() { _entriesDirty = true; }
 
         private void PushHistory(string path) {
             // Truncate forward history
@@ -67,6 +99,7 @@ namespace guideXOS.GUI {
             _currentPath = _history[_historyIndex];
             _showDrives = _currentPath == null;
             _scroll = 0;
+            MarkEntriesDirty();
         }
 
         private void GoForward() {
@@ -75,6 +108,7 @@ namespace guideXOS.GUI {
             _currentPath = _history[_historyIndex];
             _showDrives = _currentPath == null;
             _scroll = 0;
+            MarkEntriesDirty();
         }
 
         private void GoUpLevel() {
@@ -84,6 +118,7 @@ namespace guideXOS.GUI {
                 _showDrives = true;
                 PushHistory(null);
                 _scroll = 0;
+                MarkEntriesDirty();
                 return;
             }
             string path = _currentPath;
@@ -93,6 +128,7 @@ namespace guideXOS.GUI {
             _currentPath = path;
             PushHistory(_currentPath);
             _scroll = 0;
+            MarkEntriesDirty();
         }
 
         public override void OnInput() {
@@ -174,14 +210,15 @@ namespace guideXOS.GUI {
                 // Content clicks
                 if (_showDrives) {
                     // Single drive tile
-                    int tile = _iconFolder.Height + WindowManager.font.FontSize + 16;
+                    int tile = (_iconFolder != null ? _iconFolder.Height : 48) + WindowManager.font.FontSize + 16;
                     int rowY = contentY;
                     int rowW = contentW;
                     if (mx >= contentX && mx <= contentX + rowW && my >= rowY && my <= rowY + tile) {
-                        _showDrives = false; _currentPath = ""; PushHistory(_currentPath); _scroll = 0; return;
+                        _showDrives = false; _currentPath = ""; PushHistory(_currentPath); _scroll = 0; MarkEntriesDirty(); return;
                     }
                 } else {
-                    var list = File.GetFiles(_currentPath);
+                    EnsureEntries();
+                    var list = _entriesCache;
                     // Grid layout
                     int pad = 12; int icon = _iconFolder != null ? _iconFolder.Width : 48; int tileW = icon + pad * 2; int tileH = (icon + WindowManager.font.FontSize + pad * 2);
                     int cols = tileW > 0 ? (contentW / tileW) : 1; if (cols < 1) cols = 1;
@@ -194,9 +231,9 @@ namespace guideXOS.GUI {
                             string name = list[i].Name;
                             bool isDir = (list[i].Attribute == FileAttribute.Directory);
                             if (isDir) {
-                                _currentPath = _currentPath + name + "/"; PushHistory(_currentPath); _scroll = 0;
+                                _currentPath = _currentPath + name + "/"; PushHistory(_currentPath); _scroll = 0; MarkEntriesDirty();
                             } else {
-                                // no-op for now
+                                // opening files from here can be implemented later
                             }
                             break;
                         }
@@ -231,7 +268,8 @@ namespace guideXOS.GUI {
                 int icon = _iconFolder != null ? _iconFolder.Width : 48; int tileH = (icon + WindowManager.font.FontSize + 24);
                 return tileH;
             }
-            var list = File.GetFiles(_currentPath);
+            EnsureEntries();
+            var list = _entriesCache;
             int pad = 12; int ic = _iconFolder != null ? _iconFolder.Width : 48; int tileW = ic + pad * 2; int tileH2 = (ic + WindowManager.font.FontSize + pad * 2);
             int cols = tileW > 0 ? (contentW / tileW) : 1; if (cols < 1) cols = 1;
             int rows = (list.Count + cols - 1) / cols; if (rows < 1) rows = 1;
@@ -286,7 +324,8 @@ namespace guideXOS.GUI {
                 if (_iconFolder != null) Framebuffer.Graphics.DrawImage(cx, cy, _iconFolder);
                 WindowManager.font.DrawString(cx - 24, cy + icon + 6, "Root");
             } else {
-                var list = File.GetFiles(_currentPath);
+                EnsureEntries();
+                var list = _entriesCache;
                 int pad = 12; int icon = _iconFolder != null ? _iconFolder.Width : 48; int tileW = icon + pad * 2; int tileH = (icon + WindowManager.font.FontSize + pad * 2);
                 int cols = tileW > 0 ? (contentW / tileW) : 1; if (cols < 1) cols = 1;
                 for (int i = 0; i < list.Count; i++) {
@@ -296,8 +335,8 @@ namespace guideXOS.GUI {
                     if (gy + tileH < contentY || gy > contentY + contentH) continue;
                     bool isDir = (list[i].Attribute == FileAttribute.Directory);
                     if (isDir) Framebuffer.Graphics.DrawImage(gx, gy, _iconFolder); else Framebuffer.Graphics.DrawImage(gx, gy, _iconDoc);
-                    string label = list[i].Name + (isDir ? "/" : "");
-                    WindowManager.font.DrawString(gx, gy + icon + 6, label);
+                    string name = list[i].Name;
+                    WindowManager.font.DrawString(gx, gy + icon + 6, name);
                 }
             }
 
