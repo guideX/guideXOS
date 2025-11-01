@@ -23,6 +23,10 @@ namespace guideXOS.GUI {
         /// Minimize Button
         /// </summary>
         public static Image MinimizeButton;
+        /// <summary>
+        /// Maximize Button
+        /// </summary>
+        public static Image MaximizeButton;
 
         struct PendingWindow {
             public int Type; // 1 = DisplayOptions
@@ -36,7 +40,8 @@ namespace guideXOS.GUI {
         public static void Initialize() {
             Windows = new List<Window>();
             CloseButton = new PNG(File.ReadAllBytes("Images/Close.png"));
-            //MinimizeButton = new PNG(File.ReadAllBytes("Images/Close.png"));
+            MinimizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/down.png"));
+            MaximizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/image.png"));
             PNG defaultFont = new PNG(File.ReadAllBytes("Images/defaultfont.png"));
             font = new IFont(defaultFont, "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~", 18);
             MouseHandled = false;

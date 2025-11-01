@@ -53,6 +53,7 @@ namespace guideXOS.GUI {
                 if (textWidth > 0) WindowManager.font.DrawString(textX, y + (hRect / 2) - (WindowManager.font.FontSize / 2), w.Title, textWidth, WindowManager.font.FontSize);
                 // click -> focus window
                 if (left && hover) {
+                    if (w.IsMinimized) w.Restore();
                     WindowManager.MoveToEnd(w);
                     w.Visible = true;
                 }

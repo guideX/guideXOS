@@ -43,6 +43,15 @@ namespace guideXOS.GUI {
         /// </summary>
         public int X, Y, Width, Height;
         /// <summary>
+        /// Remember normal bounds for restore
+        /// </summary>
+        private int _normX, _normY, _normW, _normH;
+        /// <summary>
+        /// Minimized or maximized state
+        /// </summary>
+        public bool IsMinimized { get; private set; }
+        public bool IsMaximized { get; private set; }
+        /// <summary>
         /// Constructor
         /// </summary>
         /// <param name="X"></param>
@@ -54,6 +63,7 @@ namespace guideXOS.GUI {
             this.Y = Y;
             this.Width = Width;
             this.Height = Height;
+            _normX = X; _normY = Y; _normW = Width; _normH = Height;
             ClampToScreen();
             this.Visible = true;
             WindowManager.Windows.Add(this);
@@ -94,7 +104,11 @@ namespace guideXOS.GUI {
         /// On Input
         /// </summary>
         public virtual void OnInput() {
+            if (!Visible) return;
+            if (IsMinimized) return;
+
             if (Control.MouseButtons == MouseButtons.Left) {
+                // Close
                 if (
                     !WindowManager.HasWindowMoving &&
                     Control.MousePosition.X > CloseButtonX && Control.MousePosition.X < CloseButtonX + WindowManager.CloseButton.Width &&
@@ -103,6 +117,15 @@ namespace guideXOS.GUI {
                     this.Visible = false;
                     return;
                 }
+                // Minimize
+                if (!WindowManager.HasWindowMoving && Control.MousePosition.X > MinButtonX && Control.MousePosition.X < MinButtonX + WindowManager.MinimizeButton.Width && Control.MousePosition.Y > ButtonsY && Control.MousePosition.Y < ButtonsY + WindowManager.MinimizeButton.Height) {
+                    Minimize(); return;
+                }
+                // Maximize/Restore
+                if (!WindowManager.HasWindowMoving && Control.MousePosition.X > MaxButtonX && Control.MousePosition.X < MaxButtonX + WindowManager.MaximizeButton.Width && Control.MousePosition.Y > ButtonsY && Control.MousePosition.Y < ButtonsY + WindowManager.MaximizeButton.Height) {
+                    if (IsMaximized) Restore(); else Maximize(); return;
+                }
+                // Drag title bar
                 if (!WindowManager.HasWindowMoving && !Move && Control.MousePosition.X > X && Control.MousePosition.X < X + Width && Control.MousePosition.Y > Y - BarHeight && Control.MousePosition.Y < Y) {
                     WindowManager.MoveToEnd(this);
                     Move = true;
@@ -119,28 +142,23 @@ namespace guideXOS.GUI {
                 X = Control.MousePosition.X - OffsetX;
                 Y = Control.MousePosition.Y - OffsetY;
                 ClampToScreen();
+                _normX = X; _normY = Y; _normW = Width; _normH = Height;
             }
         }
         /// <summary>
-        /// Close Button X
-        /// </summary> 
-        //private int MinimizeButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.MinimizeButton.Width / 2);
-        /// <summary>
-        /// Close Button Y
+        /// Button placement
         /// </summary>
-        //private int MinimizeButtonY => Y - BarHeight + (BarHeight / 2) - (WindowManager.MinimizeButton.Height / 2);
-        /// <summary>
-        /// Close Button X
-        /// </summary>
+        private int ButtonsY => Y - BarHeight + (BarHeight / 2) - (WindowManager.CloseButton.Height / 2);
         private int CloseButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.CloseButton.Width / 2);
-        /// <summary>
-        /// Close Button Y
-        /// </summary>
         private int CloseButtonY => Y - BarHeight + (BarHeight / 2) - (WindowManager.CloseButton.Height / 2);
+        private int MaxButtonX => CloseButtonX - (WindowManager.MaximizeButton.Width + 6);
+        private int MinButtonX => MaxButtonX - (WindowManager.MinimizeButton.Width + 6);
         /// <summary>
         /// On Draw
         /// </summary>
         public virtual void OnDraw() {
+            if (!Visible) return;
+            if (IsMinimized) return;
             if (Framebuffer.Graphics == null || WindowManager.font == null) return;
             // Semi-transparent title bar and content
             Framebuffer.Graphics.AFillRectangle(X, Y - BarHeight, Width, BarHeight, 0xCC111111);
@@ -150,11 +168,16 @@ namespace guideXOS.GUI {
             int tx = X + (Width / 2) - (measured / 2);
             int ty = Y - BarHeight + (BarHeight / 4);
             WindowManager.font.DrawString(tx, ty, title);
-            Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
-            DrawBorder();
-            //Framebuffer.Graphics.DrawImage(MinimizeButtonX, MinimizeButtonY, WindowManager.MinimizeButton);
+            // Buttons
             if (WindowManager.CloseButton != null)
                 Framebuffer.Graphics.DrawImage(CloseButtonX, CloseButtonY, WindowManager.CloseButton);
+            if (WindowManager.MaximizeButton != null)
+                Framebuffer.Graphics.DrawImage(MaxButtonX, ButtonsY, WindowManager.MaximizeButton);
+            if (WindowManager.MinimizeButton != null)
+                Framebuffer.Graphics.DrawImage(MinButtonX, ButtonsY, WindowManager.MinimizeButton);
+            // Content
+            Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
+            DrawBorder();
         }
         /// <summary>
         /// Draw Border
@@ -175,5 +198,32 @@ namespace guideXOS.GUI {
             if (Y > maxY) Y = maxY;
             if (Y < BarHeight) Y = BarHeight;
         }
+        /// <summary>
+        /// Minimize window
+        /// </summary>
+        public void Minimize() {
+            if (IsMinimized) return;
+            IsMinimized = true;
+        }
+        /// <summary>
+        /// Restore from minimized or maximized
+        /// </summary>
+        public void Restore() {
+            if (!IsMinimized && !IsMaximized) return;
+            IsMinimized = false; IsMaximized = false;
+            X = _normX; Y = _normY; Width = _normW; Height = _normH;
+            ClampToScreen();
+        }
+        /// <summary>
+        /// Maximize to full screen area (minus taskbar)
+        /// </summary>
+        public void Maximize() {
+            if (IsMaximized) return;
+            // remember
+            _normX = X; _normY = Y; _normW = Width; _normH = Height;
+            IsMaximized = true; IsMinimized = false;
+            X = 0; Y = BarHeight; Width = Framebuffer.Width; Height = Framebuffer.Height - (BarHeight + WindowManagerMinBar());
+        }
+        private int WindowManagerMinBar() { return 40; } // taskbar height
     }
 }
