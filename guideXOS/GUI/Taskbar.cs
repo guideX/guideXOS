@@ -9,6 +9,10 @@ namespace guideXOS.GUI {
         private bool _clockUse12Hour = false;
         private bool _clockClickLatch = false;
         private bool _startClickLatch = false;
+        
+        // Right-click context menu
+        private TaskbarMenu _menu;
+        private bool _rightClickLatch = false;
 
         // Network indicator animation
         private int _netAnimPhase = 0;
@@ -34,6 +38,20 @@ namespace guideXOS.GUI {
 
             int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
             bool left = Control.MouseButtons.HasFlag(MouseButtons.Left);
+            bool right = Control.MouseButtons.HasFlag(MouseButtons.Right);
+
+            // Handle right click -> show menu
+            int barTop = Framebuffer.Height - _barHeight;
+            bool onBar = (my >= barTop && my <= Framebuffer.Height);
+            if (right && onBar) {
+                if (!_rightClickLatch) {
+                    if (_menu == null) _menu = new TaskbarMenu(mx, my);
+                    else { _menu.Visible = true; _menu.OnSetVisible(true); }
+                    _rightClickLatch = true;
+                }
+            } else {
+                _rightClickLatch = false;
+            }
 
             for (int i = 0; i < WindowManager.Windows.Count; i++) {
                 var w = WindowManager.Windows[i];
