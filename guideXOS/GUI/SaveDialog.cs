@@ -29,6 +29,12 @@ namespace guideXOS.GUI {
         private byte _lastScan;
         private bool _keyDown;
 
+        // Scroll state
+        private int _scroll;
+        private bool _scrollDrag;
+        private int _scrollStartY;
+        private int _scrollStartScroll;
+
         public SaveDialog(int x, int y, int w, int h, string startPath, string defaultName, Action<string> onSave) : base(x, y, w, h) {
             Title = "Save As";
             _currentPath = startPath ?? "";
@@ -47,6 +53,9 @@ namespace guideXOS.GUI {
             if (_entries != null) { for (int i = 0; i < _entries.Count; i++) _entries[i].Dispose(); _entries.Clear(); }
             _entries = File.GetFiles(_currentPath);
             _selectedIndex = _entries.Count > 0 ? 0 : -1;
+            // clamp scroll
+            int maxScroll = _entries.Count - 1; if (maxScroll < 0) maxScroll = 0;
+            if (_scroll > maxScroll) _scroll = maxScroll;
         }
 
         private void GoUp() {
@@ -69,13 +78,17 @@ namespace guideXOS.GUI {
             if (key.Key == ConsoleKey.Escape) { this.Visible = false; return; }
             if (key.Key == ConsoleKey.Enter) { SaveAction(); return; }
 
-            // Arrow navigation over list
+            // Arrow navigation over list (with scroll)
             if (!_fnameFocus && _entries.Count > 0) {
                 switch (key.Key) {
-                    case ConsoleKey.Up: if (_selectedIndex > 0) _selectedIndex--; return;
-                    case ConsoleKey.Down: if (_selectedIndex < _entries.Count - 1) _selectedIndex++; return;
-                    case ConsoleKey.Home: _selectedIndex = 0; return;
-                    case ConsoleKey.End: _selectedIndex = _entries.Count - 1; return;
+                    case ConsoleKey.Up:
+                        if (_selectedIndex > 0) { _selectedIndex--; if (_selectedIndex < _scroll) _scroll = _selectedIndex; }
+                        return;
+                    case ConsoleKey.Down:
+                        if (_selectedIndex < _entries.Count - 1) { _selectedIndex++; int rowsVisible = VisibleRows(); if (_selectedIndex >= _scroll + rowsVisible) _scroll = _selectedIndex - rowsVisible + 1; }
+                        return;
+                    case ConsoleKey.Home: _selectedIndex = 0; _scroll = 0; return;
+                    case ConsoleKey.End: _selectedIndex = _entries.Count - 1; _scroll = _selectedIndex - VisibleRows() + 1; if (_scroll < 0) _scroll = 0; return;
                 }
             }
 
@@ -100,6 +113,11 @@ namespace guideXOS.GUI {
                 case ConsoleKey.Oem7: _fileName += "'"; break;
                 case ConsoleKey.OemComma: _fileName += ","; break;
             }
+        }
+
+        private int VisibleRows() {
+            int cx = X + _padding; int cw = Width - _padding - _paddingRight; int cy = Y + _padding + 28; int listY = cy + 24; int listH = Height - _padding - (cy - Y) - 90;
+            return listH / _rowH;
         }
 
         private void SaveAction() {
@@ -133,13 +151,28 @@ namespace guideXOS.GUI {
                     // Up
                     if (mx >= upX && mx <= upX + upW && my >= upY && my <= upY + upH) { GoUp(); _clickLock = true; return; }
                     // Filename focus
-                    if (mx >= fnX && mx <= fnX + fnW && my >= fnY && my <= fnY + fnH) { _fnameFocus = true; _clickLock = true; return; } else { if (my >= listY && my <= listY + listH && mx >= listX && mx <= listX + listW) { _fnameFocus = false; int idx = (my - listY) / _rowH; if (idx >= 0 && idx < _entries.Count) _selectedIndex = idx; } }
+                    if (mx >= fnX && mx <= fnX + fnW && my >= fnY && my <= fnY + fnH) { _fnameFocus = true; _clickLock = true; return; } else { if (my >= listY && my <= listY + listH && mx >= listX && mx <= listX + listW) { _fnameFocus = false; int idx = _scroll + (my - listY) / _rowH; if (idx >= 0 && idx < _entries.Count) _selectedIndex = idx; } }
                     // Save
                     if (mx >= saveX && mx <= saveX + _btnW && my >= fnY && my <= fnY + _btnH) { SaveAction(); _clickLock = true; return; }
                     // Cancel
                     if (mx >= cancelX && mx <= cancelX + _btnW && my >= fnY && my <= fnY + _btnH) { this.Visible = false; _clickLock = true; return; }
                 }
             } else { _clickLock = false; }
+
+            // Simple wheel/drag scrolling
+            if (Control.MouseButtons == MouseButtons.Right) {
+                // hold right button to drag scroll
+                if (!_scrollDrag && mx >= listX && mx <= listX + listW && my >= listY && my <= listY + listH) { _scrollDrag = true; _scrollStartY = my; _scrollStartScroll = _scroll; }
+            } else {
+                _scrollDrag = false;
+            }
+            if (_scrollDrag) {
+                int dy = my - _scrollStartY;
+                int rowsVisible = VisibleRows();
+                int maxScroll = _entries.Count - rowsVisible; if (maxScroll < 0) maxScroll = 0;
+                _scroll = _scrollStartScroll - (dy / _rowH);
+                if (_scroll < 0) _scroll = 0; if (_scroll > maxScroll) _scroll = maxScroll;
+            }
         }
 
         public override void OnDraw() {
@@ -153,17 +186,19 @@ namespace guideXOS.GUI {
             // List background
             Framebuffer.Graphics.FillRectangle(listX, listY, listW, listH, 0xFF2B2B2B);
             int y = listY; int iconW = Icons.FileIcon.Width; int iconH = Icons.FileIcon.Height;
-            for (int i = 0; i < _entries.Count; i++) {
+            int rowsVisible = listH / _rowH; if (rowsVisible < 1) rowsVisible = 1;
+            int start = _scroll; int end = start + rowsVisible; if (end > _entries.Count) end = _entries.Count;
+            for (int i = start; i < end; i++) {
                 var e = _entries[i];
+                int idx = i - start;
+                int rowY = y + idx * _rowH;
                 // row bg alternating
                 uint rowBg = (i == _selectedIndex) ? 0xFF404040u : ((i & 1) == 0 ? 0xFF303030u : 0xFF2B2B2Bu);
-                Framebuffer.Graphics.FillRectangle(listX, y, listW, _rowH, rowBg);
+                Framebuffer.Graphics.FillRectangle(listX, rowY, listW, _rowH, rowBg);
                 var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon : Icons.FileIcon;
-                int iconY = y + (_rowH / 2 - iconH / 2);
+                int iconY = rowY + (_rowH / 2 - iconH / 2);
                 Framebuffer.Graphics.DrawImage(listX + 6, iconY, icon);
-                WindowManager.font.DrawString(listX + 12 + iconW, y + (_rowH / 2 - WindowManager.font.FontSize / 2), e.Name);
-                y += _rowH;
-                if (y > listY + listH - _rowH) break;
+                WindowManager.font.DrawString(listX + 12 + iconW, rowY + (_rowH / 2 - WindowManager.font.FontSize / 2), e.Name);
             }
 
             // Filename + buttons

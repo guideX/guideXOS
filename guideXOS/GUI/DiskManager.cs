@@ -29,11 +29,13 @@ namespace guideXOS.GUI {
         private ulong _totalSectors; // only available on IDE
         private bool _haveDiskInfo;
 
+        // cache parted caption to avoid repeated string concat per frame
+        private string _cachedTotalCaption;
+
         public DiskManager(int x, int y, int w = 700, int h = 340) : base(x, y, w, h) {
             Title = "Disk Manager";
             _status = BuildStatus();
             ReadDiskLayout();
-            ShowInTaskbar = true;
         }
 
         private string BuildStatus() {
@@ -80,6 +82,8 @@ namespace guideXOS.GUI {
                     }
                 }
             } catch { }
+            // update cached caption
+            _cachedTotalCaption = _haveDiskInfo ? $"Total: {FmtSize(_totalSectors * 512)}" : null;
         }
 
         public override void OnInput() {
@@ -167,7 +171,6 @@ namespace guideXOS.GUI {
                 return;
             }
             // Draw used/free segments
-            // Compute free/used based on MBR entries
             // First, draw free as grey
             Framebuffer.Graphics.FillRectangle(x + 1, y + 1, w - 2, h - 2, 0xFF2C2C2C);
 
@@ -189,8 +192,8 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.FillRectangle(segX, y, segW, h, color);
             }
 
-            // Caption
-            string cap = $"Total: {FmtSize(total * 512)}";
+            // Caption (use cached text)
+            string cap = _cachedTotalCaption ?? $"Total: {FmtSize(total * 512)}";
             WindowManager.font.DrawString(x, y + h + 6, cap);
         }
 

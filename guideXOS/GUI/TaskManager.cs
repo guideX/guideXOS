@@ -29,12 +29,14 @@ namespace guideXOS.GUI {
             public Graphics graphics;
             public int lastValue;
             public string name;
+            public int writeX; // incremental writer to avoid full-surface scroll copy
 
             public Chart(int width, int height, string name) {
                 image = new Image(width, height);
                 graphics = Graphics.FromImage(image);
                 lastValue = 100;
                 this.name = name;
+                writeX = 0;
             }
         }
         private Chart _cpuChart;
@@ -42,7 +44,7 @@ namespace guideXOS.GUI {
         private Chart _diskChart;
         private Chart _netChart;
 
-        private const int ChartLineWidth = 3;
+        private const int ChartLineWidth = 1; // thinner column to reduce fill cost
         private ulong _lastPerfTick = 0;
 
         public TaskManager(int X, int Y, int Width = 760, int Height = 520) : base(X, Y, Width, Height) {
@@ -124,9 +126,7 @@ namespace guideXOS.GUI {
                 int rowsVisible = (listH - headerH) / _rowHeight; if (rowsVisible < 1) rowsVisible = 1;
                 int maxScroll = maxRows - rowsVisible; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
-                int trackH = listH - headerH;
-                if (trackH < 1) trackH = 1;
-                // crude mapping: 1 pixel = 1 row
+                // map roughly 1 row per rowHeight pixels
                 _scrollOffset = _scrollStartOffset + (dy / (_rowHeight));
                 if (_scrollOffset < 0) _scrollOffset = 0;
                 if (_scrollOffset > maxScroll) _scrollOffset = maxScroll;
@@ -153,7 +153,6 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.DrawRectangle(cx - 1, contentY - 1, cw + 2, ch + 2, 0xFF333333, 1);
 
             if (_currentTab == 0) DrawProcesses(cx, contentY, cw, ch);
-
             else DrawPerformance(cx, contentY, cw, ch);
         }
 
@@ -187,10 +186,12 @@ namespace guideXOS.GUI {
 
             // List area
             int listY = y + headerH;
-            int listH = h - headerH - 40; if (listH < _rowHeight) listH = _rowHeight;
+            int listH = h - headerH - 40; if (listH < headerH) listH = headerH;
             int startRow = _scrollOffset;
             int rowsVisible = listH / _rowHeight; if (rowsVisible < 1) rowsVisible = 1;
-            int endRow = startRow + rowsVisible; if (endRow > WindowManager.Windows.Count) endRow = WindowManager.Windows.Count;
+            int totalRows = WindowManager.Windows.Count;
+            if (startRow > totalRows) startRow = totalRows;
+            int endRow = startRow + rowsVisible; if (endRow > totalRows) endRow = totalRows;
 
             int dy = listY;
             for (int i = startRow; i < endRow; i++) {
@@ -214,7 +215,6 @@ namespace guideXOS.GUI {
             int sbW = 10;
             int sbX = X + Width - _padding - sbW;
             Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF1A1A1A);
-            int totalRows = WindowManager.Windows.Count;
             int thumbH = (rowsVisible * listH) / (totalRows == 0 ? 1 : totalRows); if (thumbH < 16) thumbH = 16; if (thumbH > listH) thumbH = listH;
             int maxScroll = (totalRows - rowsVisible); if (maxScroll < 0) maxScroll = 0;
             int thumbY = listY + (maxScroll == 0 ? 0 : (_scrollOffset * (listH - thumbH)) / (maxScroll));
@@ -235,8 +235,8 @@ namespace guideXOS.GUI {
         }
 
         private void DrawPerformance(int x, int y, int w, int h) {
-            // Update charts every few ticks
-            if (_lastPerfTick != Timer.Ticks && (Timer.Ticks % 5) == 0) {
+            // Update charts less often to reduce work
+            if (_lastPerfTick != Timer.Ticks && (Timer.Ticks % 10) == 0) {
                 _lastPerfTick = Timer.Ticks;
                 UpdateChart(_cpuChart, (int)ThreadPool.CPUUsage, 0xFF5DADE2);
                 int memPct = (int)(Allocator.MemoryInUse * 100 / (Allocator.MemorySize == 0 ? 1 : Allocator.MemorySize));
@@ -250,7 +250,7 @@ namespace guideXOS.GUI {
             int gap = 16;
             int cW = _cpuChart.graphics.Width;
             int cH = _cpuChart.graphics.Height;
-            int gridW = (w - gap) / 2; // not used for sizing chart, used for placement
+            int gridW = (w - gap) / 2; // used for placement
 
             DrawChartPanel(x, y, _cpuChart, cW, cH, "CPU");
             DrawChartPanel(x + gridW + gap, y, _memChart, cW, cH, "Memory");
@@ -261,18 +261,28 @@ namespace guideXOS.GUI {
         private void DrawChartPanel(int x, int y, Chart chart, int w, int h, string title) {
             // Title
             WindowManager.font.DrawString(x, y, title);
-            // Image below title
-            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, true);
+            // Image below title (no alpha blend to speed up)
+            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, false);
             Framebuffer.Graphics.DrawRectangle(x, y + 24, chart.graphics.Width, chart.graphics.Height, 0xFF333333);
         }
 
         private void UpdateChart(Chart chart, int valuePct, uint color) {
             if (valuePct < 0) valuePct = 0; if (valuePct > 100) valuePct = 100;
             int val = 100 - valuePct; // invert for top origin
-            chart.graphics.FillRectangle(chart.graphics.Width - ChartLineWidth, 0, ChartLineWidth, chart.graphics.Height, 0xFF222222);
-            chart.graphics.DrawLine(chart.graphics.Width - ChartLineWidth, (chart.graphics.Height / 100) * chart.lastValue, chart.graphics.Width, (chart.graphics.Height / 100) * val, color);
+            int w = chart.graphics.Width; int h = chart.graphics.Height;
+            // clear current write column
+            chart.graphics.FillRectangle(chart.writeX, 0, ChartLineWidth, h, 0xFF222222);
+            // draw line from lastValue to current at writeX (approximate as vertical segment)
+            int yPrev = (h * chart.lastValue) / 100;
+            int yNow = (h * val) / 100;
+            chart.graphics.DrawLine(chart.writeX, yPrev, chart.writeX, yNow, color);
             chart.lastValue = val;
-            chart.graphics.Copy(-ChartLineWidth, 0, 0, 0, chart.graphics.Width, chart.graphics.Height);
+            chart.writeX += ChartLineWidth;
+            if (chart.writeX >= w) {
+                chart.writeX = 0;
+                // optional: clear whole surface on wrap to avoid artifacts
+                chart.graphics.FillRectangle(0, 0, w, h, 0xFF222222);
+            }
         }
 
         private void OnEndTask() {
