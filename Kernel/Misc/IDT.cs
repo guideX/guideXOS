@@ -106,6 +106,8 @@ public static class IDT {
     public static unsafe void intr_handler(int irq, IDTStackGeneric* stack) {
         if (irq < 0x20) {
             Panic.Error($"CPU{SMP.ThisCPU} KERNEL PANIC!!!", true);
+
+            // Compute correct location of InterruptReturnStack depending on whether the CPU pushed an error code
             InterruptReturnStack* irs;
             switch (irq) {
                 case 8:
@@ -118,18 +120,22 @@ public static class IDT {
                 case 21:
                 case 29:
                 case 30:
-                    irs = (InterruptReturnStack*)(((byte*)stack) + sizeof(RegistersStack));
-                    break;
-
-                default:
+                    // Exceptions that push an error code: irs follows RegistersStack + errorCode
                     irs = (InterruptReturnStack*)(((byte*)stack) + sizeof(RegistersStack) + sizeof(ulong));
                     break;
+                default:
+                    // No error code pushed: irs follows only RegistersStack
+                    irs = (InterruptReturnStack*)(((byte*)stack) + sizeof(RegistersStack));
+                    break;
             }
-            Console.WriteLine($"RIP: 0x{stack->irs.rip.ToString("x2")}");
-            Console.WriteLine($"Code Segment: 0x{stack->irs.cs.ToString("x2")}");
-            Console.WriteLine($"RFlags: 0x{stack->irs.rflags.ToString("x2")}");
-            Console.WriteLine($"RSP: 0x{stack->irs.rsp.ToString("x2")}");
-            Console.WriteLine($"Stack Segment: 0x{stack->irs.ss.ToString("x2")}");
+
+            // Print using correctly computed frame
+            Console.WriteLine($"RIP: 0x{irs->rip.ToString("x2")}");
+            Console.WriteLine($"Code Segment: 0x{irs->cs.ToString("x2")}");
+            Console.WriteLine($"RFlags: 0x{irs->rflags.ToString("x2")}");
+            Console.WriteLine($"RSP: 0x{irs->rsp.ToString("x2")}");
+            Console.WriteLine($"Stack Segment: 0x{irs->ss.ToString("x2")}");
+
             switch (irq) {
                 case 0: Console.WriteLine("DIVIDE BY ZERO"); break;
                 case 1: Console.WriteLine("SINGLE STEP"); break;
@@ -147,7 +153,7 @@ public static class IDT {
                 case 13: Console.WriteLine("GENERAL PROTECTION"); break;
                 case 14:
                     ulong CR2 = Native.ReadCR2();
-                    if ((CR2 >> 5) < 0x1000) {
+                    if (CR2 < 0x1000) {
                         Console.WriteLine("NULL POINTER");
                     } else {
                         Console.WriteLine("PAGE FAULT");
@@ -157,7 +163,7 @@ public static class IDT {
                 default: Console.WriteLine("UNKNOWN EXCEPTION"); break;
             }
             Framebuffer.Update();
-            for (; ; );
+            for (; ; ) ;
         }
 
         //DEAD

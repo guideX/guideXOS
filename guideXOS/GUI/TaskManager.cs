@@ -152,6 +152,7 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.DrawRectangle(cx - 1, contentY - 1, cw + 2, ch + 2, 0xFF333333, 1);
 
             if (_currentTab == 0) DrawProcesses(cx, contentY, cw, ch);
+
             else DrawPerformance(cx, contentY, cw, ch);
         }
 

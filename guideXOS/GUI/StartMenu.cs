@@ -1,5 +1,9 @@
 ﻿using guideXOS.Kernel.Drivers;
+using guideXOS.Graph;
+using System;
+using System.Collections.Generic;
 using System.Windows.Forms;
+using System.Drawing;
 
 namespace guideXOS.GUI {
     /// <summary>
@@ -34,9 +38,14 @@ namespace guideXOS.GUI {
 
         // Right column width
         private const int RightColW = 160;
+        private const int RightColInnerPad = 6; // add inner padding to avoid text touching edge
 
         // Recent documents popout state
         private bool _docsPopupVisible = false;
+
+        // All Programs view
+        private bool _showAllPrograms = false;
+        private List<int> _allProgramsOrder; // indices into Desktop.Apps sorted by name
 
         public unsafe StartMenu() : base(_x, _y, _x2, _y2) {
             Title = "Start";
@@ -46,6 +55,9 @@ namespace guideXOS.GUI {
         public override void OnInput() {
             base.OnInput();
             if (!Visible) return;
+
+            // Close on Escape
+            if (Keyboard.KeyInfo.Key == ConsoleKey.Escape) { _powerMenuVisible = false; _docsPopupVisible = false; Visible = false; return; }
 
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
@@ -61,11 +73,17 @@ namespace guideXOS.GUI {
             int rcW = RightColW;
             int rcH = Height - Padding * 2 - (ShutdownBtnH + Gap + Padding);
 
-            // Recent list rect (left side)
+            // Recent/All Programs list rect (left side)
             int listX = X + Padding;
             int listY = Y + Padding;
             int listW = (rcX - Gap) - listX; // space left of right column
             int listH = rcH;
+
+            // All Programs toggle button area (bottom-left)
+            int allBtnH = 28;
+            int allBtnW = 140;
+            int allBtnX = X + Padding;
+            int allBtnY = bottomY; // align with shutdown row
 
             // Scrollbar hit
             int sbW = 8;
@@ -78,6 +96,12 @@ namespace guideXOS.GUI {
                     dlg.Visible = true; return;
                 }
                 if (mx >= arrowX && mx <= arrowX + ArrowBtnW && my >= bottomY && my <= bottomY + ArrowBtnH) { _powerMenuVisible = !_powerMenuVisible; return; }
+
+                // All Programs toggle
+                if (mx >= allBtnX && mx <= allBtnX + allBtnW && my >= allBtnY && my <= allBtnY + allBtnH) {
+                    ToggleAllPrograms();
+                    return;
+                }
 
                 // Scrollbar drag start
                 if (mx >= sbX && mx <= sbX + sbW && my >= listY && my <= listY + listH) { _scrollDrag = true; _scrollStartY = my; _scrollStartScroll = _scroll; return; }
@@ -111,20 +135,33 @@ namespace guideXOS.GUI {
                     if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; return; }
                 }
 
-                // Click in recent programs list
+                // Click in list (Recent or All Programs)
                 if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + listH) {
-                    var items = RecentManager.Programs;
+                    int count = _showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count;
                     int y = listY - _scroll;
-                    for (int i = 0; i < items.Count; i++) {
-                        var it = items.ToArray()[i];
-                        int ih = Icons.FileIcon.Height;
-                        int iw = Icons.FileIcon.Width;
+                    for (int i = 0; i < count; i++) {
+                        int ih;
                         int ix = listX;
                         int iy = y;
-                        if (my >= iy && my <= iy + ih) {
-                            // launch app by name
-                            Desktop.Apps.Load(it.Name);
-                            return;
+                        string appName;
+                        if (_showAllPrograms) {
+                            int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
+                            var icon = Desktop.Apps.Icon(ai) ?? Icons.FileIcon;
+                            ih = icon.Height;
+                            if (my >= iy && my <= iy + ih) {
+                                appName = Desktop.Apps.Name(ai);
+                                Desktop.Apps.Load(appName);
+                                appName.Dispose();
+                                return;
+                            }
+                        } else {
+                            var it = RecentManager.Programs.ToArray()[i];
+                            var icon = it.Icon ?? Icons.FileIcon;
+                            ih = icon.Height;
+                            if (my >= iy && my <= iy + ih) {
+                                Desktop.Apps.Load(it.Name);
+                                return;
+                            }
                         }
                         y += Spacing;
                     }
@@ -133,7 +170,7 @@ namespace guideXOS.GUI {
 
             // Drag update
             if (_scrollDrag) {
-                var total = RecentManager.Programs.Count * Spacing;
+                int total = (_showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count) * Spacing;
                 int maxScroll = total - listH; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
                 _scroll = _scrollStartScroll + dy;
@@ -154,50 +191,66 @@ namespace guideXOS.GUI {
             int rcW = RightColW;
             int rcH = Height - Padding * 2 - (ShutdownBtnH + Gap + Padding);
 
-            // Left recent list
+            // Left list
             int listX = X + Padding;
             int listY = Y + Padding;
             int listW = (rcX - Gap) - listX;
             int listH = rcH;
 
-            // Recent programs
-            var items = RecentManager.Programs;
+            // Recent programs or All Programs
+            int count = _showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count;
             int y = listY - _scroll;
-            for (int i = 0; i < items.Count; i++) {
-                var it = items.ToArray()[i];
-                var icon = it.Icon ?? Icons.FileIcon;
+            for (int i = 0; i < count; i++) {
+                Image icon;
+                string name;
+                if (_showAllPrograms) {
+                    int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
+                    icon = Desktop.Apps.Icon(ai) ?? Icons.FileIcon;
+                    name = Desktop.Apps.Name(ai);
+                } else {
+                    var it = RecentManager.Programs.ToArray()[i];
+                    icon = it.Icon ?? Icons.FileIcon;
+                    name = it.Name;
+                }
                 int ih = icon.Height;
                 Framebuffer.Graphics.DrawImage(listX, y, icon);
-                WindowManager.font.DrawString(listX + icon.Width + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), it.Name);
+                WindowManager.font.DrawString(listX + icon.Width + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (icon.Width + 22), WindowManager.font.FontSize);
                 y += Spacing;
+                name.Dispose();
             }
 
-            // Scrollbar for recents
+            // Scrollbar for list
             int sbW = 8;
             int sbX = listX + listW - sbW;
             Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF1A1A1A);
-            int total = items.Count * Spacing;
+            int total = count * Spacing;
             if (total > listH) {
                 int thumbH = (listH * listH) / total; if (thumbH < 16) thumbH = 16; if (thumbH > listH) thumbH = listH;
                 int thumbY = (listH * _scroll) / total; if (thumbY + thumbH > listH) thumbY = listH - thumbH;
                 Framebuffer.Graphics.FillRectangle(sbX + 1, listY + thumbY, sbW - 2, thumbH, 0xFF2F2F2F);
             }
 
-            // Right column content
+            // Right column content (with padding and truncation)
             int rcCursorY = rcY;
+            int textMax = rcW - RightColInnerPad - (Icons.FolderIcon.Width + 8);
             // Computer Files icon + label
             var cfIcon = Icons.FolderIcon;
-            Framebuffer.Graphics.DrawImage(rcX, rcCursorY, cfIcon);
-            WindowManager.font.DrawString(rcX + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), "Computer Files");
+            Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
+            string cfText = TruncateToWidth("Computer Files", textMax);
+            WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), cfText);
             rcCursorY += cfIcon.Height + 16;
+            cfText.Dispose();
             // Disk Manager icon + label
-            Framebuffer.Graphics.DrawImage(rcX, rcCursorY, cfIcon);
-            WindowManager.font.DrawString(rcX + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), "Disk Manager");
+            Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
+            string dmText = TruncateToWidth("Disk Manager", textMax);
+            WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), dmText);
             rcCursorY += cfIcon.Height + 16;
+            dmText.Dispose();
             // Recent Documents with popout
             var docIcon = Icons.FileIcon;
-            Framebuffer.Graphics.DrawImage(rcX, rcCursorY, docIcon);
-            WindowManager.font.DrawString(rcX + docIcon.Width + 8, rcCursorY + (docIcon.Height / 2) - (WindowManager.font.FontSize / 2), "Recent Documents");
+            Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, docIcon);
+            string rdText = TruncateToWidth("Recent Documents", textMax);
+            WindowManager.font.DrawString(rcX + RightColInnerPad + docIcon.Width + 8, rcCursorY + (docIcon.Height / 2) - (WindowManager.font.FontSize / 2), rdText);
 
             // Popout panel to the right if visible
             if (_docsPopupVisible) {
@@ -210,8 +263,8 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.DrawRectangle(popX, popY, popW, popH, 0xFF3F3F3F, 1);
                 int py = popY + 4;
                 var docs = RecentManager.Documents;
-                int count = docs.Count < visibleDocs ? docs.Count : visibleDocs;
-                for (int i = 0; i < count; i++) {
+                int dcount = docs.Count < visibleDocs ? docs.Count : visibleDocs;
+                for (int i = 0; i < dcount; i++) {
                     var d = docs.ToArray()[i];
                     // simple filename display
                     string label = d.Path;
@@ -220,6 +273,7 @@ namespace guideXOS.GUI {
                     label.Dispose();
                 }
             }
+            rdText.Dispose();
 
             // Buttons at bottom-right
             int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
@@ -249,7 +303,72 @@ namespace guideXOS.GUI {
                 WindowManager.font.DrawString(menuX + 10, itemY + MenuItemH + (MenuItemH / 2) - (WindowManager.font.FontSize / 2), "Log Off");
             }
 
+            // All Programs toggle button (bottom-left)
+            int allBtnH = 28;
+            int allBtnW = 140;
+            int allBtnX = X + Padding;
+            int allBtnY = bottomY;
+            bool overAll = (mx >= allBtnX && mx <= allBtnX + allBtnW && my >= allBtnY && my <= allBtnY + allBtnH);
+            Framebuffer.Graphics.FillRectangle(allBtnX, allBtnY, allBtnW, allBtnH, overAll ? btnBgHover : btnBg);
+            Framebuffer.Graphics.DrawRectangle(allBtnX, allBtnY, allBtnW, allBtnH, border, 1);
+            string allText = _showAllPrograms ? "Back" : "All Programs";
+            WindowManager.font.DrawString(allBtnX + 10, allBtnY + (allBtnH / 2) - (WindowManager.font.FontSize / 2), allText);
+            allText.Dispose();
+
             DrawBorder(false);
+        }
+
+        private void ToggleAllPrograms() {
+            _showAllPrograms = !_showAllPrograms;
+            _scroll = 0;
+            if (_showAllPrograms) BuildAllProgramsOrder();
+        }
+
+        private void BuildAllProgramsOrder() {
+            int n = Desktop.Apps.Length;
+            _allProgramsOrder = _allProgramsOrder ?? new List<int>(n);
+            _allProgramsOrder.Clear();
+            for (int i = 0; i < n; i++) _allProgramsOrder.Add(i);
+            // simple selection sort by name (case-insensitive)
+            for (int i = 0; i < n - 1; i++) {
+                int min = i;
+                string minName = Desktop.Apps.Name(_allProgramsOrder[min]);
+                for (int j = i + 1; j < n; j++) {
+                    string nameJ = Desktop.Apps.Name(_allProgramsOrder[j]);
+                    // compare
+                    int cmp = CompareIgnoreCase(nameJ, minName);
+                    if (cmp < 0) { min = j; minName.Dispose(); minName = nameJ; } else { nameJ.Dispose(); }
+                }
+                minName.Dispose();
+                if (min != i) { int tmp = _allProgramsOrder[i]; _allProgramsOrder[i] = _allProgramsOrder[min]; _allProgramsOrder[min] = tmp; }
+            }
+        }
+
+        private static int CompareIgnoreCase(string a, string b) {
+            int la = a.Length; int lb = b.Length; int l = la < lb ? la : lb;
+            for (int i = 0; i < l; i++) {
+                char ca = a[i]; if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+                char cb = b[i]; if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+                if (ca != cb) return ca < cb ? -1 : 1;
+            }
+            if (la == lb) return 0; return la < lb ? -1 : 1;
+        }
+
+        private string TruncateToWidth(string text, int maxW) {
+            if (WindowManager.font.MeasureString(text) <= maxW) return text;
+            // Leave space for ellipsis '...'
+            string ell = "...";
+            int ellW = WindowManager.font.MeasureString(ell);
+            int w = 0;
+            int i = 0;
+            for (; i < text.Length; i++) {
+                int chW = WindowManager.font.MeasureString(text[i].ToString());
+                if (w + chW + ellW > maxW) break;
+                w += chW;
+            }
+            string sub = text.Substring(0, i) + ell;
+            ell.Dispose();
+            return sub;
         }
     }
 }

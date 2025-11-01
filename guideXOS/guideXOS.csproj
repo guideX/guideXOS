@@ -37,9 +37,10 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\NativeLib.lib" />
-		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\LibC.lib" />
-		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\Doom.lib" />
+		<!-- Only include native libs if they exist locally to avoid LNK1181 in environments without them -->
+		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\NativeLib.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\NativeLib.lib')" />
+		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\LibC.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\LibC.lib')" />
+		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\Doom.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\Doom.lib')" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -53,12 +54,26 @@
 
 	<Import Project="..\Kernel\Kernel.projitems" Label="Shared" />
 
+	<!-- Ensure native output directory exists for loader.o and native exe -->
+	<Target Name="EnsureNativeOutDir" BeforeTargets="BuildISO">
+		<PropertyGroup>
+			<NativeOutDir>$(MSBuildProjectDirectory)\$(NativeOutputPath)</NativeOutDir>
+		</PropertyGroup>
+		<MakeDir Directories="$(NativeOutDir)" Condition="!Exists('$(NativeOutDir)')" />
+	</Target>
+
 	<Target Name="BuildISO" AfterTargets="Publish">
 		<Delete Files="$(MSBuildStartupDirectory)\Tools\grub2\boot\ramdisk.tar"></Delete>
-		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\7-Zip\7z.exe&quot; a &quot;$(MSBuildStartupDirectory)\Tools\grub2\boot\ramdisk.tar&quot; &quot;$(MSBuildStartupDirectory)\Ramdisk\*"></Exec>
+		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\7-Zip\7z.exe&quot; a &quot;$(MSBuildStartupDirectory)\Tools\grub2\boot\ramdisk.tar&quot; &quot;$(MSBuildStartupDirectory)\Ramdisk\*&quot;"></Exec>
 		<Exec WorkingDirectory="$(MSBuildStartupDirectory)\Tools\" Command="&quot;$(MSBuildStartupDirectory)\Tools\nasm.exe&quot; -fbin &quot;$(MSBuildStartupDirectory)\Tools\Trampoline.asm&quot; -o &quot;$(MSBuildStartupDirectory)\Tools\trampoline.o&quot;"></Exec>
 		<Exec WorkingDirectory="$(MSBuildStartupDirectory)\Tools\" Command="&quot;$(MSBuildStartupDirectory)\Tools\nasm.exe&quot; -fbin &quot;$(MSBuildStartupDirectory)\Tools\EntryPoint.asm&quot; -o &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)loader.o&quot;"></Exec>
-		<Exec Command="cmd.exe /c copy /b &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)loader.o&quot;+&quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName)$(NativeBinaryExt)&quot; &quot;$(MSBuildStartupDirectory)\Tools\grub2\boot\kernel.bin&quot;"></Exec>
+		<!-- Concatenate loader and native exe only if both exist -->
+		<PropertyGroup>
+			<LoaderPath>$(MSBuildProjectDirectory)\$(NativeOutputPath)loader.o</LoaderPath>
+			<KernelPath>$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName)$(NativeBinaryExt)</KernelPath>
+			<KernelBin>$(MSBuildStartupDirectory)\Tools\grub2\boot\kernel.bin</KernelBin>
+		</PropertyGroup>
+		<Exec Command="cmd.exe /c copy /b &quot;$(LoaderPath)&quot;+&quot;$(KernelPath)&quot; &quot;$(KernelBin)&quot;" Condition="Exists('$(LoaderPath)') AND Exists('$(KernelPath)')" />
 		<Delete Files="$(MSBuildProjectDirectory)\$(NativeOutputPath)loader.o"></Delete>
 		<Delete Files="$(MSBuildStartupDirectory)\Tools\trampoline.o"></Delete>
 		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\mkisofs.exe&quot; -relaxed-filenames -J -R -o &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).iso&quot; -b boot/grub/i386-pc/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table &quot;$(MSBuildStartupDirectory)\Tools\grub2&quot;"></Exec>
