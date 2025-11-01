@@ -80,7 +80,7 @@ namespace guideXOS.Misc {
 
         public static bool InitPort(int port, USBDevice parent, int version, int speed) {
             if (version == 2) {
-                EHCI.InitPort(port, parent, speed);
+                return EHCI.InitPort(port, parent, speed);
             }
             return false;
         }
@@ -92,6 +92,9 @@ namespace guideXOS.Misc {
                     break;
                 case 9:
                     Hub.Initialize(device);
+                    break;
+                case 8:
+                    USBMSC.Initialize(device);
                     break;
                 default:
                     //Console.WriteLine($"[USB] Unrecognized device class:{device.Class} subClass:{device.SubClass}");

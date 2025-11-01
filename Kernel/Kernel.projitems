@@ -41,6 +41,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\Serial.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\SMBIOS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\Timer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\USBMSC.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMWareSVGAII.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMwareTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.cs" />
@@ -79,6 +80,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Misc\SchedulerExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\Threading.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\USB.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\USBStorage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\UserDemo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\VendorID.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\WAV.cs" />

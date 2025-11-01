@@ -154,6 +154,19 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                 WindowManager.font.DrawString(x, y + fh, "Computer Files", fw + 8, WindowManager.font.FontSize * 3);
                 y += Icons.FileIcon.Height + devide;
+                // USB mass storage icons, one per connected device
+                if (Kernel.Drivers.USBStorage.Count > 0) {
+                    int count = Kernel.Drivers.USBStorage.Count;
+                    for (int u = 0; u < count; u++) {
+                        if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
+                        string label = count == 1 ? "USB Drive" : ("USB Drive " + (u + 1).ToString());
+                        ClickEvent(label, true, x, y, 20000 + u, clickable, leftDown);
+                        Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                        WindowManager.font.DrawString(x, y + fh, label, fw + 8, WindowManager.font.FontSize * 3);
+                        y += Icons.FileIcon.Height + devide;
+                        label.Dispose();
+                    }
+                }
                 // Root folder
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Root", true, x, y, Apps.Length + 1, clickable, leftDown);
@@ -268,6 +281,23 @@ namespace guideXOS.GUI {
                 WindowManager.MoveToEnd(cf);
                 cf.Visible = true;
                 return;
+            }
+            // Click on USB drive icon opens Computer Files too (when on Home desktop)
+            if (HomeMode) {
+                string usbPrefix = "USB Drive";
+                bool isUsb = name.Length >= usbPrefix.Length;
+                if (isUsb) {
+                    for (int pi = 0; pi < usbPrefix.Length; pi++) {
+                        if (name[pi] != usbPrefix[pi]) { isUsb = false; break; }
+                    }
+                }
+                usbPrefix.Dispose();
+                if (isUsb) {
+                    var cf = new ComputerFiles(300, 200, 540, 380);
+                    WindowManager.MoveToEnd(cf);
+                    cf.Visible = true;
+                    return;
+                }
             }
             if (name == "Desktop" && !HomeMode) {
                 HomeMode = true;

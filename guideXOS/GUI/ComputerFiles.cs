@@ -357,6 +357,30 @@ namespace guideXOS.GUI {
 
             // resize handle visual
             Framebuffer.Graphics.FillRectangle(X + Width - ResizeHandle, Y + Height - ResizeHandle, ResizeHandle, ResizeHandle, 0xFF333333);
+
+            // Left column with drives
+            int leftW = 180;
+            Framebuffer.Graphics.FillRectangle(X + 1, Y + 1, leftW - 2, Height - 2, 0xFF2A2A2A);
+            int cursorY = Y + 10;
+            // Root
+            Framebuffer.Graphics.DrawImage(X + 10, cursorY, _iconFolder);
+            WindowManager.font.DrawString(X + 10 + _iconFolder.Width + 8, cursorY + (_iconFolder.Height / 2) - (WindowManager.font.FontSize / 2), "Desktop");
+            cursorY += _iconFolder.Height + 10;
+            // Computer Files root
+            Framebuffer.Graphics.DrawImage(X + 10, cursorY, _iconFolder);
+            WindowManager.font.DrawString(X + 10 + _iconFolder.Width + 8, cursorY + (_iconFolder.Height / 2) - (WindowManager.font.FontSize / 2), "Computer Files");
+            cursorY += _iconFolder.Height + 10;
+            // USB drive item when present
+            if (Kernel.Drivers.USBStorage.Count > 0) {
+                string label = Kernel.Drivers.USBStorage.Count == 1 ? "USB Drive" : "USB Drives";
+                Framebuffer.Graphics.DrawImage(X + 10, cursorY, _iconFolder);
+                WindowManager.font.DrawString(X + 10 + _iconFolder.Width + 8, cursorY + (_iconFolder.Height / 2) - (WindowManager.font.FontSize / 2), label);
+                cursorY += _iconFolder.Height + 10;
+                label.Dispose();
+            }
+
+            // Main panel placeholder
+            Framebuffer.Graphics.FillRectangle(X + leftW, Y + 1, Width - leftW - 2, Height - 2, 0xFF2B2B2B);
         }
     }
 }
