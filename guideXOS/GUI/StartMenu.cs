@@ -56,6 +56,12 @@ namespace guideXOS.GUI {
         private Image _bgBlurCache;
         private bool _bgCacheReady;
 
+        // Intelligent frame cache: redraw at most every ~120ms or when state changes
+        private Image _frameCache;
+        private ulong _frameCacheTick;
+        private bool _frameDirty;
+        private const ulong MinRedrawMs = 120;
+
         public unsafe StartMenu() : base(_x, _y, _x2, _y2) {
             Title = "Start";
             BarHeight = 0;
@@ -63,19 +69,26 @@ namespace guideXOS.GUI {
             ShowMaximize = false;
             ShowMinimize = false;
             _showAllPrograms = false;
+            _frameDirty = true;
         }
 
         public override void OnSetVisible(bool value) {
             base.OnSetVisible(value);
             if (value) {
-                // Always bring Start Menu to front when shown; use live blur instead of cached
+                // Always bring Start Menu to front when shown
                 WindowManager.MoveToEnd(this);
+                // Rebuild background blur cache once
                 _bgCacheReady = false;
                 if (_bgBlurCache != null) { _bgBlurCache.Dispose(); _bgBlurCache = null; }
+                BuildBackgroundBlurCache();
+                // Invalidate frame cache
+                if (_frameCache != null) { _frameCache.Dispose(); _frameCache = null; }
+                _frameDirty = true;
             } else {
-                // dispose cache when hidden to free memory
+                // dispose caches when hidden to free memory
                 if (_bgBlurCache != null) { _bgBlurCache.Dispose(); _bgBlurCache = null; }
-                _bgCacheReady = false;
+                if (_frameCache != null) { _frameCache.Dispose(); _frameCache = null; }
+                _bgCacheReady = false; _frameDirty = true;
             }
         }
 
@@ -200,11 +213,11 @@ namespace guideXOS.GUI {
                     WindowManager.MoveToEnd(dlg);
                     dlg.Visible = true; Visible = false; return;
                 }
-                if (mx >= arrowX && mx <= arrowX + ArrowBtnW && my >= bottomY && my <= bottomY + ArrowBtnH) { _powerMenuVisible = !_powerMenuVisible; return; }
+                if (mx >= arrowX && mx <= arrowX + ArrowBtnW && my >= bottomY && my <= bottomY + ArrowBtnH) { _powerMenuVisible = !_powerMenuVisible; _frameDirty = true; return; }
 
                 // All Programs toggle
                 if (mx >= allBtnX && mx <= allBtnX + allBtnW && my >= allBtnY && my <= allBtnY + allBtnH) {
-                    ToggleAllPrograms();
+                    ToggleAllPrograms(); _frameDirty = true;
                     return;
                 }
 
@@ -239,7 +252,7 @@ namespace guideXOS.GUI {
                     // Recent Documents (toggle popup)
                     int iconW = Icons.DocumentIcon.Width;
                     int iconH = Icons.DocumentIcon.Height;
-                    if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; return; }
+                    if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; _frameDirty = true; return; }
 
                     // USB Files entry (only if at least one USB MSC device is present)
                     iy += iconH + 16;
@@ -312,16 +325,25 @@ namespace guideXOS.GUI {
                 int total = (_showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count) * Spacing;
                 int maxScroll = total - listH; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
-                _scroll = _scrollStartScroll + dy;
-                if (_scroll < 0) _scroll = 0; if (_scroll > maxScroll) _scroll = maxScroll;
+                int newScroll = _scrollStartScroll + dy;
+                if (newScroll < 0) newScroll = 0; if (newScroll > maxScroll) newScroll = maxScroll;
+                if (newScroll != _scroll) { _scroll = newScroll; _frameDirty = true; }
             }
         }
 
         public override void OnDraw() {
             if (!Visible) return;
+
+            // Smart frame caching: reuse last frame if recent and no state change
+            if (!_frameDirty && _frameCache != null) {
+                ulong age = (ulong)(Timer.Ticks - _frameCacheTick);
+                if (age < MinRedrawMs) { Framebuffer.Graphics.DrawImage(X, Y, _frameCache); return; }
+            }
+
             // background blur cache or live blur
             if (_bgCacheReady && _bgBlurCache != null) {
                 Framebuffer.Graphics.DrawImage(X, Y, _bgBlurCache);
+                UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0x66222222, 4);
             } else {
                 // live blur + lighter translucent tint so content beneath is visible
                 Framebuffer.Graphics.BlurRectangle(X, Y, Width, Height, 3);
@@ -532,6 +554,19 @@ namespace guideXOS.GUI {
             allText.Dispose();
 
             DrawBorder(false);
+
+            // After full draw, capture frame for quick reuse
+            if (_frameCache != null) { _frameCache.Dispose(); _frameCache = null; }
+            int wcap = Width, hcap = Height;
+            var cap = new Image(wcap, hcap);
+            for (int yy = 0; yy < hcap; yy++) {
+                int fbY = Y + yy;
+                for (int xx = 0; xx < wcap; xx++) {
+                    int fbX = X + xx;
+                    cap.RawData[yy * wcap + xx] = (int)Framebuffer.Graphics.GetPoint(fbX, fbY);
+                }
+            }
+            _frameCache = cap; _frameCacheTick = (ulong)Timer.Ticks; _frameDirty = false;
         }
 
         private void ToggleAllPrograms() {
