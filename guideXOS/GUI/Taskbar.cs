@@ -19,7 +19,21 @@ namespace guideXOS.GUI {
         private ulong _lastTick = 0;
         private bool _netConnectedShown = false;
 
-        public Taskbar(int barHeight, Image startIcon) { _barHeight = barHeight; _startIcon = startIcon; }
+        // Network animation scheduling
+        private readonly ulong _bootTicks;
+        private ulong _animWindowStart;
+        private ulong _animWindowEnd;
+        private ulong _nextCycleStart;
+        private const ulong TenSeconds = 10_000;       // ms
+        private const ulong FiveMinutes = 300_000;     // ms
+
+        public Taskbar(int barHeight, Image startIcon) { _barHeight = barHeight; _startIcon = startIcon; 
+            // schedule: show animation for first 10 seconds after boot
+            _bootTicks = Timer.Ticks;
+            _animWindowStart = _bootTicks;
+            _animWindowEnd = _bootTicks + TenSeconds;
+            _nextCycleStart = _bootTicks + FiveMinutes;
+        }
 
         public void Draw() {
             int yTop = Framebuffer.Height - _barHeight;
@@ -111,7 +125,7 @@ namespace guideXOS.GUI {
             int netX = timeX - iconSize - 8;
             int netY = timeY + (WindowManager.font.FontSize / 2) - (iconSize/2);
 
-            // Simple animation while determining
+            // Simple animation clock
             if (_lastTick != Timer.Ticks) { _lastTick = Timer.Ticks; _netAnimPhase = (_netAnimPhase + 1) % 3; }
 
             bool connected = false;
@@ -120,7 +134,16 @@ namespace guideXOS.GUI {
 #else
             connected = false;
 #endif
-            // draw signal bars or spinner
+            // Determine if animation window is active
+            ulong now = Timer.Ticks;
+            if (now >= _nextCycleStart) {
+                // start a new 10s animation window, then schedule next in 5 minutes
+                _animWindowStart = now;
+                _animWindowEnd = now + TenSeconds;
+                _nextCycleStart = now + FiveMinutes;
+            }
+            bool animActive = (now >= _animWindowStart && now <= _animWindowEnd);
+
             if (connected) {
                 // draw 3 bars
                 int bw = 3; int gap2 = 2;
@@ -130,10 +153,15 @@ namespace guideXOS.GUI {
                 }
                 _netConnectedShown = true;
             } else {
-                // animate 3 dots while determining
+                // show animated dots only during the allowed window; otherwise static dim dots
                 int dot = 3; int gap2 = 4;
                 for (int i = 0; i < 3; i++) {
-                    uint c = (i == _netAnimPhase) ? 0xFFAAAAAAu : 0xFF555555u;
+                    uint c;
+                    if (animActive) {
+                        c = (i == _netAnimPhase) ? 0xFFAAAAAAu : 0xFF555555u;
+                    } else {
+                        c = 0xFF555555u; // static dim dots when idle
+                    }
                     Framebuffer.Graphics.FillRectangle(netX + i * (dot + gap2), netY + (iconSize/2) - (dot/2), dot, dot, c);
                 }
             }

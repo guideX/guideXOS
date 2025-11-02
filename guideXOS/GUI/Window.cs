@@ -6,6 +6,84 @@ namespace guideXOS.GUI {
     /// Window
     /// </summary>
     abstract class Window {
+        // Animation support
+        enum WindowAnimationType { None, FadeIn, FadeOutClose, Minimize, Restore }
+        WindowAnimationType _animType = WindowAnimationType.None;
+        ulong _animStartTicks;
+        int _animDurationMs;
+        int _animStartY;
+        int _animEndY;
+        byte _overlayAlpha; // 0..255
+
+        bool IsAnimating => _animType != WindowAnimationType.None;
+
+        void BeginFadeIn() {
+            if (!UISettings.EnableFadeAnimations) return;
+            _animType = WindowAnimationType.FadeIn;
+            _animStartTicks = Timer.Ticks;
+            _animDurationMs = UISettings.FadeInDurationMs;
+            _overlayAlpha = 255;
+        }
+        void BeginFadeOutClose() {
+            if (!UISettings.EnableFadeAnimations) { this._visible = false; return; }
+            _animType = WindowAnimationType.FadeOutClose;
+            _animStartTicks = Timer.Ticks;
+            _animDurationMs = UISettings.FadeOutDurationMs;
+            _overlayAlpha = 0;
+        }
+        void BeginMinimize() {
+            if (!UISettings.EnableWindowSlideAnimations) { IsMinimized = true; return; }
+            _animType = WindowAnimationType.Minimize;
+            _animStartTicks = Timer.Ticks;
+            _animDurationMs = UISettings.WindowSlideDurationMs;
+            _animStartY = Y;
+            _animEndY = Framebuffer.Height + Height; // slide below screen
+        }
+        void BeginRestore() {
+            if (!UISettings.EnableWindowSlideAnimations) { Y = _normY; IsMinimized = false; return; }
+            // start from off-screen bottom to normal Y
+            _animType = WindowAnimationType.Restore;
+            _animStartTicks = Timer.Ticks;
+            _animDurationMs = UISettings.WindowSlideDurationMs;
+            Y = Framebuffer.Height + Height;
+            _animStartY = Y;
+            _animEndY = _normY;
+        }
+        void UpdateAnimation() {
+            if (!IsAnimating) return;
+            // compute progress 0..1 based on Timer.Ticks (assumed ms-scale)
+            ulong elapsed = (Timer.Ticks > _animStartTicks) ? (Timer.Ticks - _animStartTicks) : 0UL;
+            float t = _animDurationMs > 0 ? (float)elapsed / _animDurationMs : 1f;
+            if (t > 1f) t = 1f;
+
+            switch (_animType) {
+                case WindowAnimationType.FadeIn: {
+                        _overlayAlpha = (byte)(255 - (int)(t * 255f));
+                        if (t >= 1f) { _overlayAlpha = 0; _animType = WindowAnimationType.None; }
+                        break;
+                    }
+                case WindowAnimationType.FadeOutClose: {
+                        _overlayAlpha = (byte)((int)(t * 255f));
+                        if (t >= 1f) {
+                            _overlayAlpha = 0; _animType = WindowAnimationType.None; this._visible = false; // hide after fade
+                        }
+                        break;
+                    }
+                case WindowAnimationType.Minimize: {
+                        int ny = _animStartY + (int)((_animEndY - _animStartY) * t);
+                        Y = ny;
+                        if (t >= 1f) { IsMinimized = true; _animType = WindowAnimationType.None; Y = _animEndY; }
+                        break;
+                    }
+                case WindowAnimationType.Restore: {
+                        int ny = _animStartY + (int)((_animEndY - _animStartY) * t);
+                        Y = ny;
+                        if (t >= 1f) { Y = _normY; _animType = WindowAnimationType.None; }
+                        break;
+                    }
+            }
+        }
+
         /// <summary>
         /// Visible
         /// </summary>
@@ -80,6 +158,7 @@ namespace guideXOS.GUI {
             TaskbarIcon = Icons.FileIcon;
             // Do not force MoveToEnd here to avoid modifying the list during input iteration
             // Callers can bring to front explicitly when appropriate
+            BeginFadeIn();
         }
         /// <summary>
         /// Bar Height
@@ -115,6 +194,7 @@ namespace guideXOS.GUI {
         public virtual void OnInput() {
             if (!Visible) return;
             if (IsMinimized) return;
+            if (_animType != WindowAnimationType.None) return;
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Close
@@ -123,7 +203,7 @@ namespace guideXOS.GUI {
                     Control.MousePosition.X > CloseButtonX && Control.MousePosition.X < CloseButtonX + WindowManager.CloseButton.Width &&
                     Control.MousePosition.Y > CloseButtonY && Control.MousePosition.Y < CloseButtonY + WindowManager.CloseButton.Height
                 ) {
-                    this.Visible = false;
+                    BeginFadeOutClose();
                     return;
                 }
                 // Minimize
@@ -167,8 +247,12 @@ namespace guideXOS.GUI {
         /// </summary>
         public virtual void OnDraw() {
             if (!Visible) return;
-            if (IsMinimized) return;
+            if (IsMinimized && _animType != WindowAnimationType.Restore) return;
             if (Framebuffer.Graphics == null || WindowManager.font == null) return;
+
+            // Update animation state and adjust properties
+            UpdateAnimation();
+
             // Glassy title bar: blur background then tint
             int barX = X;
             int barY = Y - BarHeight;
@@ -194,6 +278,12 @@ namespace guideXOS.GUI {
             // Content background: slightly translucent
             Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
             DrawBorder();
+
+            // Fade overlay if active
+            if (_overlayAlpha > 0 && _animType != WindowAnimationType.None && (_animType == WindowAnimationType.FadeIn || _animType == WindowAnimationType.FadeOutClose)) {
+                uint col = (uint)(_overlayAlpha) << 24; // black with alpha
+                Framebuffer.Graphics.AFillRectangle(X - 1, Y - BarHeight - 1, Width + 2, Height + BarHeight + 2, col);
+            }
         }
         /// <summary>
         /// Draw Border
@@ -219,22 +309,24 @@ namespace guideXOS.GUI {
         /// </summary>
         public void Minimize() {
             if (IsMinimized) return;
-            IsMinimized = true;
+            if (_animType != WindowAnimationType.None) return;
+            BeginMinimize();
         }
         /// <summary>
         /// Restore from minimized or maximized
         /// </summary>
         public void Restore() {
             if (!IsMinimized && !IsMaximized) return;
+            if (_animType != WindowAnimationType.None) return;
             IsMinimized = false; IsMaximized = false;
-            X = _normX; Y = _normY; Width = _normW; Height = _normH;
-            ClampToScreen();
+            BeginRestore();
         }
         /// <summary>
         /// Maximize to full screen area (minus taskbar)
         /// </summary>
         public void Maximize() {
             if (IsMaximized) return;
+            if (_animType != WindowAnimationType.None) return;
             // remember
             _normX = X; _normY = Y; _normW = Width; _normH = Height;
             IsMaximized = true; IsMinimized = false;

@@ -150,11 +150,16 @@ namespace guideXOS.DefaultApps {
             base.OnDraw(); int cx = X + _padding; int cy = Y + _padding; int cw = Width - _padding * 2; int ch = Height - _padding * 2;
             // Buttons
             int bxSaveAs = cx; int by = cy; int bxSave = bxSaveAs + _btnWSaveAs + 8; int bxWrap = bxSave + _btnWSave + 8;
-            Framebuffer.Graphics.FillRectangle(bxSaveAs, by, _btnWSaveAs, _btnH, 0xFF3A3A3A); WindowManager.font.DrawString(bxSaveAs + 6, by + (_btnH / 2 - WindowManager.font.FontSize / 2), "Save As");
+            // Visual feedback using UI helper
+            uint cSaveAs = UI.ButtonFillColor(bxSaveAs, by, _btnWSaveAs, _btnH, 0xFF3A3A3A, 0xFF444444, 0xFF4A4A4A);
+            Framebuffer.Graphics.FillRectangle(bxSaveAs, by, _btnWSaveAs, _btnH, cSaveAs); WindowManager.font.DrawString(bxSaveAs + 6, by + (_btnH / 2 - WindowManager.font.FontSize / 2), "Save As");
             bool canSave = !string.IsNullOrEmpty(_savedPath) && _dirty;
-            Framebuffer.Graphics.FillRectangle(bxSave, by, _btnWSave, _btnH, canSave ? 0xFF3A3A3Au : 0xFF2A2A2Au);
+            uint baseSave = canSave ? 0xFF3A3A3Au : 0xFF2A2A2Au;
+            uint cSave = UI.ButtonFillColor(bxSave, by, _btnWSave, _btnH, baseSave, 0xFF444444, 0xFF4A4A4A, canSave);
+            Framebuffer.Graphics.FillRectangle(bxSave, by, _btnWSave, _btnH, cSave);
             WindowManager.font.DrawString(bxSave + 12, by + (_btnH / 2 - WindowManager.font.FontSize / 2), "Save");
-            Framebuffer.Graphics.FillRectangle(bxWrap, by, _btnWWrap, _btnH, 0xFF3A3A3A); WindowManager.font.DrawString(bxWrap + 10, by + (_btnH / 2 - WindowManager.font.FontSize / 2), _wrap ? "Wrap" : "NoWrap");
+            uint cWrap = UI.ButtonFillColor(bxWrap, by, _btnWWrap, _btnH, 0xFF3A3A3A, 0xFF444444, 0xFF4A4A4A);
+            Framebuffer.Graphics.FillRectangle(bxWrap, by, _btnWWrap, _btnH, cWrap); WindowManager.font.DrawString(bxWrap + 10, by + (_btnH / 2 - WindowManager.font.FontSize / 2), _wrap ? "Wrap" : "NoWrap");
 
             int tx = cx; int ty = cy + _btnH + 8; int tw = cw; int th = ch - (_btnH + 8);
             Framebuffer.Graphics.AFillRectangle(tx, ty, tw, th, 0x80282828);

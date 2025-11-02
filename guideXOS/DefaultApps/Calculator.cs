@@ -83,6 +83,7 @@ namespace guideXOS.DefaultApps {
             string v = ValueToDisplay.ToString();
             WindowManager.font.DrawString(X, Y + 2, v);
             if (Pressed) {
+                // Pressed visual already handled by Draw overlay; no extra fill needed
                 Framebuffer.Graphics.FillRectangle(X + PressedButton.X, Y + PressedButton.Y, 60, 20, 0xFF222222);
                 int i = WindowManager.font.MeasureString(PressedButton.Name);
                 WindowManager.font.DrawString(X + PressedButton.X + 60 / 2 - i / 2, Y + PressedButton.Y + 2, PressedButton.Name);

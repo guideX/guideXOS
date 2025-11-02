@@ -53,6 +53,7 @@ namespace guideXOS.GUI {
             ShowInTaskbar = false; // do not show a taskbar button for Start menu
             ShowMaximize = false;
             ShowMinimize = false;
+            _showAllPrograms = false;
         }
 
         public override void OnInput() {

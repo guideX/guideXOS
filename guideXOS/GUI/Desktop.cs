@@ -181,6 +181,11 @@ namespace guideXOS.GUI {
                 // Computer Files
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Computer Files", false, x, y, Apps.Length, clickable, leftDown);
+                // button visual feedback
+                {
+                    uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, col);
+                }
                 Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                 WindowManager.font.DrawString(x, y + fh, "Computer Files", fw + 8, WindowManager.font.FontSize * 3);
                 y += Icons.FileIcon.Height + devide;
@@ -191,6 +196,8 @@ namespace guideXOS.GUI {
                         if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                         string label = count == 1 ? "USB Drive" : ("USB Drive " + (u + 1).ToString());
                         ClickEvent(label, true, x, y, 20000 + u, clickable, leftDown);
+                        uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                        Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, col);
                         Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                         WindowManager.font.DrawString(x, y + fh, label, fw + 8, WindowManager.font.FontSize * 3);
                         y += Icons.FileIcon.Height + devide;
@@ -200,6 +207,8 @@ namespace guideXOS.GUI {
                 // Root folder
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Root", true, x, y, Apps.Length + 1, clickable, leftDown);
+                uint colRoot = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, colRoot);
                 Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                 WindowManager.font.DrawString(x, y + fh, "Root", fw + 8, WindowManager.font.FontSize * 3);
                 y += Icons.FileIcon.Height + devide;
@@ -210,6 +219,8 @@ namespace guideXOS.GUI {
                 // Add special Desktop shortcut to return home
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Desktop", false, x, y, -100, clickable, leftDown);
+                uint cDesk = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, cDesk);
                 Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
                 WindowManager.font.DrawString(x, y + fh, "Desktop", fw + 8, WindowManager.font.FontSize * 3);
                 y += fh + devide;
@@ -220,6 +231,9 @@ namespace guideXOS.GUI {
                     bool isDir = names[i].Attribute == FileAttribute.Directory;
 
                     ClickEvent(n, isDir, x, y, i + 1000, clickable, leftDown);
+
+                    uint bg = UI.ButtonFillColor(x, y, Icons.FileIcon.Width, Icons.FileIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FileIcon.Width + 8, Icons.FileIcon.Height + 8, bg);
 
                     // Choose icon by extension/use type
                     if (n.EndsWith(".png") || n.EndsWith(".bmp")) {
