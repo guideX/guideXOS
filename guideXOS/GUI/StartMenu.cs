@@ -52,7 +52,7 @@ namespace guideXOS.GUI {
         private int _recentCacheCount;
         private ulong _recentCacheTick;
 
-        // Cached blurred background for responsiveness
+        // Cached blurred background for responsiveness (disabled for live blur)
         private Image _bgBlurCache;
         private bool _bgCacheReady;
 
@@ -68,9 +68,10 @@ namespace guideXOS.GUI {
         public override void OnSetVisible(bool value) {
             base.OnSetVisible(value);
             if (value) {
-                // Always bring Start Menu to front when shown
+                // Always bring Start Menu to front when shown; use live blur instead of cached
                 WindowManager.MoveToEnd(this);
-                BuildBackgroundBlurCache();
+                _bgCacheReady = false;
+                if (_bgBlurCache != null) { _bgBlurCache.Dispose(); _bgBlurCache = null; }
             } else {
                 // dispose cache when hidden to free memory
                 if (_bgBlurCache != null) { _bgBlurCache.Dispose(); _bgBlurCache = null; }
@@ -322,9 +323,9 @@ namespace guideXOS.GUI {
             if (_bgCacheReady && _bgBlurCache != null) {
                 Framebuffer.Graphics.DrawImage(X, Y, _bgBlurCache);
             } else {
-                // blur a slightly larger area and tint, with rounded edges for nicer look
+                // live blur + lighter translucent tint so content beneath is visible
                 Framebuffer.Graphics.BlurRectangle(X, Y, Width, Height, 3);
-                UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0xCC222222, 4);
+                UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0x66222222, 4);
             }
 
             // Mouse for hover effects
