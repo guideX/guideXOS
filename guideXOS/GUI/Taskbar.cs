@@ -1,6 +1,7 @@
 ﻿using guideXOS.Kernel.Drivers;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Collections.Generic;
 namespace guideXOS.GUI {
     internal class Taskbar {
         public StartMenu StartMenu;
@@ -31,6 +32,10 @@ namespace guideXOS.GUI {
         private bool _taskViewLatch = false;
         private bool _showDesktopLatch = false;
         private TaskView _taskView;
+
+        // Track windows minimized by Show Desktop to restore them on toggle
+        private bool _desktopShown = false;
+        private readonly List<Window> _minimizedByShowDesktop = new List<Window>(32);
 
         public Taskbar(int barHeight, Image startIcon) { _barHeight = barHeight; _startIcon = startIcon; 
             // schedule: show animation for first 10 seconds after boot
@@ -221,9 +226,42 @@ namespace guideXOS.GUI {
                         _taskViewLatch = true;
                     }
                 }
+                // Show Desktop click handling (right sliver)
+                if (mx2 >= sdX && mx2 <= sdX + sdW && my2 >= sdY && my2 <= sdY + sdH) {
+                    if (!_showDesktopLatch) {
+                        ToggleShowDesktop();
+                        _showDesktopLatch = true;
+                    }
+                }
             } else { _clockClickLatch = false; _startClickLatch = false; _taskViewLatch = false; _showDesktopLatch = false; }
 
             time.Dispose(); date.Dispose();
+        }
+
+        private void ToggleShowDesktop() {
+            if (!_desktopShown) {
+                _minimizedByShowDesktop.Clear();
+                // minimize all visible taskbar windows
+                for (int i = 0; i < WindowManager.Windows.Count; i++) {
+                    var w = WindowManager.Windows[i];
+                    if (!w.ShowInTaskbar) continue; // skip non-taskbar elements like Start Menu
+                    if (w.Visible && !w.IsMinimized) {
+                        _minimizedByShowDesktop.Add(w);
+                        w.Minimize();
+                    }
+                }
+                // Hide Start menu if open
+                if (StartMenu != null && StartMenu.Visible) StartMenu.Visible = false;
+                _desktopShown = true;
+            } else {
+                // restore only those we minimized
+                for (int i = 0; i < _minimizedByShowDesktop.Count; i++) {
+                    var w = _minimizedByShowDesktop[i];
+                    if (w != null && w.IsMinimized) w.Restore();
+                }
+                _minimizedByShowDesktop.Clear();
+                _desktopShown = false;
+            }
         }
     }
 }

@@ -321,6 +321,9 @@ namespace guideXOS.GUI {
                 UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0xCC222222, 4);
             }
 
+            // Mouse for hover effects
+            int mouseX = Control.MousePosition.X; int mouseY = Control.MousePosition.Y;
+
             int bottomY = Y + Height - Padding - ShutdownBtnH;
             int shutdownX = X + Width - Padding - ShutdownBtnW - ArrowBtnW - Gap;
             int arrowX = X + Width - Padding - ArrowBtnW;
@@ -345,9 +348,16 @@ namespace guideXOS.GUI {
                     int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
                     var icon = Desktop.Apps.Icon(ai) ?? Icons.DocumentIcon;
                     string name = Desktop.Apps.Name(ai);
-                    int ih = icon.Height;
+                    int ih = icon.Height; int iw = icon.Width;
+                    // Hover effect backdrop
+                    if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih) {
+                        int hx = listX - 6; int hy = y - 3; int hw = listW + 12; int hh = ih + 6;
+                        UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
+                        UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
+                        Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF); // left accent
+                    }
                     Framebuffer.Graphics.DrawImage(listX, y, icon);
-                    WindowManager.font.DrawString(listX + icon.Width + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (icon.Width + 22), WindowManager.font.FontSize);
+                    WindowManager.font.DrawString(listX + iw + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (iw + 22), WindowManager.font.FontSize);
                     y += Spacing;
                     name.Dispose();
                 }
@@ -358,9 +368,16 @@ namespace guideXOS.GUI {
                 for (int i = 0; i < max; i++) {
                     var icon = _recentCache[i].Icon;
                     var name = _recentCache[i].Name;
-                    int ih = icon.Height;
+                    int ih = icon.Height; int iw = icon.Width;
+                    // Hover effect backdrop
+                    if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih) {
+                        int hx = listX - 6; int hy = y - 3; int hw = listW + 12; int hh = ih + 6;
+                        UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
+                        UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
+                        Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF);
+                    }
                     Framebuffer.Graphics.DrawImage(listX, y, icon);
-                    WindowManager.font.DrawString(listX + icon.Width + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (icon.Width + 22), WindowManager.font.FontSize);
+                    WindowManager.font.DrawString(listX + iw + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (iw + 22), WindowManager.font.FontSize);
                     y += Spacing;
                 }
             }
@@ -376,24 +393,43 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.FillRectangle(sbX + 1, listY + thumbY, sbW - 2, thumbH, 0xFF2F2F2F);
             }
 
-            // Right column content (with padding and truncation)
+            // Right column content (with padding and truncation) + hover rows
             int rcCursorY = rcY;
             int textMax = rcW - RightColInnerPad - (Icons.FolderIcon.Width + 8);
             // Computer Files icon + label
             var cfIcon = Icons.FolderIcon;
+            int rowH = cfIcon.Height; int rowW = rcW - 4;
+            if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + rowH) {
+                UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0x332A5B9A, 6);
+                UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0xFF3F7FBF, 1, 6);
+                Framebuffer.Graphics.FillRectangle(rcX + 2, rcCursorY - 2, 3, rowH + 4, 0x883F7FBF);
+            }
             Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
             string cfText = TruncateToWidth("Computer Files", textMax);
             WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), cfText);
             rcCursorY += cfIcon.Height + 16;
             cfText.Dispose();
+
             // Disk Manager icon + label
+            if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + rowH) {
+                UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0x332A5B9A, 6);
+                UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0xFF3F7FBF, 1, 6);
+                Framebuffer.Graphics.FillRectangle(rcX + 2, rcCursorY - 2, 3, rowH + 4, 0x883F7FBF);
+            }
             Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
             string dmText = TruncateToWidth("Disk Manager", textMax);
             WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), dmText);
             rcCursorY += cfIcon.Height + 16;
             dmText.Dispose();
+
             // Recent Documents with popout
             var docIcon = Icons.DocumentIcon;
+            rowH = docIcon.Height;
+            if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + rowH) {
+                UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0x332A5B9A, 6);
+                UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0xFF3F7FBF, 1, 6);
+                Framebuffer.Graphics.FillRectangle(rcX + 2, rcCursorY - 2, 3, rowH + 4, 0x883F7FBF);
+            }
             Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, docIcon);
             string rdText = TruncateToWidth("Recent Documents", textMax);
             WindowManager.font.DrawString(rcX + RightColInnerPad + docIcon.Width + 8, rcCursorY + (docIcon.Height / 2) - (WindowManager.font.FontSize / 2), rdText);
@@ -401,12 +437,22 @@ namespace guideXOS.GUI {
             // USB Files indicator
             rcCursorY += docIcon.Height + 16;
             if (Kernel.Drivers.USBStorage.Count > 0) {
+                if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + cfIcon.Height) {
+                    UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, cfIcon.Height + 4, 0x332A5B9A, 6);
+                    UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, cfIcon.Height + 4, 0xFF3F7FBF, 1, 6);
+                    Framebuffer.Graphics.FillRectangle(rcX + 2, rcCursorY - 2, 3, cfIcon.Height + 4, 0x883F7FBF);
+                }
                 Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
                 string usbText = TruncateToWidth("USB Files", textMax);
                 WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), usbText);
                 usbText.Dispose();
                 rcCursorY += cfIcon.Height + 16;
                 // Draw second item for list view
+                if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + cfIcon.Height) {
+                    UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, cfIcon.Height + 4, 0x332A5B9A, 6);
+                    UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, cfIcon.Height + 4, 0xFF3F7FBF, 1, 6);
+                    Framebuffer.Graphics.FillRectangle(rcX + 2, rcCursorY - 2, 3, cfIcon.Height + 4, 0x883F7FBF);
+                }
                 Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
                 string usbListText = TruncateToWidth("USB Drives", textMax);
                 WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), usbListText);
