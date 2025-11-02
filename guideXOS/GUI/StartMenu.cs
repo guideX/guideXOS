@@ -311,15 +311,14 @@ namespace guideXOS.GUI {
         }
 
         public override void OnDraw() {
-            // Draw cached blurred background once for responsiveness
+            if (!Visible) return;
+            // background blur cache or live blur
             if (_bgCacheReady && _bgBlurCache != null) {
-                Framebuffer.Graphics.DrawImage(X, Y, _bgBlurCache, false);
-                // slight tint for readability
-                Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0x66222222);
+                Framebuffer.Graphics.DrawImage(X, Y, _bgBlurCache);
             } else {
-                // Fallback if cache not ready yet
+                // blur a slightly larger area and tint, with rounded edges for nicer look
                 Framebuffer.Graphics.BlurRectangle(X, Y, Width, Height, 3);
-                Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
+                UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0xCC222222, 4);
             }
 
             int bottomY = Y + Height - Padding - ShutdownBtnH;

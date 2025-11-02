@@ -258,8 +258,8 @@ namespace guideXOS.GUI {
             int barW = Width;
             int barH = BarHeight;
             Framebuffer.Graphics.BlurRectangle(barX, barY, barW, barH, 3);
-            // subtle dark tint with alpha
-            Framebuffer.Graphics.AFillRectangle(barX, barY, barW, barH, 0x66111111);
+            // subtle dark tint with alpha, rounded at top for nicer look
+            UIPrimitives.AFillRoundedRectTop(barX, barY, barW, barH, 0x66111111, 4);
 
             string title = Title;
             if (title == null) title = string.Empty;
@@ -274,14 +274,14 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.DrawImage(MaxButtonX, ButtonsY, WindowManager.MaximizeButton);
             if (ShowMinimize && WindowManager.MinimizeButton != null)
                 Framebuffer.Graphics.DrawImage(MinButtonX, ButtonsY, WindowManager.MinimizeButton);
-            // Content background: slightly translucent
-            Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
+            // Content background: slightly translucent with subtle rounding
+            UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0xCC222222, 4);
             DrawBorder();
 
             // Fade overlay if active
             if (_overlayAlpha > 0 && _animType != WindowAnimationType.None && (_animType == WindowAnimationType.FadeIn || _animType == WindowAnimationType.FadeOutClose)) {
                 uint col = (uint)(_overlayAlpha) << 24; // black with alpha
-                Framebuffer.Graphics.AFillRectangle(X - 1, Y - BarHeight - 1, Width + 2, Height + BarHeight + 2, col);
+                UIPrimitives.AFillRoundedRect(X - 1, Y - BarHeight - 1, Width + 2, Height + BarHeight + 2, col, 4);
             }
         }
         /// <summary>
@@ -290,7 +290,7 @@ namespace guideXOS.GUI {
         /// <param name="HasBar"></param>
         public void DrawBorder(bool HasBar = true) {
             if (Framebuffer.Graphics == null) return;
-            Framebuffer.Graphics.DrawRectangle(X - 1, Y - (HasBar ? BarHeight : 0) - 1, Width + 2, (HasBar ? BarHeight : 0) + Height + 2, 0xFF333333, 1);
+            UIPrimitives.DrawRoundedRect(X - 1, Y - (HasBar ? BarHeight : 0) - 1, Width + 2, (HasBar ? BarHeight : 0) + Height + 2, 0xFF333333, 1, 4);
         }
         /// <summary>
         /// Clamp To Screen

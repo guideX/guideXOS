@@ -4,12 +4,13 @@ using System;
 using System.Collections.Generic;
 
 namespace guideXOS.FS {
-    // Minimal EXT2/EXT3/EXT4 (no extents) reader. Read-only. Supports:
-    // - Superblock parsing
-    // - Group descriptor table
-    // - Inode reading
-    // - Directory enumeration
-    // - File read via direct and single-indirect blocks
+    // Minimal EXT2/EXT3/EXT4 (no extents) reader. Read-mostly with basic overwrite support.
+    // Supported writes:
+    // - Overwrite existing regular files without growing beyond already allocated blocks (direct + single-indirect)
+    // Not supported yet:
+    // - Creating new files/directories
+    // - Growing files that require new block/inode allocations
+    // - Deleting files
     internal unsafe class EXT2 : FileSystem {
         private const ushort EXT_MAGIC = 0xEF53;
         private const ushort S_IFDIR = 0x4000;
@@ -73,12 +74,35 @@ namespace guideXOS.FS {
             return outb;
         }
 
+        private void WriteBytes(ulong byteOffset, byte[] data) {
+            // Read-modify-write covering sectors touching the region
+            ulong startSector = byteOffset / 512u;
+            uint sectorOffset = (uint)(byteOffset % 512u);
+            uint total = sectorOffset + (uint)data.Length;
+            uint sectors = DivRoundUp(total, 512u);
+            var buf = new byte[sectors * 512u];
+            fixed (byte* p = buf) disk.Read(startSector, sectors, p);
+            // patch
+            for (int i = 0; i < data.Length; i++) buf[sectorOffset + i] = data[i];
+            fixed (byte* p2 = buf) disk.Write(startSector, sectors, p2);
+        }
+
         private byte[] ReadBlock(uint block) {
             ulong byteOffset = (ulong)block * _blockSize;
             uint sectors = _blockSize / 512u;
             var buf = new byte[_blockSize];
             fixed (byte* p = buf) disk.Read(byteOffset / 512u, sectors, p);
             return buf;
+        }
+
+        private void WriteBlock(uint block, byte[] data) {
+            var buf = new byte[_blockSize];
+            int toCopy = data.Length < buf.Length ? data.Length : buf.Length;
+            for (int i = 0; i < toCopy; i++) buf[i] = data[i];
+            for (int i = toCopy; i < buf.Length; i++) buf[i] = 0;
+            ulong byteOffset = (ulong)block * _blockSize;
+            uint sectors = _blockSize / 512u;
+            fixed (byte* p = buf) disk.Write(byteOffset / 512u, sectors, p);
         }
 
         private byte[] ReadBlockRange(uint startBlock, uint countBlocks) {
@@ -91,6 +115,8 @@ namespace guideXOS.FS {
 
         private static ushort ReadU16(byte[] b, int off) { return (ushort)(b[off] | (b[off + 1] << 8)); }
         private static uint ReadU32(byte[] b, int off) { return (uint)(b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24)); }
+        private static void WriteU16(byte[] b, int off, ushort v) { b[off] = (byte)(v & 0xFF); b[off + 1] = (byte)((v >> 8) & 0xFF); }
+        private static void WriteU32(byte[] b, int off, uint v) { b[off] = (byte)(v & 0xFF); b[off + 1] = (byte)((v >> 8) & 0xFF); b[off + 2] = (byte)((v >> 16) & 0xFF); b[off + 3] = (byte)((v >> 24) & 0xFF); }
 
         private struct Inode {
             public ushort Mode;
@@ -113,6 +139,20 @@ namespace guideXOS.FS {
             int bOff = 0x28; // i_block offset
             for (int i = 0; i < 15; i++) ino.Blocks[i] = ReadU32(raw, bOff + i * 4);
             return ino;
+        }
+
+        private void WriteInode(uint inodeNum, Inode ino) {
+            uint idx = inodeNum - 1;
+            uint group = idx / _inodesPerGroup;
+            uint indexInGroup = idx % _inodesPerGroup;
+            uint tableBlock = _inodeTableBlock[group];
+            ulong byteOffset = ((ulong)tableBlock * _blockSize) + (ulong)indexInGroup * _inodeSize;
+            var raw = ReadBytes(byteOffset, _inodeSize);
+            WriteU16(raw, 0x00, ino.Mode);
+            WriteU32(raw, 0x04, ino.SizeLo);
+            int bOff = 0x28;
+            for (int i = 0; i < 15; i++) WriteU32(raw, bOff + i * 4, ino.Blocks[i]);
+            WriteBytes(byteOffset, raw);
         }
 
         private bool IsDir(Inode ino) => (ino.Mode & S_IFDIR) == S_IFDIR;
@@ -250,11 +290,56 @@ namespace guideXOS.FS {
             return data;
         }
 
+        public override void WriteAllBytes(string Name, byte[] Content) {
+            // Only overwrite existing files without growing beyond allocated capacity
+            uint inoNum = ResolvePathToInode(Name);
+            if (inoNum == 0) { Panic.Error("EXT2: Creating new files is not supported yet"); return; }
+            var ino = ReadInode(inoNum);
+            if (!IsReg(ino)) { Panic.Error("EXT2: Not a regular file"); return; }
+
+            // Collect data blocks (direct + single-indirect)
+            List<uint> blocks = new List<uint>();
+            for (int i = 0; i < 12; i++) if (ino.Blocks[i] != 0) blocks.Add(ino.Blocks[i]);
+            if (ino.Blocks[12] != 0) {
+                var ib = ReadBlock(ino.Blocks[12]);
+                for (int i = 0; i + 4 <= ib.Length; i += 4) { uint blk = ReadU32(ib, i); if (blk == 0) break; blocks.Add(blk); }
+            }
+            ulong capacity = (ulong)blocks.Count * _blockSize;
+            if ((ulong)Content.Length > capacity) { Panic.Error("EXT2: Not enough allocated space to grow file"); return; }
+
+            // Write data into blocks
+            int offset = 0;
+            for (int i = 0; i < blocks.Count && offset < Content.Length; i++) {
+                int toCopy = Content.Length - offset; if (toCopy > (int)_blockSize) toCopy = (int)_blockSize;
+                var tmp = new byte[toCopy];
+                for (int j = 0; j < toCopy; j++) tmp[j] = Content[offset + j];
+                WriteBlock(blocks[i], tmp);
+                offset += toCopy;
+            }
+            // Zero any remaining tail of the last block if file shrank
+            if (offset < ino.SizeLo) {
+                // file shrink - zero the remaining part of the current block to avoid stale data exposure
+                int tail = (int)(ino.SizeLo - (uint)offset);
+                if (tail > 0 && blocks.Count > 0) {
+                    int usedInLast = offset % (int)_blockSize;
+                    if (usedInLast > 0) {
+                        var lastBuf = new byte[_blockSize];
+                        // we only need to zero, so leave prefix as written; already wrote exact bytes for that block
+                        for (int j = usedInLast; j < lastBuf.Length; j++) lastBuf[j] = 0;
+                        WriteBlock(blocks[(offset - 1) / (int)_blockSize], lastBuf);
+                    }
+                }
+            }
+
+            // Update inode size
+            ino.SizeLo = (uint)Content.Length;
+            WriteInode(inoNum, ino);
+        }
+
         private static void Copy(byte[] src, int sOff, byte[] dst, int dOff, int len) {
             for (int i = 0; i < len; i++) dst[dOff + i] = src[sOff + i];
         }
 
-        public override void WriteAllBytes(string Name, byte[] Content) { Panic.Error("EXT2: Write not supported"); }
         public override void Format() { Panic.Error("EXT2: Format not supported"); }
     }
 }

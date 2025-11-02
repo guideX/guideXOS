@@ -207,6 +207,20 @@ namespace guideXOS.GUI {
                         if (StartMenu != null && StartMenu.Visible && !_startClickLatch && !StartMenu.IsUnderMouse()) { StartMenu.Visible = false; }
                     }
                 }
+                // Task View button click handling
+                if (mx2 >= tvX && mx2 <= tvX + tvSize && my2 >= tvY && my2 <= tvY + tvSize) {
+                    if (!_taskViewLatch) {
+                        if (_taskView == null) _taskView = new TaskView();
+                        bool show = !_taskView.Visible;
+                        if (show) {
+                            WindowManager.MoveToEnd(_taskView);
+                            _taskView.Visible = true;
+                        } else {
+                            _taskView.Visible = false;
+                        }
+                        _taskViewLatch = true;
+                    }
+                }
             } else { _clockClickLatch = false; _startClickLatch = false; _taskViewLatch = false; _showDesktopLatch = false; }
 
             time.Dispose(); date.Dispose();
