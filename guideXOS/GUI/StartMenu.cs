@@ -237,6 +237,32 @@ namespace guideXOS.GUI {
                     int iconW = Icons.FileIcon.Width;
                     int iconH = Icons.FileIcon.Height;
                     if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; return; }
+
+                    // USB Files entry (only if at least one USB MSC device is present)
+                    iy += iconH + 16;
+                    if (Kernel.Drivers.USBStorage.Count > 0) {
+                        int ux = rcX; int uy = iy; int uw = Icons.FolderIcon.Width; int uh = Icons.FolderIcon.Height;
+                        if (mx >= ux && mx <= ux + uw && my >= uy && my <= uy + uh) {
+                            var dev = Kernel.Drivers.USBStorage.GetFirst();
+                            if (dev != null) {
+                                var disk = Kernel.Drivers.USBMSC.TryOpenDisk(dev);
+                                if (disk != null && disk.IsReady) {
+                                    var win = new USBFiles(disk, 380, 220, 560, 400);
+                                    WindowManager.MoveToEnd(win);
+                                    win.Visible = true;
+                                }
+                            }
+                            return;
+                        }
+                        // Provide a second entry for a list view of all USB drives
+                        int ux2 = rcX; int uy2 = iy + uh + 12; int uw2 = uw; int uh2 = uh;
+                        if (mx >= ux2 && mx <= ux2 + uw2 && my >= uy2 && my <= uy2 + uh2) {
+                            var list = new USBDrives(rcX - 280, rcY + 40, 420, 360);
+                            WindowManager.MoveToEnd(list);
+                            list.Visible = true;
+                            return;
+                        }
+                    }
                 }
 
                 // Click in list (Recent or All Programs)
@@ -246,13 +272,13 @@ namespace guideXOS.GUI {
                     for (int i = 0; i < count; i++) {
                         int ih;
                         int ix = listX;
-                        int iy = y;
+                        int iy2 = y;
                         string appName;
                         if (_showAllPrograms) {
                             int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
                             var icon = Desktop.Apps.Icon(ai) ?? Icons.FileIcon;
                             ih = icon.Height;
-                            if (my >= iy && my <= iy + ih) {
+                            if (my >= iy2 && my <= iy2 + ih) {
                                 appName = Desktop.Apps.Name(ai);
                                 Desktop.Apps.Load(appName);
                                 appName.Dispose();
@@ -264,7 +290,7 @@ namespace guideXOS.GUI {
                             if (i >= _recentCacheCount) break;
                             var icon = _recentCache[i].Icon;
                             ih = icon.Height;
-                            if (my >= iy && my <= iy + ih) {
+                            if (my >= iy2 && my <= iy2 + ih) {
                                 Desktop.Apps.Load(_recentCache[i].Name);
                                 return;
                             }
@@ -373,10 +399,26 @@ namespace guideXOS.GUI {
             string rdText = TruncateToWidth("Recent Documents", textMax);
             WindowManager.font.DrawString(rcX + RightColInnerPad + docIcon.Width + 8, rcCursorY + (docIcon.Height / 2) - (WindowManager.font.FontSize / 2), rdText);
 
+            // USB Files indicator
+            rcCursorY += docIcon.Height + 16;
+            if (Kernel.Drivers.USBStorage.Count > 0) {
+                Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
+                string usbText = TruncateToWidth("USB Files", textMax);
+                WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), usbText);
+                usbText.Dispose();
+                rcCursorY += cfIcon.Height + 16;
+                // Draw second item for list view
+                Framebuffer.Graphics.DrawImage(rcX + RightColInnerPad, rcCursorY, cfIcon);
+                string usbListText = TruncateToWidth("USB Drives", textMax);
+                WindowManager.font.DrawString(rcX + RightColInnerPad + cfIcon.Width + 8, rcCursorY + (cfIcon.Height / 2) - (WindowManager.font.FontSize / 2), usbListText);
+                usbListText.Dispose();
+                rcCursorY += cfIcon.Height + 16;
+            }
+
             // Popout panel to the right if visible (slightly translucent too)
             if (_docsPopupVisible) {
                 int popX = rcX + rcW + 6;
-                int popY = rcCursorY;
+                int popY = rcCursorY; // shift below the last item
                 int popW = 260;
                 int visibleDocs = 8;
                 int popH = visibleDocs * (WindowManager.font.FontSize + 6) + 8;

@@ -623,6 +623,82 @@ namespace guideXOS.Kernel.Drivers {
             return lstatus;
         }
 
+        // Cautious bulk transfer helpers for MSC BOT. These do not alter controller state
+        // beyond scheduling an asynchronous list for the duration of the transfer. Timeouts
+        // and parameter validation are used to avoid hangs.
+        public static bool BulkIn(USBDevice dev, void* buffer, int length) {
+            return BulkTransfer(dev, buffer, length, true);
+        }
+
+        public static bool BulkOut(USBDevice dev, void* buffer, int length) {
+            return BulkTransfer(dev, buffer, length, false);
+        }
+
+        private static bool BulkTransfer(USBDevice dev, void* buffer, int length, bool isIn) {
+            if (dev == null || buffer == null || length <= 0) return false;
+            // Guard against absurd sizes
+            if (length > (1024 * 1024)) return false;
+
+            (*qh).Clean();
+            (*qh1).Clean();
+            (*td).Clean();
+            (*sts).Clean();
+
+            // Single TD for payload
+            sts->NextLink = 1;
+            sts->AltLink = 1;
+            sts->Token |= (uint)((isIn ? 0 : 1) << 8); // DIR: 1=IN,0=OUT
+            sts->Token |= 1u << 31; // toggle
+            sts->Token |= 1 << 7;   // active
+            sts->Token |= 0x3 << 10; // error counter
+
+            td->NextLink = (uint)sts;
+            td->AltLink = 1;
+            td->Token |= (uint)(length << 16);
+            td->Token |= (uint)((isIn ? 1 : 0) << 8); // DIR
+            td->Token |= 1u << 31; // toggle
+            td->Token |= 1 << 7;   // active
+            td->Token |= 0x3 << 10;
+            *td->Buffer = (uint)buffer;
+
+            // QH for device endpoint. We use conservative defaults for MPS.
+            qh1->AltLink = 1;
+            qh1->NextLink = (uint)td;
+            qh1->HorizontalLink = ((uint)qh) | 2;
+            qh1->CurrentLink = 0;
+            qh1->Characteristics |= 1 << 14;          // H
+            qh1->Characteristics |= 64 << 16;         // MPS (64) - HS bulk is 512; 64 is safer default
+            qh1->Characteristics |= 2 << 12;          // Endpoint type (?) keep same as control path to be safe
+            qh1->Characteristics |= dev.Address;      // Device address
+            qh1->Capabilities = 0x40000000;
+
+            qh->AltLink = 1;
+            qh->NextLink = 1;
+            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->CurrentLink = 0;
+            qh->Characteristics = 1 << 15;
+            qh->Token = 0x40;
+
+            // If device is LS/FS behind TT, inherit parent hop fields as in control paths
+            if (dev.Speed != 2 && dev.Parent != null) {
+                qh->Capabilities |= (uint)(dev.Parent.Port << 23);
+                qh->Capabilities |= (uint)(dev.Parent.Address << 16);
+
+                qh1->Capabilities |= (uint)(dev.Parent.Port << 23);
+                qh1->Capabilities |= (uint)(dev.Parent.Address << 16);
+            }
+
+            *(uint*)AsyncListReg = (uint)qh;
+            *(uint*)CMDReg |= 0x20;
+
+            byte res = WaitForComplete(sts);
+
+            *(uint*)CMDReg &= ~0x20u;
+            *(uint*)AsyncListReg = 1;
+
+            return res != 0;
+        }
+
         public static bool InitPort(int port, USBDevice parent, int speed) {
             USBDevice device = new();
             device.USBVersion = 2;
@@ -729,7 +805,7 @@ namespace guideXOS.Kernel.Drivers {
 
             for (int i = 0; i < AvailablePorts; i++) {
                 uint reg_port = (uint)(BaseAddr + 0x44 + (i * 4));
-                //Console.WriteLine($"[EHCI] Port {i} {((*(uint*)reg_port & 3)?"Present" : "Not present")}");
+                //Console.WriteLine($"[EHCI] Port {i} {((*(uint*)reg_port & 3)?"Present" : "Not present")} ");
                 if (*(uint*)reg_port & 3) {
                     USB.InitPort(i, null, 2, 2);
                 }

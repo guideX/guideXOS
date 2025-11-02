@@ -42,6 +42,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\SMBIOS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\Timer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\USBMSC.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Drivers\USBMSCBot.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMWareSVGAII.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMwareTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.cs" />
