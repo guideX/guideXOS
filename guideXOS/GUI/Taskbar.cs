@@ -27,6 +27,11 @@ namespace guideXOS.GUI {
         private const ulong TenSeconds = 10_000;       // ms
         private const ulong FiveMinutes = 300_000;     // ms
 
+        // New: latches and references for Task View and Show Desktop
+        private bool _taskViewLatch = false;
+        private bool _showDesktopLatch = false;
+        private TaskView _taskView;
+
         public Taskbar(int barHeight, Image startIcon) {
             _barHeight = barHeight; _startIcon = startIcon;
             // schedule: show animation for first 10 seconds after boot
@@ -96,7 +101,7 @@ namespace guideXOS.GUI {
                     w.Visible = true;
                 }
                 btnX += wRect + gap;
-                if (btnX > Framebuffer.Width - 300) break; // leave space for clock area
+                if (btnX > Framebuffer.Width - 300) break; // leave space for clock + right controls
             }
 
             // Time and date strings
@@ -168,12 +173,34 @@ namespace guideXOS.GUI {
                 }
             }
 
-            // Input handling for start/time areas
+            // Task View button (left of time/date)
+            int tvSize = _barHeight - 12; if (tvSize < 18) tvSize = 18; if (tvSize > 24) tvSize = 24;
+            int tvX = netX - tvSize - 10;
+            int tvY = Framebuffer.Height - _barHeight + (_barHeight - tvSize) / 2;
+            bool overTV = (mx >= tvX && mx <= tvX + tvSize && my >= tvY && my <= tvY + tvSize);
+            uint tvBg = overTV ? 0xFF3A3A3A : 0xFF303030;
+            Framebuffer.Graphics.FillRectangle(tvX, tvY, tvSize, tvSize, tvBg);
+            Framebuffer.Graphics.DrawRectangle(tvX, tvY, tvSize, tvSize, 0xFF454545, 1);
+            // draw simple task-view glyph (two overlapped squares)
+            int sq = tvSize / 2;
+            Framebuffer.Graphics.DrawRectangle(tvX + 5, tvY + 5, sq, sq, 0xFFAAAAAA, 1);
+            Framebuffer.Graphics.DrawRectangle(tvX + 8, tvY + 8, sq, sq, 0xFF888888, 1);
+
+            // Show Desktop sliver at far right
+            int sdW = 6; int sdX = Framebuffer.Width - sdW - 1; int sdY = yTop + 2; int sdH = _barHeight - 4;
+            // bevel effect
+            Framebuffer.Graphics.FillRectangle(sdX, sdY, sdW, sdH, 0x33222222); // subtle fill
+            Framebuffer.Graphics.DrawRectangle(sdX, sdY, sdW, sdH, 0xFF444444, 1);
+            Framebuffer.Graphics.DrawRectangle(sdX + 1, sdY + 1, sdW - 2, sdH - 2, 0xFF777777, 1);
+
+            // Input handling for start/time areas and new buttons
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 int mx2 = Control.MousePosition.X; int my2 = Control.MousePosition.Y;
+                // Time area click toggles 12/24h
                 if (mx2 >= timeX && mx2 <= timeX + timeW && my2 >= Framebuffer.Height - _barHeight && my2 <= Framebuffer.Height) {
                     if (!_clockClickLatch) { _clockUse12Hour = !_clockUse12Hour; _clockClickLatch = true; }
                 }
+                // Start button
                 if (_startIcon != null) {
                     int sW = _startIcon.Width; int sH = _startIcon.Height;
                     if (mx2 >= startX && mx2 <= startX + sW && my2 >= startY && my2 <= startY + sH) {
@@ -182,7 +209,24 @@ namespace guideXOS.GUI {
                         if (StartMenu != null && StartMenu.Visible && !StartMenu.IsUnderMouse()) { StartMenu.Visible = false; }
                     }
                 }
-            } else { _clockClickLatch = false; _startClickLatch = false; }
+                // Task View button toggle
+                if (overTV && !_taskViewLatch) {
+                    if (_taskView == null) _taskView = new TaskView();
+                    _taskView.Visible = !_taskView.Visible;
+                    if (_taskView.Visible) WindowManager.MoveToEnd(_taskView);
+                    _taskViewLatch = true;
+                }
+                // Show Desktop click -> minimize all
+                bool overSD = (mx2 >= sdX && mx2 <= sdX + sdW && my2 >= sdY && my2 <= sdY + sdH);
+                if (overSD && !_showDesktopLatch) {
+                    for (int i = 0; i < WindowManager.Windows.Count; i++) {
+                        var w = WindowManager.Windows[i];
+                        if (!w.ShowInTaskbar) continue;
+                        if (!w.IsMinimized) w.Minimize();
+                    }
+                    _showDesktopLatch = true;
+                }
+            } else { _clockClickLatch = false; _startClickLatch = false; _taskViewLatch = false; _showDesktopLatch = false; }
 
             time.Dispose(); date.Dispose();
         }
