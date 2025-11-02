@@ -182,7 +182,10 @@ namespace guideXOS.GUI {
         }
 
         public override void OnDraw() {
-            Framebuffer.Graphics.FillRectangle(X, Y, Width, Height, 0xFF222222);
+            // Slight glass effect: blur the background under the Start menu then apply a subtle translucent tint
+            Framebuffer.Graphics.BlurRectangle(X, Y, Width, Height, 3);
+            // Use a high alpha for readability, but slightly translucent
+            Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
 
             int bottomY = Y + Height - Padding - ShutdownBtnH;
             int shutdownX = X + Width - Padding - ShutdownBtnW - ArrowBtnW - Gap;
@@ -255,14 +258,14 @@ namespace guideXOS.GUI {
             string rdText = TruncateToWidth("Recent Documents", textMax);
             WindowManager.font.DrawString(rcX + RightColInnerPad + docIcon.Width + 8, rcCursorY + (docIcon.Height / 2) - (WindowManager.font.FontSize / 2), rdText);
 
-            // Popout panel to the right if visible
+            // Popout panel to the right if visible (slightly translucent too)
             if (_docsPopupVisible) {
                 int popX = rcX + rcW + 6;
                 int popY = rcCursorY;
                 int popW = 260;
                 int visibleDocs = 8;
                 int popH = visibleDocs * (WindowManager.font.FontSize + 6) + 8;
-                Framebuffer.Graphics.FillRectangle(popX, popY, popW, popH, 0xFF262626);
+                Framebuffer.Graphics.AFillRectangle(popX, popY, popW, popH, 0xCC262626);
                 Framebuffer.Graphics.DrawRectangle(popX, popY, popW, popH, 0xFF3F3F3F, 1);
                 int py = popY + 4;
                 var docs = RecentManager.Documents;
@@ -295,7 +298,8 @@ namespace guideXOS.GUI {
                 int menuW = MenuW;
                 int menuX = X + Width - Padding - menuW;
                 int menuY = bottomY - menuH - Gap;
-                Framebuffer.Graphics.FillRectangle(menuX, menuY, menuW, menuH, 0xFF262626);
+                // subtle translucency for menu as well
+                Framebuffer.Graphics.AFillRectangle(menuX, menuY, menuW, menuH, 0xCC262626);
                 Framebuffer.Graphics.DrawRectangle(menuX, menuY, menuW, menuH, border, 1);
                 int itemY = menuY + MenuPad;
                 bool hoverReboot = (mx >= menuX && mx <= menuX + menuW && my >= itemY && my < itemY + MenuItemH);
