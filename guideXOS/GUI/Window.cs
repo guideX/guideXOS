@@ -169,8 +169,15 @@ namespace guideXOS.GUI {
             if (!Visible) return;
             if (IsMinimized) return;
             if (Framebuffer.Graphics == null || WindowManager.font == null) return;
-            // Semi-transparent title bar and content
-            Framebuffer.Graphics.AFillRectangle(X, Y - BarHeight, Width, BarHeight, 0xCC111111);
+            // Glassy title bar: blur background then tint
+            int barX = X;
+            int barY = Y - BarHeight;
+            int barW = Width;
+            int barH = BarHeight;
+            Framebuffer.Graphics.BlurRectangle(barX, barY, barW, barH, 4);
+            // subtle dark tint with alpha
+            Framebuffer.Graphics.AFillRectangle(barX, barY, barW, barH, 0x66111111);
+
             string title = Title;
             if (title == null) title = string.Empty;
             int measured = WindowManager.font.MeasureString(title);
@@ -184,7 +191,7 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.DrawImage(MaxButtonX, ButtonsY, WindowManager.MaximizeButton);
             if (ShowMinimize && WindowManager.MinimizeButton != null)
                 Framebuffer.Graphics.DrawImage(MinButtonX, ButtonsY, WindowManager.MinimizeButton);
-            // Content
+            // Content background: slightly translucent
             Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
             DrawBorder();
         }

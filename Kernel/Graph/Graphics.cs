@@ -239,5 +239,82 @@ namespace guideXOS.Graph {
             }
 
         }
+
+
+        // Applies a simple box blur to the specified rectangle and writes the result back to the framebuffer.
+        // This is useful to create a glass-like background before drawing tinted UI elements on top.
+        public virtual void BlurRectangle(int X, int Y, int W, int H, int radius) {
+            if (W <= 0 || H <= 0 || radius <= 0) return;
+
+            // Clamp region to screen bounds
+            int x0 = X < 0 ? 0 : X;
+            int y0 = Y < 0 ? 0 : Y;
+            int x1 = X + W; if (x1 > Width) x1 = Width;
+            int y1 = Y + H; if (y1 > Height) y1 = Height;
+            int rw = x1 - x0; int rh = y1 - y0;
+            if (rw <= 0 || rh <= 0) return;
+
+            int[] src = new int[rw * rh];
+            int[] tmp = new int[rw * rh];
+            int[] dst = new int[rw * rh];
+
+            // Snapshot region
+            for (int yy = 0; yy < rh; yy++) {
+                int sy = y0 + yy; int rowOff = yy * rw;
+                int fbRow = sy * Width;
+                for (int xx = 0; xx < rw; xx++) {
+                    int sx = x0 + xx;
+                    src[rowOff + xx] = (int)VideoMemory[fbRow + sx];
+                }
+            }
+
+            // Horizontal pass (simple box blur with edge clamping)
+            for (int yy = 0; yy < rh; yy++) {
+                for (int xx = 0; xx < rw; xx++) {
+                    int r = 0, g = 0, b = 0, a = 0, count = 0;
+                    int xmin = xx - radius; if (xmin < 0) xmin = 0;
+                    int xmax = xx + radius; if (xmax >= rw) xmax = rw - 1;
+                    for (int k = xmin; k <= xmax; k++) {
+                        int c = src[yy * rw + k];
+                        a += (byte)(c >> 24);
+                        r += (byte)(c >> 16);
+                        g += (byte)(c >> 8);
+                        b += (byte)(c);
+                        count++;
+                    }
+                    a /= count; r /= count; g /= count; b /= count;
+                    tmp[yy * rw + xx] = (int)((a << 24) | (r << 16) | (g << 8) | b);
+                }
+            }
+
+            // Vertical pass
+            for (int xx = 0; xx < rw; xx++) {
+                for (int yy = 0; yy < rh; yy++) {
+                    int r = 0, g = 0, b = 0, a = 0, count = 0;
+                    int ymin = yy - radius; if (ymin < 0) ymin = 0;
+                    int ymax = yy + radius; if (ymax >= rh) ymax = rh - 1;
+                    for (int k = ymin; k <= ymax; k++) {
+                        int c = tmp[k * rw + xx];
+                        a += (byte)(c >> 24);
+                        r += (byte)(c >> 16);
+                        g += (byte)(c >> 8);
+                        b += (byte)(c);
+                        count++;
+                    }
+                    a /= count; r /= count; g /= count; b /= count;
+                    dst[yy * rw + xx] = (int)((a << 24) | (r << 16) | (g << 8) | b);
+                }
+            }
+
+            // Write back
+            for (int yy = 0; yy < rh; yy++) {
+                int sy = y0 + yy; int fbRow = sy * Width;
+                int rowOff = yy * rw;
+                for (int xx = 0; xx < rw; xx++) {
+                    int sx = x0 + xx;
+                    VideoMemory[fbRow + sx] = (uint)dst[rowOff + xx];
+                }
+            }
+        }
     }
 }

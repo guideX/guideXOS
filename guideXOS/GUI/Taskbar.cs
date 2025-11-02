@@ -22,7 +22,11 @@ namespace guideXOS.GUI {
         public Taskbar(int barHeight, Image startIcon) { _barHeight = barHeight; _startIcon = startIcon; }
 
         public void Draw() {
-            Framebuffer.Graphics.AFillRectangle(0, Framebuffer.Height - _barHeight, Framebuffer.Width, _barHeight, 0xCC222222);
+            int yTop = Framebuffer.Height - _barHeight;
+            // Blur area behind taskbar, then tint
+            Framebuffer.Graphics.BlurRectangle(0, yTop, Framebuffer.Width, _barHeight, 4);
+            Framebuffer.Graphics.AFillRectangle(0, yTop, Framebuffer.Width, _barHeight, 0x66111111);
+
             int startX = 12; int startY = Framebuffer.Height - _barHeight + 4;
             // Draw Start icon on the taskbar
             if (_startIcon != null) {
