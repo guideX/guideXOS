@@ -47,6 +47,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMwareTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.Ext.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FS\CloudFS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\Disk.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\EXT2.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\FAT.cs" />

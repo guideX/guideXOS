@@ -62,6 +62,7 @@ namespace guideXOS.GUI {
             else if (File.Instance is FATFS) driver = "FATFS";
             else if (File.Instance is TarFS) driver = "TarFS";
             else if (File.Instance is EXT2) driver = "EXT2";
+            else if (File.Instance is CloudFS) driver = "Cloud";
             else driver = "Unknown";
             return $"Driver: {driver}\nDetected media: {_detected}";
         }
