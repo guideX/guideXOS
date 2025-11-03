@@ -1,0 +1,7 @@
+﻿  Assembling program.asm
+  Microsoft (R) Macro Assembler (x64) Version 14.44.35214.0
+  Copyright (C) Microsoft Corporation.  All rights reserved.
+  
+   Assembling: D:\devgitlab\guideXOS\guideXOS\guideXOS.WinPETestApp\program.asm
+LINK : warning LNK4044: unrecognized option '/RELOCATIONS:YES'; ignored
+  guideXOS.WinPETestApp.vcxproj -> D:\devgitlab\guideXOS\guideXOS\x64\Debug\guideXOS.WinPETestApp.exe
