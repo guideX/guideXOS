@@ -9,8 +9,12 @@ namespace System.Diagnostics {
                 DOSHeader* doshdr = (DOSHeader*)ptr;
                 NtHeaders64* nthdr = (NtHeaders64*)(ptr + doshdr->e_lfanew);
 
+                // Require relocations; loader will rebase if needed
                 if (!nthdr->OptionalHeader.BaseRelocationTable.VirtualAddress) return;
-                if (nthdr->OptionalHeader.ImageBase != 0x140000000) return;
+                // We do not resolve imports: reject binaries that have an import table
+                if (nthdr->OptionalHeader.ImportTable.VirtualAddress != 0) return;
+                // Must have an entry point
+                if (nthdr->OptionalHeader.AddressOfEntryPoint == 0) return;
 
                 byte* newPtr = (byte*)StartupCodeHelpers.malloc(nthdr->OptionalHeader.SizeOfImage);
                 memset(newPtr, 0, (int)nthdr->OptionalHeader.SizeOfImage);
@@ -25,10 +29,11 @@ namespace System.Diagnostics {
                     if (*(ulong*)sections[i].Name == 0x73656C75646F6D2E) moduleSeg = (IntPtr)((ulong)newPtr + sections[i].VirtualAddress);
                     memcpy((byte*)((ulong)newPtr + sections[i].VirtualAddress), ptr + sections[i].PointerToRawData, sections[i].SizeOfRawData);
                 }
-                FixImageRelocations(newdoshdr, newnthdr, (long)((ulong)newPtr - newnthdr->OptionalHeader.ImageBase));
+                long delta = (long)((ulong)newPtr - newnthdr->OptionalHeader.ImageBase);
+                if (delta != 0) FixImageRelocations(newdoshdr, newnthdr, delta);
 
                 delegate*<void> p = (delegate*<void>)((ulong)newPtr + newnthdr->OptionalHeader.AddressOfEntryPoint);
-                //TO-DO disposing
+                // Initialize module tables if provided
                 StartupCodeHelpers.InitializeModules(moduleSeg);
                 StartThread(p);
                 //StartupCodeHelpers.free((IntPtr)ptr);
