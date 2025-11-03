@@ -112,6 +112,29 @@
 		
 		<Exec Condition="Exists('C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe')" Command="&quot;C:\Program Files (x86)\VMware\VMware Workstation\vmrun.exe&quot; start &quot;$(MSBuildStartupDirectory)\Tools\VMWare\guideXOS\guideXOS.vmx"></Exec>
 	</Target>
+	
+	<Target Name="RunVirtualBox" AfterTargets="BuildISO" Condition="$(vm) == 'virtualbox'">
+		<Error Text="Please install Oracle VirtualBox to run GuideXOS!" 
+		Condition="!Exists('C:\Program Files\Oracle\VirtualBox\VBoxManage.exe')" />
+
+		<!-- Optional: auto-convert ISO to VDI (VirtualBox format) -->
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; convertfromraw &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).iso&quot; &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).vdi&quot; --format VDI" 
+		Condition="!Exists('$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).vdi')" />
+
+		<!-- Delete any old VM definition -->
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; unregistervm GuideXOS --delete" ContinueOnError="true" />
+
+		<!-- Create and configure the VM -->
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; createvm --name GuideXOS --register" />
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; modifyvm GuideXOS --memory 1024 --vram 128 --acpi on --ioapic on --boot1 dvd --ostype Other_64" />
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; storagectl GuideXOS --name SATA --add sata --controller IntelAhci" />
+
+		<!-- Attach your GuideXOS ISO -->
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; storageattach GuideXOS --storagectl SATA --port 0 --device 0 --type dvddrive --medium &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).iso&quot;" />
+
+		<!-- Launch it -->
+		<Exec Command="&quot;C:\Program Files\Oracle\VirtualBox\VBoxManage.exe&quot; startvm GuideXOS --type gui" />
+	</Target>
 
 
 	<Import Project="..\Corlib\Corlib.projitems" Label="Shared" />
