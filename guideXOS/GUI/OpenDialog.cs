@@ -28,7 +28,8 @@ namespace guideXOS.GUI {
         }
 
         private void Keyboard_OnKeyChanged(object sender, ConsoleKeyInfo key) {
-            if (!Visible) return; if (key.KeyState != ConsoleKeyState.Pressed) { _keyDown = false; _lastScan = 0; return; } if (_keyDown && Keyboard.KeyInfo.ScanCode == _lastScan) return; _keyDown = true; _lastScan = (byte)Keyboard.KeyInfo.ScanCode;
+            if (!Visible) return; if (key.KeyState != ConsoleKeyState.Pressed) { _keyDown = false; _lastScan = 0; return; }
+            if (_keyDown && Keyboard.KeyInfo.ScanCode == _lastScan) return; _keyDown = true; _lastScan = (byte)Keyboard.KeyInfo.ScanCode;
             if (key.Key == ConsoleKey.Escape) { this.Visible = false; return; }
             if (key.Key == ConsoleKey.Enter) { OpenSelected(); return; }
             if (_entries.Count == 0) return;
@@ -51,8 +52,8 @@ namespace guideXOS.GUI {
 
         public override void OnDraw() {
             base.OnDraw(); int cx = X + _padding; int cy = Y + _padding + 28; int listX = cx; int listY = cy + 24; int listW = Width - _padding * 2; int listH = Height - _padding * 2 - 60; Framebuffer.Graphics.FillRectangle(cx, cy, listW, 22, 0xFF3A3A3A); int upW = 60; int upH = 22; Framebuffer.Graphics.FillRectangle(cx, cy, upW, upH, 0xFF4A4A4A); WindowManager.font.DrawString(cx + 8, cy + 4, "Up"); WindowManager.font.DrawString(cx + upW + 8, cy + 4, _currentPath ?? ""); Framebuffer.Graphics.FillRectangle(listX, listY, listW, listH, 0xFF2B2B2B);
-            int y = listY; int iconW = Icons.DocumentIcon.Width; int iconH = Icons.DocumentIcon.Height;
-            for (int i = 0; i < _entries.Count; i++) { var e = _entries[i]; uint row = (i == _selectedIndex) ? 0xFF404040u : ((i & 1) == 0 ? 0xFF303030u : 0xFF2B2B2Bu); Framebuffer.Graphics.FillRectangle(listX, y, listW, _rowH, row); var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon : Icons.DocumentIcon; Framebuffer.Graphics.DrawImage(listX + 4, y + (_rowH / 2 - iconH / 2), icon); WindowManager.font.DrawString(listX + 8 + iconW, y + (_rowH / 2 - WindowManager.font.FontSize / 2), e.Name); y += _rowH; if (y > listY + listH - _rowH) break; }
+            int y = listY; int iconW = Icons.DocumentIcon(32).Width; int iconH = Icons.DocumentIcon(32).Height;
+            for (int i = 0; i < _entries.Count; i++) { var e = _entries[i]; uint row = (i == _selectedIndex) ? 0xFF404040u : ((i & 1) == 0 ? 0xFF303030u : 0xFF2B2B2Bu); Framebuffer.Graphics.FillRectangle(listX, y, listW, _rowH, row); var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon(32) : Icons.DocumentIcon(32); Framebuffer.Graphics.DrawImage(listX + 4, y + (_rowH / 2 - iconH / 2), icon); WindowManager.font.DrawString(listX + 8 + iconW, y + (_rowH / 2 - WindowManager.font.FontSize / 2), e.Name); y += _rowH; if (y > listY + listH - _rowH) break; }
             int openX = X + Width - _padding - _btnW; int openY = Y + Height - _padding - _btnH; int cancelX = openX - 8 - _btnW; Framebuffer.Graphics.FillRectangle(openX, openY, _btnW, _btnH, 0xFF3A3A3A); WindowManager.font.DrawString(openX + 16, openY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Open"); Framebuffer.Graphics.FillRectangle(cancelX, openY, _btnW, _btnH, 0xFF3A3A3A); WindowManager.font.DrawString(cancelX + 8, openY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Cancel");
         }
     }

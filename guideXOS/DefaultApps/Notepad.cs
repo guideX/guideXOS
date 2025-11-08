@@ -152,7 +152,7 @@ namespace guideXOS.DefaultApps {
             Desktop.msgbox.X = X + 40; Desktop.msgbox.Y = Y + 80;
             Desktop.msgbox.SetText($"Saved: {path}");
             WindowManager.MoveToEnd(Desktop.msgbox); Desktop.msgbox.Visible = true;
-            RecentManager.AddDocument(path, Icons.DocumentIcon);
+            RecentManager.AddDocument(path, Icons.DocumentIcon(32));
         }
 
         private void OpenSaveAs(Action afterSaveClose = null) {
@@ -163,7 +163,7 @@ namespace guideXOS.DefaultApps {
         private static bool StartsWithFast(string s,string pref){ int l=pref.Length; if (s==null||s.Length<l) return false; for(int i=0;i<l;i++) if(s[i]!=pref[i]) return false; return true; }
         public void OpenFile(string path){
             if (string.IsNullOrEmpty(path)) return; string p = path; if (!StartsWithFast(p,"/") && !string.IsNullOrEmpty(Desktop.Dir)) p = Desktop.Dir + p; byte[] data = File.ReadAllBytes(p);
-            if (data != null) { char[] chars = new char[data.Length]; for(int i=0;i<data.Length;i++){ byte b=data[i]; chars[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); } _text = new string(chars); data.Dispose(); _savedPath = p; _fileName = p.Substring(p.LastIndexOf('/') + 1); _dirty = false; Title = "Notepad - " + _fileName; RecentManager.AddDocument(p, Icons.DocumentIcon); }
+            if (data != null) { char[] chars = new char[data.Length]; for(int i=0;i<data.Length;i++){ byte b=data[i]; chars[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); } _text = new string(chars); data.Dispose(); _savedPath = p; _fileName = p.Substring(p.LastIndexOf('/') + 1); _dirty = false; Title = "Notepad - " + _fileName; RecentManager.AddDocument(p, Icons.DocumentIcon(32)); }
             else { _text = string.Empty; _savedPath = p; _fileName = p.Substring(p.LastIndexOf('/')+1); _dirty=false; Title = "Notepad - " + _fileName; }
         }
 

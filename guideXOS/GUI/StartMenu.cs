@@ -165,7 +165,7 @@ namespace guideXOS.GUI {
             // copy references without ToArray()
             for (int i = 0; i < count; i++) {
                 var it = list[i];
-                _recentCache[i].Icon = it.Icon ?? Icons.DocumentIcon;
+                _recentCache[i].Icon = it.Icon ?? Icons.DocumentIcon(32);
                 _recentCache[i].Name = it.Name;
             }
         }
@@ -247,8 +247,8 @@ namespace guideXOS.GUI {
                 if (mx >= rcX && mx <= rcX + rcW && my >= rcY && my <= rcY + rcH) {
                     int iy = rcY;
                     // Computer Files
-                    int fh = Icons.FolderIcon.Height;
-                    int fw = Icons.FolderIcon.Width;
+                    int fh = Icons.FolderIcon(32).Height;
+                    int fw = Icons.FolderIcon(32).Width;
                     if (mx >= rcX && mx <= rcX + fw && my >= iy && my <= iy + fh) {
                         // open Computer Files window
                         var cf = new ComputerFiles(300, 200, 540, 380);
@@ -259,7 +259,7 @@ namespace guideXOS.GUI {
                     }
                     iy += fh + 16;
                     // Disk Manager
-                    int dwh = Icons.FolderIcon.Height; int dww = Icons.FolderIcon.Width;
+                    int dwh = Icons.FolderIcon(32).Height; int dww = Icons.FolderIcon(32).Width;
                     if (mx >= rcX && mx <= rcX + dww && my >= iy && my <= iy + dwh) {
                         var dm = new DiskManager(340, 260);
                         WindowManager.MoveToEnd(dm);
@@ -269,7 +269,7 @@ namespace guideXOS.GUI {
                     }
                     iy += dwh + 16;
                     // Console
-                    int cwh = Icons.DocumentIcon.Height; int cww = Icons.DocumentIcon.Width;
+                    int cwh = Icons.DocumentIcon(32).Height; int cww = Icons.DocumentIcon(32).Width;
                     if (mx >= rcX && mx <= rcX + cww && my >= iy && my <= iy + cwh) {
                         if (Program.FConsole == null) Program.FConsole = new FConsole(160, 120);
                         WindowManager.MoveToEnd(Program.FConsole);
@@ -279,14 +279,14 @@ namespace guideXOS.GUI {
                     }
                     iy += cwh + 16;
                     // Recent Documents (toggle popup)
-                    int iconW = Icons.DocumentIcon.Width;
-                    int iconH = Icons.DocumentIcon.Height;
+                    int iconW = Icons.DocumentIcon(32).Width;
+                    int iconH = Icons.DocumentIcon(32).Height;
                     if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; _frameDirty = true; return; }
 
                     // USB Files entry (only if at least one USB MSC device is present)
                     iy += iconH + 16;
                     if (Kernel.Drivers.USBStorage.Count > 0) {
-                        int ux = rcX; int uy = iy; int uw = Icons.FolderIcon.Width; int uh = Icons.FolderIcon.Height;
+                        int ux = rcX; int uy = iy; int uw = Icons.FolderIcon(32).Width; int uh = Icons.FolderIcon(32).Height;
                         if (mx >= ux && mx <= ux + uw && my >= uy && my <= uy + uh) {
                             var dev = Kernel.Drivers.USBStorage.GetFirst();
                             if (dev != null) {
@@ -323,7 +323,7 @@ namespace guideXOS.GUI {
                         string appName;
                         if (_showAllPrograms) {
                             int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
-                            var icon = Desktop.Apps.Icon(ai) ?? Icons.DocumentIcon;
+                            var icon = Desktop.Apps.Icon(ai) ?? Icons.DocumentIcon(32);
                             ih = icon.Height;
                             if (my >= iy2 && my <= iy2 + ih) {
                                 appName = Desktop.Apps.Name(ai);
@@ -405,15 +405,19 @@ namespace guideXOS.GUI {
             if (_showAllPrograms) {
                 for (int i = 0; i < count; i++) {
                     int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
-                    var icon = Desktop.Apps.Icon(ai) ?? Icons.DocumentIcon;
+                    var icon = Desktop.Apps.Icon(ai) ?? Icons.DocumentIcon(32);
                     string name = Desktop.Apps.Name(ai);
                     int ih = icon.Height; int iw = icon.Width;
-                    // Hover effect backdrop
+                    // Hover effect backdrop (constrain to list region, avoid separator overlap)
                     if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih) {
-                        int hx = listX - 6; int hy = y - 3; int hw = listW + 12; int hh = ih + 6;
+                        int hx = listX; // do not extend left
+                        int hy = y - 2; // slightly tighter padding
+                        int hw = listW - 4; // reserve gap so it doesn't cross separator
+                        if (hw < 0) hw = listW; int hh = ih + 4;
                         UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
                         UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
-                        Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF); // left accent
+                        // Accent bar aligned left inside highlight
+                        Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF);
                     }
                     Framebuffer.Graphics.DrawImage(listX, y, icon);
                     WindowManager.font.DrawString(listX + iw + 10, y + (ih / 2) - (WindowManager.font.FontSize / 2), name, listW - (iw + 22), WindowManager.font.FontSize);
@@ -428,12 +432,8 @@ namespace guideXOS.GUI {
                     var icon = _recentCache[i].Icon;
                     var name = _recentCache[i].Name;
                     int ih = icon.Height; int iw = icon.Width;
-                    // Hover effect backdrop
                     if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih) {
-                        int hx = listX - 6; 
-                        int hy = y - 3; 
-                        int hw = listW + 12; 
-                        int hh = ih + 6;
+                        int hx = listX; int hy = y - 2; int hw = listW - 4; if (hw < 0) hw = listW; int hh = ih + 4;
                         UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
                         UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
                         Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF);
@@ -457,9 +457,10 @@ namespace guideXOS.GUI {
 
             // Right column content (with padding and truncation) + hover rows
             int rcCursorY = rcY;
-            int textMax = rcW - RightColInnerPad - (Icons.FolderIcon.Width + 8);
+            int textMax = rcW - RightColInnerPad - (Icons.FolderIcon(32).Width + 8);
             // Computer Files icon + label
-            var cfIcon = Icons.FolderIcon;
+            //var cfIcon = Icons.FolderIcon;
+            var cfIcon = Icons.FolderIcon(32);
             int rowH = cfIcon.Height; int rowW = rcW - 4;
             if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + rowH) {
                 UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0x332A5B9A, 6);
@@ -485,7 +486,7 @@ namespace guideXOS.GUI {
             dmText.Dispose();
 
             // Console icon + label
-            var conIcon = Icons.DocumentIcon;
+            var conIcon = Icons.DocumentIcon(32);
             int conRowH = conIcon.Height;
             if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + conRowH) {
                 UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, conRowH + 4, 0x332A5B9A, 6);
@@ -499,8 +500,8 @@ namespace guideXOS.GUI {
             conText.Dispose();
 
             // Recent Documents with popout
-            var docIcon = Icons.DocumentIcon;
-            rowH = docIcon.Height;
+            var docIcon = Icons.DocumentIcon(32);
+            rowH = Icons.DocumentIcon(32).Height;
             if (mouseX >= rcX && mouseX <= rcX + rcW && mouseY >= rcCursorY && mouseY <= rcCursorY + rowH) {
                 UIPrimitives.AFillRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0x332A5B9A, 6);
                 UIPrimitives.DrawRoundedRect(rcX + 2, rcCursorY - 2, rowW, rowH + 4, 0xFF3F7FBF, 1, 6);

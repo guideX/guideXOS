@@ -176,7 +176,7 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.DrawRectangle(x, y, tw, th, border, 1);
             Framebuffer.Graphics.FillRectangle(x, y, tw, 3, accent);
             // Title and icon
-            var icon = w.TaskbarIcon ?? Icons.DocumentIcon;
+            var icon = w.TaskbarIcon ?? Icons.DocumentIcon(32);
             int titleY = y + 8;
             Framebuffer.Graphics.DrawImage(x + 8, titleY, icon);
             int tx = x + 8 + icon.Width + 6;

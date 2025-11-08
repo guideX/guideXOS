@@ -4,6 +4,7 @@ using guideXOS.FS;
 using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
+using guideXOS.OS;
 using System.Drawing;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -127,6 +128,7 @@ unsafe class Program {
         FConsole = null;
         WindowManager.Initialize();
         Desktop.Initialize();
+        Firewall.Initialize();
         Audio.Initialize();
         AC97.Initialize();
         if (AC97.DeviceLocated) Console.WriteLine("Device Located: " + AC97.DeviceName);
@@ -225,7 +227,7 @@ unsafe class Program {
                 WindowManager.MoveToEnd(rightmenu);
                 rightmenu.Visible = true;
             } else if (!Control.MouseButtons.HasFlag(MouseButtons.Right)) rightClicked = false;
-            Desktop.Update(Icons.DocumentIcon);
+            Desktop.Update(Icons.DocumentIcon(32));
             //Desktop.Draw();
             WindowManager.DrawAll();
             //draw cursor

@@ -4,6 +4,7 @@ using guideXOS.Kernel.Drivers;
 using System.Windows.Forms;
 using guideXOS; // NETv4
 using System;
+using guideXOS.OS;
 
 namespace guideXOS.DefaultApps {
     internal class Anomalocaris : Window {
@@ -50,7 +51,9 @@ namespace guideXOS.DefaultApps {
             if (!StartsWithFast(url, "http://")) { _status = "Only http:// supported"; return; }
             string rest = url.Substring(7); int slash = IndexOf(rest,'/'); string host = slash>=0 ? rest.Substring(0,slash) : rest; string path = slash>=0 ? rest.Substring(slash) : "/";
             _hostIp = NETv4.DNSQuery(host); if(_hostIp.P1==0&&_hostIp.P2==0&&_hostIp.P3==0&&_hostIp.P4==0){ _status="DNS failed"; return; }
-            ushort local = NextEphemeral(); _http = new NETv4.TCPClient(_hostIp, 80, local); _http.Connect(); _recvBuf = new byte[0];
+            ushort local = NextEphemeral(); 
+            if(!Firewall.Check("Anomalocaris","tcp-connect")){ _status="Blocked by firewall"; return; }
+            _http = new NETv4.TCPClient(_hostIp, 80, local); _http.Connect(); _recvBuf = new byte[0];
             string req = "GET " + path + " HTTP/1.0\r\nHost: " + host + "\r\nUser-Agent: guideXOS/0.1\r\nConnection: close\r\n\r\n"; var b=ToAscii(req); unsafe { fixed(byte* p=b) _http.Send(p,b.Length);} _status = "Waiting response..."; }
         private static ushort _ephem=41000; private static ushort NextEphemeral(){ if(_ephem<41000||_ephem>60000) _ephem=41000; return _ephem++; }
         private static byte[] ToAscii(string s){ byte[] b=new byte[s.Length]; for(int i=0;i<s.Length;i++){ char c=s[i]; b[i]=c<128?(byte)c:(byte)'?'; } return b; }

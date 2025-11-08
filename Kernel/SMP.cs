@@ -1,21 +1,56 @@
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 namespace guideXOS {
+    /// <summary>
+    /// SMP
+    /// </summary>
     public static unsafe class SMP {
+        /// <summary>
+        /// Base Address for SMP structures
+        /// </summary>
         public const ulong BaseAddress = 0x50000;
-
-        //https://wiki.osdev.org/Memory_Map_(x86)
+        /// <summary>
+        /// APMain https://wiki.osdev.org/Memory_Map_(x86)
+        /// </summary>
         public const ulong APMain = BaseAddress + 0x0;
+        /// <summary>
+        /// Stacks for all processors
+        /// </summary>
         public const ulong Stacks = BaseAddress + 0x8;
+        /// <summary>
+        /// Shared GDT for all processors
+        /// </summary>
         public const ulong SharedGDT = BaseAddress + 0x16;
+        /// <summary>
+        /// Shared IDT for all processors
+        /// </summary>
         public const ulong SharedIDT = BaseAddress + 0x24;
+        /// <summary>
+        /// Represents the shared page table for all processors
+        /// </summary>
         public const ulong SharedPageTable = BaseAddress + 0x1000;
+        /// <summary>
+        /// Represents the memory address offset for the trampoline function.
+        /// </summary>
+        /// <remarks>This constant defines the trampoline's address as an offset of <c>0x10000</c> from
+        /// the <see cref="BaseAddress"/>. It is typically used in scenarios where a fixed memory location is required
+        /// for function redirection or low-level operations.</remarks>
         public const ulong Trampoline = BaseAddress + 0x10000;
-
+        /// <summary>
+        /// Represents the number of active processors on the system.
+        /// </summary>
+        /// <remarks>This value is initialized to 0 and should be updated to reflect the actual number of
+        /// active processors.</remarks>
         public static ulong NumActivedProcessors = 0;
-
+        /// <summary>
+        /// Represents the default stack size, in bytes, allocated for each CPU.
+        /// </summary>
+        /// <remarks>This constant is used to define the memory allocation for stack space per CPU. The
+        /// value is set to 1,048,576 bytes (1 MB).</remarks>
         private const int StackSizeForEachCPU = 1048576;
-
+        /// <summary>
+        /// Gets the number of CPUs available on the system.
+        /// </summary>
         public static int NumCPU { get => ACPI.LocalAPIC_CPUIDs.Count; }
 
         public static uint ThisCPU => LocalAPIC.GetId();

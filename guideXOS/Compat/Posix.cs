@@ -3,10 +3,11 @@ using guideXOS.FS;
 using guideXOS.Misc;
 
 namespace guideXOS.Compat {
-    // Minimal POSIX compatibility helpers for console commands.
-    // Provides path normalization and simple wrappers used by shell-like commands.
     internal static class Posix {
         private static bool StartsWithFast(string s, char ch){ return s!=null && s.Length>0 && s[0]==ch; }
+        private static bool EndsWithSlash(string s){ return s!=null && s.Length>0 && s[s.Length-1]=='/'; }
+        private static int LastSlashBefore(string s,int limit){ if(s==null||limit<=0) return -1; if(limit>s.Length) limit=s.Length; for(int i=limit-1;i>=0;i--){ if(s[i]=='/') return i; } return -1; }
+        private static bool StartsWithString(string s,string pref){ int l=pref.Length; if(s==null||s.Length<l) return false; for(int i=0;i<l;i++){ if(s[i]!=pref[i]) return false; } return true; }
         // Normalize separators: collapse repeated '/', remove './', handle '../' segments.
         public static string NormalizePath(string cwd, string input) {
             if (string.IsNullOrEmpty(input)) return cwd ?? string.Empty;
@@ -28,12 +29,14 @@ namespace guideXOS.Compat {
             }
             return result;
         }
+        public static string EnsureDir(string absolute){ if (absolute=="/") return absolute; if (!EndsWithSlash(absolute)) return absolute + "/"; return absolute; }
         private static string CombineRelative(string cwd, string rel) { if (string.IsNullOrEmpty(cwd)) return rel; if (!cwd.EndsWith("/")) cwd += "/"; return cwd + rel; }
         private static string[] Split(string s) { int n=0; for(int i=0;i<s.Length;i++) if(s[i]=='/') n++; string[] arr=new string[n+1]; int idx=0,start=0; for(int i=0;i<=s.Length;i++){ if(i==s.Length||s[i]=='/'){ int len=i-start; arr[idx++]= len>0? s.Substring(start,len):""; start=i+1; } } return arr; }
 
         // Basic wrappers for listing and reading files (no permissions yet)
         public static string[] List(string path) {
-            var list = File.GetFiles(path == "/" ? "" : path);
+            string p = path == "/" ? "" : EnsureDir(path);
+            var list = File.GetFiles(p);
             if (list == null) return Array.Empty<string>();
             string[] names = new string[list.Count];
             for (int i=0;i<list.Count;i++){ names[i] = list[i].Name; list[i].Dispose(); }
@@ -41,5 +44,43 @@ namespace guideXOS.Compat {
         }
         public static byte[] ReadFile(string path) { return File.ReadAllBytes(path); }
         public static bool WriteFile(string path, byte[] data) { File.WriteAllBytes(path, data); return true; }
+
+        public static bool DirectoryExists(string absolute){
+            if (absolute == "/") return true;
+            string p = EnsureDir(absolute);
+            int last = LastSlashBefore(p, p.Length-1); // ignore trailing slash
+            string parent = last >=0 ? (last==0? "/" : p.Substring(0,last)) : "/";
+            string baseName = p.Substring(last+1, p.Length - (last+1) - 1);
+            var list = File.GetFiles(parent=="/"?"":parent);
+            if (list != null){
+                for (int i=0;i<list.Count;i++){
+                    var fi = list[i]; bool isDir = fi.Attribute == FileAttribute.Directory;
+                    if (isDir && fi.Name == baseName){ for(int j=0;j<list.Count;j++) list[j].Dispose(); return true; }
+                }
+                for (int i=0;i<list.Count;i++){
+                    var fi = list[i]; if (fi.Name.Length>baseName.Length && StartsWithString(fi.Name, baseName)) { for(int j=0;j<list.Count;j++) list[j].Dispose(); return true; }
+                }
+                for (int j=0;j<list.Count;j++) list[j].Dispose();
+            }
+            return false;
+        }
+
+        // Fuzzy resolve: token without extension -> unique file whose name starts with token+".". Returns true if resolved.
+        public static bool TryFuzzyResolve(string cwdAbsolute, string token, out string resolved, out string error){
+            resolved = null; error = null; if (string.IsNullOrEmpty(token) || token.IndexOf('.')>=0) return false; // only extensionless
+            string dir = string.IsNullOrEmpty(cwdAbsolute)?"/":EnsureDir(cwdAbsolute);
+            var list = File.GetFiles(dir=="/"?"":dir);
+            if (list == null){ return false; }
+            int matches = 0; string matchName = null;
+            for(int i=0;i<list.Count;i++){
+                var fi = list[i]; if (fi.Attribute == FileAttribute.Directory) { fi.Dispose(); continue; }
+                string nm = fi.Name; if (nm.Length>token.Length+1 && StartsWithString(nm, token) && nm[token.Length]=='.') { matches++; matchName = nm; }
+                fi.Dispose();
+            }
+            list.Dispose();
+            if (matches==1){ resolved = (dir=="/"?"":dir) + matchName; return true; }
+            if (matches>1){ error = "error: fuzzy match"; }
+            return false;
+        }
     }
 }

@@ -9,6 +9,10 @@ namespace guideXOS.Misc {
         static int phase;
         static ulong lastTick;
         static bool inited;
+        // Faster blink control
+        const int BlinkPhases = 3; // number of blocks
+        const ulong BlinkIntervalMs = 80; // advance phase every 80 ms for faster blinking
+        static ulong nextBlinkTick;
 
         public static void Initialize(string team = "Team Nexgen", string os = "guideXOS", string ver = "Version: 0.1") {
             sTeam = team;
@@ -17,14 +21,16 @@ namespace guideXOS.Misc {
             phase = 0;
             lastTick = 0;
             inited = true;
+            nextBlinkTick = Timer.Ticks + BlinkIntervalMs;
         }
 
         public static void Tick() {
             if (!inited) return;
-            // advance phase ~ at ~60Hz timer; fallback to simple increment
-            if (lastTick != Timer.Ticks) {
-                lastTick = Timer.Ticks;
-                phase = (phase + 1) % 3;
+            ulong now = Timer.Ticks;
+            // Advance quickly based on BlinkIntervalMs rather than once per tick
+            if (now >= nextBlinkTick) {
+                phase = (phase + 1) % BlinkPhases;
+                nextBlinkTick = now + BlinkIntervalMs;
             }
 
             // Clear

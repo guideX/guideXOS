@@ -68,8 +68,8 @@ namespace guideXOS.DefaultApps {
                 case ConsoleKey.OemComma: return shift ? '<' : ',';
                 case ConsoleKey.OemMinus: return shift ? '_' : '-';
                 case ConsoleKey.OemPlus: return shift ? '+' : '=';
-                case ConsoleKey.Oem1: return shift ? ':' : ';';
-                case ConsoleKey.Oem2: return shift ? '?' : '/';
+                case ConsoleKey.Oem1: return shift ? ':' : ';'
+;                case ConsoleKey.Oem2: return shift ? '?' : '/';
                 case ConsoleKey.Oem3: return shift ? '~' : '`';
                 case ConsoleKey.Oem4: return shift ? '{' : '[';
                 case ConsoleKey.Oem5: return shift ? '|' : '\\';
@@ -145,29 +145,47 @@ namespace guideXOS.DefaultApps {
         private void ExitVi(){ _viMode=false; _viInsert=false; _viPath=null; _textBufferForVi=string.Empty; _viCursor=0; WritePrompt(); }
         private void EnterVi(string path){ _viMode=true; _viInsert=false; _viPath=Posix.NormalizePath(_cwd, path); byte[] d=FS.File.ReadAllBytes(_viPath); if(d!=null){ char[] c=new char[d.Length]; for(int i=0;i<d.Length;i++){ byte b=d[i]; c[i]= b>=32&&b<127?(char)b:(b==10?'\n':'.'); } _textBufferForVi=new string(c); d.Dispose(); } else { _textBufferForVi=string.Empty; } _viCursor=0; RedrawVi(); }
 
+        // helpers
+        private string ToAbs(string rel){ return Posix.NormalizePath(string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd, rel); }
+        private bool ResolveFileToken(string token, out string abs, out string err){
+            abs = ToAbs(token); err=null;
+            var data = FS.File.ReadAllBytes(abs);
+            if (data!=null) { data.Dispose(); return true; }
+            if (token.IndexOf('.')<0){ string cwdAbs = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; if(Posix.TryFuzzyResolve(cwdAbs, token, out var r, out err)){ abs=r; return true; } }
+            return false;
+        }
+
         private void HandleCommand(string cmdLine) {
             if (string.IsNullOrEmpty(cmdLine)) return;
             string[] parts = SplitArgs(cmdLine);
             string cmd = parts[0];
             switch (cmd) {
-                case "help": WriteLine("Commands: help, pwd, ls, cd, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
+                case "help": WriteLine("Commands: help, pwd, ls, cd, goback, cdback, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
                 case "pwd": { string p = _cwd; if (string.IsNullOrEmpty(p)) p = "/"; WriteLine(p); } break;
                 case "ls": {
                         string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
+                        if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + target); break; }
                         var names = Posix.List(target);
                         if (names.Length == 0) { WriteLine("(empty)"); break; }
                         for (int i=0;i<names.Length;i++){ WriteLine(names[i]); }
                     } break;
+                case "goback": case "cdback": case "cd" when parts.Length>1 && (parts[1]=="back"||parts[1]==".."):{
+                        if (string.IsNullOrEmpty(_cwd)){ WriteLine("Already at root"); break; }
+                        string cur = "/"+_cwd; if(cur.EndsWith("/")) cur=cur.Substring(0,cur.Length-1); int last=cur.LastIndexOf('/'); if(last<=0){ _cwd=""; } else { _cwd= cur.Substring(1,last); if(_cwd.Length>0) _cwd+="/"; }
+                        Desktop.Dir=_cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Moved back"); break; }
                 case "cd": {
                         if (parts.Length < 2) { WriteLine("Usage: cd <path>"); break; }
+                        if (parts[1]=="back"||parts[1]=="..") { goto case "goback"; }
                         string target = Posix.NormalizePath(_cwd, parts[1]);
+                        if (!Posix.DirectoryExists(target)) { WriteLine("cd: no such directory: " + parts[1]); break; }
                         if (target == "/") { _cwd = ""; }
                         else { if (!target.EndsWith("/")) target += "/"; _cwd = target.Substring(1); }
                         Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory");
                     } break;
                 case "cat": {
                         if (parts.Length < 2){ WriteLine("Usage: cat <file>"); break; }
-                        string path = Posix.NormalizePath(_cwd, parts[1]); byte[] data = FS.File.ReadAllBytes(path);
+                        if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) { WriteLine(ferr); break; } path = ToAbs(parts[1]); }
+                        byte[] data = FS.File.ReadAllBytes(path);
                         if (data == null) { WriteLine("Unable to read file"); break; }
                         int len = data.Length; char[] buf = new char[len]; for(int i=0;i<len;i++){ byte b=data[i]; buf[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); }
                         WriteLine(new string(buf)); data.Dispose();
@@ -182,8 +200,9 @@ namespace guideXOS.DefaultApps {
                     } break;
                 case "notepad": {
                         if (parts.Length < 2){ WriteLine("Usage: notepad <file>"); break; }
-                        string path = parts[1]; if (Program.FConsole == null) Program.FConsole = this; var np = new Notepad(200,160); WindowManager.MoveToEnd(np); np.Visible=true; np.OpenFile(path); break; }
-                case "vi": { if (parts.Length < 2){ WriteLine("Usage: vi <file>"); break; } EnterVi(parts[1]); break; }
+                        string fileToken = parts[1]; if(!ResolveFileToken(fileToken, out var path, out var ferr)){ if(ferr!=null) WriteLine(ferr); else path=fileToken; }
+                        if (Program.FConsole == null) Program.FConsole = this; var np = new Notepad(200,160); WindowManager.MoveToEnd(np); np.Visible=true; np.OpenFile(path); break; }
+                case "vi": { if (parts.Length < 2){ WriteLine("Usage: vi <file>"); break; } if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) WriteLine(ferr); else path=parts[1]; } EnterVi(path); break; }
                 case "gxminfo": {
                         if (parts.Length<2){ WriteLine("Usage: gxminfo <file.gxm>"); break; }
                         string path = Posix.NormalizePath(_cwd, parts[1]); byte[] buf = FS.File.ReadAllBytes(path); if(buf==null){ WriteLine("Unable to read file"); break; }
@@ -224,6 +243,7 @@ namespace guideXOS.DefaultApps {
                     for (int i=0;i<NETv4.ARPTable.Count;i++) {
                         var e = NETv4.ARPTable[i];
                         Console.WriteLine($"{e.IP.P1}.{e.IP.P2}.{e.IP.P3}.{e.IP.P4} -> {e.MAC.P1:x2}:{e.MAC.P2:x2}:{e.MAC.P3:x2}:{e.MAC.P4:x2}:{e.MAC.P5:x2}:{e.MAC.P6:x2}");
+
                     }
                     break;
                 case "dns":
@@ -280,6 +300,10 @@ namespace guideXOS.DefaultApps {
                 case "logout":
                     Session.LoginToken = string.Empty; Console.WriteLine("Logged out.");
                     break;
+                case "fwmode": { if(parts.Length<2){ WriteLine("Usage: fwmode <normal|blockall|disabled|autolearn>"); break; } string m=parts[1]; if(m=="normal") Firewall.Mode=guideXOS.OS.FirewallMode.Normal; else if(m=="blockall") Firewall.Mode=guideXOS.OS.FirewallMode.BlockAll; else if(m=="disabled") Firewall.Mode=guideXOS.OS.FirewallMode.Disabled; else if(m=="autolearn") Firewall.Mode=guideXOS.OS.FirewallMode.Autolearn; WriteLine("Firewall mode: "+Firewall.Mode.ToString()); break; }
+                case "fwlist": { var arr = guideXOS.OS.Firewall.Exceptions; for(int ii=0; ii<arr.Length; ii++) WriteLine(arr[ii]); break; }
+                case "fwadd": { if(parts.Length<2){ WriteLine("Usage: fwadd <program>"); break; } guideXOS.OS.Firewall.AddException(parts[1]); WriteLine("Added exception: "+parts[1]); break; }
+                case "fwui": { if(guideXOS.OS.Firewall.Window!=null){ WindowManager.MoveToEnd(guideXOS.OS.Firewall.Window); guideXOS.OS.Firewall.Window.Visible=true; } break; }
                 default:
                     WriteLine("No such command: \"" + cmdLine + "\"");
                     break;

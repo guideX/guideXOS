@@ -43,7 +43,7 @@ namespace guideXOS.GUI {
             _selectedIndex = -1;
             _onSave = onSave; _clickLock = false; _fnameFocus = true;
             // Adjust row height based on icon size
-            int minRow = Icons.DocumentIcon != null ? Icons.DocumentIcon.Height + 10 : 36;
+            int minRow = Icons.DocumentIcon != null ? Icons.DocumentIcon(32).Height + 10 : 36;
             if (minRow > _rowH) _rowH = minRow;
             Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
             RefreshEntries();
@@ -120,9 +120,34 @@ namespace guideXOS.GUI {
             return listH / _rowH;
         }
 
+        private static bool StartsWithFast(string s,string pref){ if(s==null) return false; int l=pref.Length; if(s.Length<l) return false; for(int i=0;i<l;i++){ if(s[i]!=pref[i]) return false; } return true; }
+
+        private string FuzzyResolveIfUnique(string token){
+            if(string.IsNullOrEmpty(token) || token.IndexOf('.')>=0) return token;
+            var list = File.GetFiles(_currentPath);
+            if(list==null) return token;
+            int matches=0;
+            string matchName=null;
+            for(int i=0;i<list.Count;i++){
+                var fi=list[i];
+                if(fi.Attribute!=FileAttribute.Directory){
+                    string nm=fi.Name;
+                    if(nm.Length>token.Length+1 && StartsWithFast(nm, token) && nm[token.Length]=='.'){
+                        matches++;
+                        matchName=nm;
+                    }
+                }
+                fi.Dispose();
+            }
+            list.Dispose();
+            if(matches==1) return matchName;
+            return token;
+        }
+
         private void SaveAction() {
             if (string.IsNullOrEmpty(_fileName)) return;
-            string path = _currentPath + _fileName;
+            string fname = FuzzyResolveIfUnique(_fileName);
+            string path = _currentPath + fname;
             _onSave?.Invoke(path);
             path.Dispose();
             this.Visible = false;
@@ -185,7 +210,7 @@ namespace guideXOS.GUI {
 
             // List background
             Framebuffer.Graphics.FillRectangle(listX, listY, listW, listH, 0xFF2B2B2B);
-            int y = listY; int iconW = Icons.DocumentIcon.Width; int iconH = Icons.DocumentIcon.Height;
+            int y = listY; int iconW = Icons.DocumentIcon(32).Width; int iconH = Icons.DocumentIcon(32).Height;
             int rowsVisible = listH / _rowH; if (rowsVisible < 1) rowsVisible = 1;
             int start = _scroll; int end = start + rowsVisible; if (end > _entries.Count) end = _entries.Count;
             for (int i = start; i < end; i++) {
@@ -195,7 +220,7 @@ namespace guideXOS.GUI {
                 // row bg alternating
                 uint rowBg = (i == _selectedIndex) ? 0xFF404040u : ((i & 1) == 0 ? 0xFF303030u : 0xFF2B2B2Bu);
                 Framebuffer.Graphics.FillRectangle(listX, rowY, listW, _rowH, rowBg);
-                var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon : Icons.DocumentIcon;
+                var icon = (e.Attribute == FileAttribute.Directory) ? Icons.FolderIcon(32) : Icons.DocumentIcon(32);
                 int iconY = rowY + (_rowH / 2 - iconH / 2);
                 Framebuffer.Graphics.DrawImage(listX + 6, iconY, icon);
                 WindowManager.font.DrawString(listX + 12 + iconW, rowY + (_rowH / 2 - WindowManager.font.FontSize / 2), e.Name);

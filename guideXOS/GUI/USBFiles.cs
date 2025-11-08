@@ -29,8 +29,8 @@ namespace guideXOS.GUI {
         }
 
         private void LoadIcons() {
-            try { _iconFolder = Icons.FolderIcon; } catch { }
-            try { _iconDoc = Icons.DocumentIcon; } catch { }
+            try { _iconFolder = Icons.FolderIcon(32); } catch { }
+            try { _iconDoc = Icons.DocumentIcon(32); } catch { }
         }
 
         private void InitLocalFS() {

@@ -81,10 +81,10 @@ namespace guideXOS.GUI {
             for (int i = 0; i < _count; i++) {
                 int ry = y + i * RowH - _scroll; if (ry + RowH < contentY || ry > contentY + h) continue;
                 // Icon
-                Framebuffer.Graphics.DrawImage(contentX + 6, ry + 4, Icons.FolderIcon);
+                Framebuffer.Graphics.DrawImage(contentX + 6, ry + 4, Icons.FolderIcon(32));
                 // Name and size
                 string name = "Drive " + (i + 1).ToString();
-                WindowManager.font.DrawString(contentX + 6 + Icons.FolderIcon.Width + 8, ry + 6, name);
+                WindowManager.font.DrawString(contentX + 6 + Icons.FolderIcon(32).Width + 8, ry + 6, name);
                 string label = _items[i].Label;
                 WindowManager.font.DrawString(contentX + w - 10 - WindowManager.font.MeasureString(label), ry + 6, label);
             }

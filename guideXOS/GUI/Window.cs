@@ -1,6 +1,7 @@
 using guideXOS.Kernel.Drivers;
 using System.Windows.Forms;
 using System.Drawing;
+using System;
 namespace guideXOS.GUI {
     /// <summary>
     /// Window
@@ -217,7 +218,7 @@ namespace guideXOS.GUI {
             this.Visible = true;
             WindowManager.Windows.Add(this);
             Title = "Window1";
-            TaskbarIcon = Icons.DocumentIcon;
+            TaskbarIcon = Icons.DocumentIcon(32);
             // Avoid heavy blur in title when window is large by using smaller radius
             BeginFadeIn();
         }
@@ -510,5 +511,12 @@ namespace guideXOS.GUI {
         /// Remove tombstone (enable input)
         /// </summary>
         public void Untombstone() { IsTombstoned = false; }
+        /// <summary>
+        /// On Global Key
+        /// </summary>
+        /// <param name="key"></param>
+        public virtual void OnGlobalKey(ConsoleKeyInfo key){ if(key.Key==System.ConsoleKey.Escape){ // close on escape if visible and allowed
+                if(this.Visible && !this.IsTombstoned){ this.Visible=false; }
+            }}
     }
 }

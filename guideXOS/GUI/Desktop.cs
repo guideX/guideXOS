@@ -11,6 +11,23 @@ namespace guideXOS.GUI {
     /// Desktop
     /// </summary>
     internal static class Desktop {
+        // Helpers for fuzzy executable resolution
+        private static bool HasDot(string s) { for (int i = 0; i < s.Length; i++) if (s[i] == '.') return true; return false; }
+        private static bool StartsWithStr(string s, string pref) { int l = pref.Length; if (s.Length < l) return false; for (int i = 0; i < l; i++) if (s[i] != pref[i]) return false; return true; }
+        /// <summary>
+        /// Try Fuzzy Exec
+        /// </summary>
+        /// <param name="dir"></param>
+        /// <param name="token"></param>
+        /// <param name="match"></param>
+        /// <param name="ambiguous"></param>
+        /// <returns></returns>
+        private static bool TryFuzzyExec(string dir, string token, out string match, out bool ambiguous) {
+            match = null; ambiguous = false; var list = File.GetFiles(dir); int matches = 0; if (list != null) { for (int i = 0; i < list.Count; i++) { var fi = list[i]; if (fi.Attribute != FileAttribute.Directory) { string nm = fi.Name; if (nm.Length > token.Length + 1 && StartsWithStr(nm, token) && nm[token.Length] == '.') { int len = nm.Length; bool gxm = len >= 4 && nm[len - 1] == 'm' && nm[len - 2] == 'x' && nm[len - 3] == 'g' && nm[len - 4] == '.'; bool mue = len >= 4 && nm[len - 1] == 'e' && nm[len - 2] == 'u' && nm[len - 3] == 'm' && nm[len - 4] == '.'; if (gxm || mue) { matches++; match = nm; } } } fi.Dispose(); } list.Dispose(); }
+            if (matches == 1) return true; if (matches > 1) { ambiguous = true; }
+            return false;
+        }
+
         /// <summary>
         /// Dir
         /// </summary>
@@ -55,7 +72,7 @@ namespace guideXOS.GUI {
         public static void Initialize() {
             Apps = new AppCollection();
             IndexClicked = -1;
-            Taskbar = new Taskbar(40, Icons.TaskbarIcon);
+            Taskbar = new Taskbar(40, Icons.TaskbarIcon(32));
             Dir = "";
             HomeMode = true;
             imageViewer = new ImageViewer(400, 400);
@@ -138,14 +155,14 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Update
         /// </summary>
-        /// <param name="DocumentIcon"></param>
-        public static void Update(Image DocumentIcon) {
+        /// <param name="DocumentIcon32"></param>
+        public static void Update(Image DocumentIcon32) {
             var names = GetDirectoryEntries();
 
             // Precompute frequently used values
             int devide = 60;
-            int fw = DocumentIcon.Width;
-            int fh = DocumentIcon.Height;
+            int fw = DocumentIcon32.Width;
+            int fh = DocumentIcon32.Height;
             int screenH = Framebuffer.Graphics.Height;
             int x = devide;
             int y = devide;
@@ -159,7 +176,7 @@ namespace guideXOS.GUI {
             // If mouse is pressed over any window, skip desktop hit-testing to avoid latency
             if (leftDown && mouseOverWindow) clickable = false;
 
-            
+
             if (HomeMode) {
                 /*
                 // Draw Apps
@@ -171,7 +188,7 @@ namespace guideXOS.GUI {
                     ClickEvent(appName, false, x, y, i, clickable, leftDown);
                     Framebuffer.Graphics.DrawImage(x, y, Apps.Icon(i));
                     WindowManager.font.DrawString(x, y + fh, appName, fw + 8, WindowManager.font.FontSize * 3);
-                    y += Icons.DocumentIcon.Height + devide;
+                    y += Icons.DocumentIcon32.Height + devide;
                     //}
                     appName.Dispose();
                 }
@@ -182,12 +199,12 @@ namespace guideXOS.GUI {
                 ClickEvent("Computer Files", false, x, y, Apps.Length, clickable, leftDown);
                 // button visual feedback
                 {
-                    uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, col);
+                    uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon(32).Width, Icons.FolderIcon(32).Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon(32).Width + 8, Icons.FolderIcon(32).Height + 8, col);
                 }
-                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon(32));
                 WindowManager.font.DrawString(x, y + fh, "Computer Files", fw + 8, WindowManager.font.FontSize * 3);
-                y += Icons.DocumentIcon.Height + devide;
+                y += Icons.DocumentIcon(32).Height + devide;
                 // USB mass storage icons, one per connected device
                 if (Kernel.Drivers.USBStorage.Count > 0) {
                     int count = Kernel.Drivers.USBStorage.Count;
@@ -195,22 +212,22 @@ namespace guideXOS.GUI {
                         if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                         string label = count == 1 ? "USB Drive" : ("USB Drive " + (u + 1).ToString());
                         ClickEvent(label, true, x, y, 20000 + u, clickable, leftDown);
-                        uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                        Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, col);
-                        Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                        uint col = UI.ButtonFillColor(x, y, Icons.FolderIcon(32).Width, Icons.FolderIcon(32).Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                        Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon(32).Width + 8, Icons.FolderIcon(32).Height + 8, col);
+                        Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon(32));
                         WindowManager.font.DrawString(x, y + fh, label, fw + 8, WindowManager.font.FontSize * 3);
-                        y += Icons.DocumentIcon.Height + devide;
+                        y += Icons.DocumentIcon(32).Height + devide;
                         label.Dispose();
                     }
                 }
                 // Root folder
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Root", true, x, y, Apps.Length + 1, clickable, leftDown);
-                uint colRoot = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, colRoot);
-                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                uint colRoot = UI.ButtonFillColor(x, y, Icons.FolderIcon(32).Width, Icons.FolderIcon(32).Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon(32).Width + 8, Icons.FolderIcon(32).Height + 8, colRoot);
+                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon(32));
                 WindowManager.font.DrawString(x, y + fh, "Root", fw + 8, WindowManager.font.FontSize * 3);
-                y += Icons.DocumentIcon.Height + devide;
+                y += Icons.DocumentIcon(32).Height + devide;
             }
 
             // Show real filesystem entries only when not in HomeMode
@@ -218,9 +235,9 @@ namespace guideXOS.GUI {
                 // Add special Desktop shortcut to return home
                 if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                 ClickEvent("Desktop", false, x, y, -100, clickable, leftDown);
-                uint cDesk = UI.ButtonFillColor(x, y, Icons.FolderIcon.Width, Icons.FolderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon.Width + 8, Icons.FolderIcon.Height + 8, cDesk);
-                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                uint cDesk = UI.ButtonFillColor(x, y, Icons.FolderIcon(32).Width, Icons.FolderIcon(32).Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.FolderIcon(32).Width + 8, Icons.FolderIcon(32).Height + 8, cDesk);
+                Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon(32));
                 WindowManager.font.DrawString(x, y + fh, "Desktop", fw + 8, WindowManager.font.FontSize * 3);
                 y += fh + devide;
 
@@ -231,18 +248,18 @@ namespace guideXOS.GUI {
 
                     ClickEvent(n, isDir, x, y, i + 1000, clickable, leftDown);
 
-                    uint bg = UI.ButtonFillColor(x, y, Icons.DocumentIcon.Width, Icons.DocumentIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.DocumentIcon.Width + 8, Icons.DocumentIcon.Height + 8, bg);
+                    uint bg = UI.ButtonFillColor(x, y, Icons.DocumentIcon(32).Width, Icons.DocumentIcon(32).Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, Icons.DocumentIcon(32).Width + 8, Icons.DocumentIcon(32).Height + 8, bg);
 
                     // Choose icon by extension/use type
                     if (n.EndsWith(".png") || n.EndsWith(".bmp")) {
-                        Framebuffer.Graphics.DrawImage(x, y, Icons.ImageIcon);
+                        Framebuffer.Graphics.DrawImage(x, y, Icons.ImageIcon(32));
                     } else if (n.EndsWith(".wav")) {
-                        Framebuffer.Graphics.DrawImage(x, y, Icons.AudioIcon);
+                        Framebuffer.Graphics.DrawImage(x, y, Icons.AudioIcon(32));
                     } else if (isDir) {
-                        Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon);
+                        Framebuffer.Graphics.DrawImage(x, y, Icons.FolderIcon(32));
                     } else {
-                        Framebuffer.Graphics.DrawImage(x, y, DocumentIcon);
+                        Framebuffer.Graphics.DrawImage(x, y, DocumentIcon32);
                     }
                     WindowManager.font.DrawString(x, y + fh, n, fw + 8, WindowManager.font.FontSize * 3);
                     y += fh + devide;
@@ -287,8 +304,8 @@ namespace guideXOS.GUI {
         private static void ClickEvent(string name, bool isDirectory, int X, int Y, int i, bool clickable, bool leftDown) {
             if (leftDown) {
                 if (!WindowManager.HasWindowMoving && clickable && !ClickLock &&
-                    Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.DocumentIcon.Width &&
-                    Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.DocumentIcon.Height) {
+                    Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.DocumentIcon(32).Width &&
+                    Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.DocumentIcon(32).Height) {
                     IndexClicked = i;
                     OnClick(name, isDirectory, X, Y);
                 }
@@ -297,8 +314,8 @@ namespace guideXOS.GUI {
             }
 
             if (IndexClicked == i) {
-                int w = (int)(Icons.DocumentIcon.Width * 1.5f);
-                Framebuffer.Graphics.AFillRectangle(X + ((Icons.DocumentIcon.Width / 2) - (w / 2)), Y, w, Icons.DocumentIcon.Height * 2, 0x7F2E86C1);
+                int w = (int)(Icons.DocumentIcon(32).Width * 1.5f);
+                Framebuffer.Graphics.AFillRectangle(X + ((Icons.DocumentIcon(32).Width / 2) - (w / 2)), Y, w, Icons.DocumentIcon(32).Height * 2, 0x7F2E86C1);
             }
         }
         static bool ClickLock = false;
@@ -369,7 +386,7 @@ namespace guideXOS.GUI {
                 png.Dispose();
                 WindowManager.MoveToEnd(imageViewer);
                 imageViewer.Visible = true;
-                RecentManager.AddDocument(path, Icons.ImageIcon);
+                RecentManager.AddDocument(path, Icons.ImageIcon(32));
             } else if (name.EndsWith(".bmp")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 Bitmap png = new(buffer);
@@ -378,41 +395,36 @@ namespace guideXOS.GUI {
                 png.Dispose();
                 WindowManager.MoveToEnd(imageViewer);
                 imageViewer.Visible = true;
-                RecentManager.AddDocument(path, Icons.ImageIcon);
+                RecentManager.AddDocument(path, Icons.ImageIcon(32));
+            } else if (!HasDot(name)) {
+                // Fuzzy run for executables when no extension typed
+                string match; bool amb; if (TryFuzzyExec(Dir, name, out match, out amb)) {
+                    // Run matched executable
+                    string newPath = Dir + match;
+                    byte[] buffer = File.ReadAllBytes(newPath);
+                    string err; bool ok = GXMLoader.TryExecute(buffer, out err);
+                    if (!ok) { msgbox.X = itemX + 60; msgbox.Y = itemY + 60; msgbox.SetText(err ?? "Failed to run executable"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true; } else { RecentManager.AddDocument(newPath, Icons.DocumentIcon(32)); }
+                    newPath.Dispose();
+                } else if (amb) {
+                    msgbox.X = itemX + 60; msgbox.Y = itemY + 60; msgbox.SetText("error: fuzzy match"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true;
+                } else if (!Apps.Load(name)) {
+                    msgbox.X = itemX + 75; msgbox.Y = itemY + 75; msgbox.SetText("No application can open this file!"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true;
+                }
             } else if (name.EndsWith(".gxm") || name.EndsWith(".mue")) {
                 byte[] buffer = File.ReadAllBytes(path);
-                // Prefer in-kernel GXM loader for execution
                 string err; bool ok = GXMLoader.TryExecute(buffer, out err);
-                if (!ok) {
-                    msgbox.X = itemX + 60; msgbox.Y = itemY + 60; msgbox.SetText(err ?? "Failed to run executable"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true;
-                } else {
-                    RecentManager.AddDocument(path, Icons.DocumentIcon);
-                }
+                if (!ok) { msgbox.X = itemX + 60; msgbox.Y = itemY + 60; msgbox.SetText(err ?? "Failed to run executable"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true; } else { RecentManager.AddDocument(path, Icons.DocumentIcon(32)); }
             } else if (name.EndsWith(".wav")) {
                 if (Audio.HasAudioDevice) {
-                    wavplayer.Visible = true;
-                    byte[] buffer = File.ReadAllBytes(path);
-                    unsafe {
-                        fixed (char* ptr = name)
-                            wavplayer.Play(buffer, new string(ptr));
-                    }
-                    RecentManager.AddDocument(path, Icons.AudioIcon);
+                    wavplayer.Visible = true; byte[] buffer = File.ReadAllBytes(path); unsafe { fixed (char* ptr = name) wavplayer.Play(buffer, new string(ptr)); }
+                    RecentManager.AddDocument(path, Icons.AudioIcon(32));
                 } else {
-                    msgbox.X = itemX + 75;
-                    msgbox.Y = itemY + 75;
-                    msgbox.SetText("Audio controller is unavailable!");
-                    WindowManager.MoveToEnd(msgbox);
-                    msgbox.Visible = true;
+                    msgbox.X = itemX + 75; msgbox.Y = itemY + 75; msgbox.SetText("Audio controller is unavailable!"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true;
                 }
             } else if (!Apps.Load(name)) {
-                msgbox.X = itemX + 75;
-                msgbox.Y = itemY + 75;
-                msgbox.SetText("No application can open this file!");
-                WindowManager.MoveToEnd(msgbox);
-                msgbox.Visible = true;
+                msgbox.X = itemX + 75; msgbox.Y = itemY + 75; msgbox.SetText("No application can open this file!"); WindowManager.MoveToEnd(msgbox); msgbox.Visible = true;
             }
-            path.Dispose();
-            devider.Dispose();
+            path.Dispose(); devider.Dispose();
         }
         /// <summary>
         /// Invalidate Directory Cache

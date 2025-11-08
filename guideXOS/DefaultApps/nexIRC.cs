@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using guideXOS; // NETv4
 using System;
 using System.Collections.Generic;
+using guideXOS.OS;
 
 namespace guideXOS.DefaultApps {
     internal class nexIRC : Window {
@@ -40,6 +41,7 @@ namespace guideXOS.DefaultApps {
         private void TryAutoConnect() {
             if (_connecting || _tcp != null) return;
             if (NETv4.IP.P1 == 0 && NETv4.IP.P2 == 0 && NETv4.IP.P3 == 0 && NETv4.IP.P4 == 0) { _status = "Waiting for network..."; return; }
+            if (!Firewall.Check("nexIRC","tcp-connect")) { _status = "Blocked by firewall"; return; }
             _status = "Resolving irc.libera.chat";
             _serverIp = NETv4.DNSQuery("irc.libera.chat");
             if (_serverIp.P1 == 0 && _serverIp.P2 == 0 && _serverIp.P3 == 0 && _serverIp.P4 == 0) {
