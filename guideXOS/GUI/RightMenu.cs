@@ -8,7 +8,7 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Right Menu
         /// </summary>
-        public RightMenu() : base(Control.MousePosition.X, Control.MousePosition.Y, 180, 80) {
+        public RightMenu() : base(Control.MousePosition.X, Control.MousePosition.Y, 220, 180) {
             Visible = false;
         }
         /// <summary>
@@ -29,32 +29,18 @@ namespace guideXOS.GUI {
             if (!Visible) return;
 
             int itemH = 28;
-            int pad = 6;
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
 
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 // Item 0: Display Options
-                int item0X = X;
-                int item0Y = Y;
-                int item0W = Width;
-                int item0H = itemH;
-
-                // Item 1: Up One Level (only when not root)
-                int item1X = X;
-                int item1Y = Y + itemH;
-                int item1W = Width;
-                int item1H = itemH;
-
-                bool in0 = (mx >= item0X && mx <= item0X + item0W && my >= item0Y && my <= item0Y + item0H);
-                bool in1 = (mx >= item1X && mx <= item1X + item1W && my >= item1Y && my <= item1Y + item1H);
-
-                if (in0) {
+                if (Hit(0, mx, my, itemH)) {
                     WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 360, 420);
                     this.Visible = false;
                     return;
                 }
-                if (in1 && Desktop.Dir.Length > 0) {
+                // Item 1: Up One Level (only when not root)
+                if (Hit(1, mx, my, itemH) && Desktop.Dir.Length > 0) {
                     Desktop.Dir.Length--;
 
                     if (Desktop.Dir.IndexOf('/') != -1) {
@@ -67,29 +53,45 @@ namespace guideXOS.GUI {
                     this.Visible = false;
                     return;
                 }
+                // Item 2..6: Icon Size options
+                int[] sizes = new[] { 16, 24, 32, 48, 128 };
+                for (int i = 0; i < sizes.Length; i++) {
+                    if (Hit(2 + i, mx, my, itemH)) {
+                        Desktop.SetIconSize(sizes[i]);
+                        this.Visible = false;
+                        return;
+                    }
+                }
 
                 // Click anywhere else -> close
                 this.Visible = false;
             }
+        }
+        private bool Hit(int index, int mx, int my, int itemH) {
+            int y = Y + index * itemH;
+            return (mx >= X && mx <= X + Width && my >= y && my <= y + itemH);
         }
         /// <summary>
         /// On Draw
         /// </summary>
         public override void OnDraw() {
             int itemH = 28;
-            int totalItems = 1 + (Desktop.Dir.Length > 0 ? 1 : 0);
-            Height = itemH * totalItems;
+            int extra = 1 + (Desktop.Dir.Length > 0 ? 1 : 0);
+            int iconItems = 5;
+            Height = itemH * (extra + iconItems + 1);
             // Background
             Framebuffer.Graphics.AFillRectangle(X, Y, Width, Height, 0xCC222222);
 
-            // Item 0: Display Options
-            WindowManager.font.DrawString(X + 8, Y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Display Options");
-
-            // Item 1: Up One Level
-            if (Desktop.Dir.Length > 0) {
-                WindowManager.font.DrawString(X + 8, Y + itemH + (itemH / 2) - (WindowManager.font.FontSize / 2), "Up one level");
+            int y = Y;
+            WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Display Options"); y += itemH;
+            if (Desktop.Dir.Length > 0) { WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Up one level"); y += itemH; }
+            WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Icon Size:"); y += itemH;
+            int[] sizes = new[] { 16, 24, 32, 48, 128 };
+            for (int i = 0; i < sizes.Length; i++) {
+                string label = sizes[i].ToString();
+                if (sizes[i] == Desktop.IconSize) label += " (current)";
+                WindowManager.font.DrawString(X + 20, y + (itemH / 2) - (WindowManager.font.FontSize / 2), label); y += itemH; label.Dispose();
             }
-
             DrawBorder(false);
         }
     }
