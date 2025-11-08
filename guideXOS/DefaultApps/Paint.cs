@@ -1,10 +1,11 @@
 using guideXOS.Graph;
+using guideXOS.GUI;
 using guideXOS.GUI.Widgets;
 using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     internal unsafe class Paint : Window {
         Image img;
         Graphics g;
@@ -27,9 +28,9 @@ namespace guideXOS.GUI {
             AddButton(370, 10, 0xFFECF0F1);
             AddButton(400, 10, 0xFFD4AC0D);
             AddButton(430, 10, 0xFF333333, 50, "Clear");
-            img = new Image(this.Width, this.Height);
+            img = new Image(Width, Height);
             fixed (int* p = img.RawData)
-                g = new Graphics(this.Width, this.Height, (uint*)p);
+                g = new Graphics(Width, Height, (uint*)p);
             g.Clear(0xFF222222);
             CurrentColor = 0xFFF0F0F0;
             LastX = -1;
@@ -41,7 +42,7 @@ namespace guideXOS.GUI {
             for (int i = 0; i < Btns.Count; i++) {
                 Framebuffer.Graphics.FillRectangle(X + Btns[i].X, Y + Btns[i].Y, Btns[i].Width, Btns[i].Height, Btns[i].UIntParam);
                 if (Btns[i].Name == "Clear") {
-                    WindowManager.font.DrawString(X + Btns[i].X + (Btns[i].Width / 2) - (WindowManager.font.MeasureString(Btns[i].Name) / 2), Y + Btns[i].Y + 2, Btns[i].Name);
+                    WindowManager.font.DrawString(X + Btns[i].X + Btns[i].Width / 2 - WindowManager.font.MeasureString(Btns[i].Name) / 2, Y + Btns[i].Y + 2, Btns[i].Name);
                 }
             }
         }
@@ -55,14 +56,14 @@ namespace guideXOS.GUI {
             base.OnInput();
 
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
-                if (Control.MousePosition.X >= this.X && Control.MousePosition.X <= this.X + this.Width && Control.MousePosition.Y >= this.Y && Control.MousePosition.Y <= this.Y + this.Height) {
+                if (Control.MousePosition.X >= X && Control.MousePosition.X <= X + Width && Control.MousePosition.Y >= Y && Control.MousePosition.Y <= Y + Height) {
                     WindowManager.MouseHandled = true;
-                    if (Control.MousePosition.X - this.X != LastX || Control.MousePosition.Y - this.Y != LastY) {
-                        g.DrawLine(LastX, LastY, Control.MousePosition.X - this.X, Control.MousePosition.Y - this.Y, CurrentColor);
+                    if (Control.MousePosition.X - X != LastX || Control.MousePosition.Y - Y != LastY) {
+                        g.DrawLine(LastX, LastY, Control.MousePosition.X - X, Control.MousePosition.Y - Y, CurrentColor);
                     }
 
                     for (int i = 0; i < Btns.Count; i++) {
-                        if (Control.MousePosition.X > this.X + Btns[i].X && Control.MousePosition.X < this.X + Btns[i].X + Btns[i].Width && Control.MousePosition.Y > this.Y + Btns[i].Y && Control.MousePosition.Y < this.Y + Btns[i].Y + Btns[i].Height) {
+                        if (Control.MousePosition.X > X + Btns[i].X && Control.MousePosition.X < X + Btns[i].X + Btns[i].Width && Control.MousePosition.Y > Y + Btns[i].Y && Control.MousePosition.Y < Y + Btns[i].Y + Btns[i].Height) {
                             if (Btns[i].Name == "Clear") {
                                 g.Clear(0xFF222222);
                             } else {
@@ -75,8 +76,8 @@ namespace guideXOS.GUI {
                 WindowManager.MouseHandled = false;
             }
 
-            LastX = Control.MousePosition.X - this.X;
-            LastY = Control.MousePosition.Y - this.Y;
+            LastX = Control.MousePosition.X - X;
+            LastY = Control.MousePosition.Y - Y;
         }
 
         List<Button> Btns;

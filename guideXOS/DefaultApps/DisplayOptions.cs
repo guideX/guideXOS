@@ -4,8 +4,9 @@ using guideXOS.Misc;
 using System;
 using System.Windows.Forms;
 using System.Drawing;
+using guideXOS.GUI;
 
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     internal class DisplayOptions : Window {
         private int _itemHeight = 28;
         private int _padding = 10;
@@ -30,6 +31,10 @@ namespace guideXOS.GUI {
 
         public DisplayOptions(int X, int Y, int W = 420, int H = 420) : base(X, Y, W, H) {
             ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowTombstone = true;
+            ShowRestore = true;
             Title = "Display Options";
             var list = DisplayManager.AvailableResolutions;
             if (list != null && list.Length > 0) {
@@ -47,7 +52,7 @@ namespace guideXOS.GUI {
         public override void OnInput() {
             base.OnInput(); if (!Visible) return;
             // Modal dialogs take precedence
-            if ((_openDlg != null && _openDlg.Visible) || (_colorDlg != null && _colorDlg.Visible)) return;
+            if (_openDlg != null && _openDlg.Visible || _colorDlg != null && _colorDlg.Visible) return;
 
             int cx = X + _padding; int cy = Y + _padding; int cw = Width - _padding * 2; int contentY = cy + _tabH + _tabGap;
             int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
@@ -72,7 +77,7 @@ namespace guideXOS.GUI {
                     int listX = cx; int listY = contentY + WindowManager.font.FontSize + 6; int listW = cw;
                     int count = list.Length;
                     // Apply selected resolution
-                    if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + (count * _itemHeight)) {
+                    if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + count * _itemHeight) {
                         int index = (my - listY) / _itemHeight;
                         if (index >= 0 && index < count && index != _selectedIndex) {
                             _previous = DisplayManager.Current; var chosen = list[index];
@@ -140,8 +145,8 @@ namespace guideXOS.GUI {
             } else if (_currentTab == 1) {
                 WindowManager.font.DrawString(cx, contentY, "Available resolutions:");
                 var list = DisplayManager.AvailableResolutions; if (list == null) return; int listX = cx; int listY = contentY + WindowManager.font.FontSize + 6; int count = list.Length;
-                for (int i = 0; i < count; i++) { int rowY = listY + i * _itemHeight; bool selected = (i == _selectedIndex); uint rowBg = selected ? 0xFF2A2A2A : 0xFF222222; Framebuffer.Graphics.FillRectangle(listX, rowY, cw, _itemHeight - 2, rowBg); string label = (_labels != null && i < _labels.Length && _labels[i] != null) ? _labels[i] : (list[i].Width.ToString() + " x " + list[i].Height.ToString()); WindowManager.font.DrawString(listX + 8, rowY + (_itemHeight / 2) - (WindowManager.font.FontSize / 2), label); }
-                if (_confirmVisible) { int btnW = 80, btnH = 26, gap = 10; int btnY = Y + Height - _padding - btnH; int yesX = X + Width - _padding - btnW; int noX = yesX - gap - btnW; string msg = "Your previous resolution will be re-applied in " + _countdown.ToString() + " seconds"; WindowManager.font.DrawString(cx, btnY - WindowManager.font.FontSize - 6, msg); Framebuffer.Graphics.FillRectangle(noX, btnY, btnW, btnH, 0xFF2A2A2A); Framebuffer.Graphics.DrawRectangle(noX, btnY, btnW, btnH, 0xFF3F3F3F, 1); WindowManager.font.DrawString(noX + 26, btnY + (btnH / 2) - (WindowManager.font.FontSize / 2), "No"); Framebuffer.Graphics.FillRectangle(yesX, btnY, btnW, btnH, 0xFF2A2A2A); Framebuffer.Graphics.DrawRectangle(yesX, btnY, btnW, btnH, 0xFF3F3F3F, 1); WindowManager.font.DrawString(yesX + 22, btnY + (btnH / 2) - (WindowManager.font.FontSize / 2), "Yes"); }
+                for (int i = 0; i < count; i++) { int rowY = listY + i * _itemHeight; bool selected = i == _selectedIndex; uint rowBg = selected ? 0xFF2A2A2A : 0xFF222222; Framebuffer.Graphics.FillRectangle(listX, rowY, cw, _itemHeight - 2, rowBg); string label = _labels != null && i < _labels.Length && _labels[i] != null ? _labels[i] : list[i].Width.ToString() + " x " + list[i].Height.ToString(); WindowManager.font.DrawString(listX + 8, rowY + _itemHeight / 2 - WindowManager.font.FontSize / 2, label); }
+                if (_confirmVisible) { int btnW = 80, btnH = 26, gap = 10; int btnY = Y + Height - _padding - btnH; int yesX = X + Width - _padding - btnW; int noX = yesX - gap - btnW; string msg = "Your previous resolution will be re-applied in " + _countdown.ToString() + " seconds"; WindowManager.font.DrawString(cx, btnY - WindowManager.font.FontSize - 6, msg); Framebuffer.Graphics.FillRectangle(noX, btnY, btnW, btnH, 0xFF2A2A2A); Framebuffer.Graphics.DrawRectangle(noX, btnY, btnW, btnH, 0xFF3F3F3F, 1); WindowManager.font.DrawString(noX + 26, btnY + btnH / 2 - WindowManager.font.FontSize / 2, "No"); Framebuffer.Graphics.FillRectangle(yesX, btnY, btnW, btnH, 0xFF2A2A2A); Framebuffer.Graphics.DrawRectangle(yesX, btnY, btnW, btnH, 0xFF3F3F3F, 1); WindowManager.font.DrawString(yesX + 22, btnY + btnH / 2 - WindowManager.font.FontSize / 2, "Yes"); }
             }
         }
     }
@@ -153,13 +158,13 @@ namespace guideXOS.GUI {
         private int _padding = 10;
         public ColorPicker(int x, int y, Action<uint> onChoose) : base(x, y, 260, 200) { Title = "Choose Color"; _onChoose = onChoose; _clickLock = false; }
         public override void OnInput() {
-            base.OnInput(); bool left = Control.MouseButtons.HasFlag(MouseButtons.Left); int mx = Control.MousePosition.X; int my = Control.MousePosition.Y; int cx = X + _padding; int cy = Y + _padding; int sw = 20; int sh = 20; int cols = 12; int rows = 8; if (left) { if (!_clickLock) { for (int r = 0; r < rows; r++) { for (int c = 0; c < cols; c++) { int px = cx + c * (sw + 2); int py = cy + r * (sh + 2); if (mx >= px && mx <= px + sw && my >= py && my <= py + sh) { uint color = SampleColor(c, r); _onChoose?.Invoke(color); this.Visible = false; _clickLock = true; return; } } } } } else { _clickLock = false; } }
+            base.OnInput(); bool left = Control.MouseButtons.HasFlag(MouseButtons.Left); int mx = Control.MousePosition.X; int my = Control.MousePosition.Y; int cx = X + _padding; int cy = Y + _padding; int sw = 20; int sh = 20; int cols = 12; int rows = 8; if (left) { if (!_clickLock) { for (int r = 0; r < rows; r++) { for (int c = 0; c < cols; c++) { int px = cx + c * (sw + 2); int py = cy + r * (sh + 2); if (mx >= px && mx <= px + sw && my >= py && my <= py + sh) { uint color = SampleColor(c, r); _onChoose?.Invoke(color); Visible = false; _clickLock = true; return; } } } } } else { _clickLock = false; } }
         public override void OnDraw() { base.OnDraw(); int cx = X + _padding; int cy = Y + _padding; int sw = 20; int sh = 20; int cols = 12; int rows = 8; for (int r = 0; r < rows; r++) { for (int c = 0; c < cols; c++) { int px = cx + c * (sw + 2); int py = cy + r * (sh + 2); uint color = SampleColor(c, r); Framebuffer.Graphics.FillRectangle(px, py, sw, sh, color); } } }
         private static uint SampleColor(int c, int r) {
             // Basic palette rows: grayscale + RGB mixes
-            if (r == 0) { byte v = (byte)(c * 21); return (uint)(0xFF000000 | (v << 16) | (v << 8) | v); }
+            if (r == 0) { byte v = (byte)(c * 21); return (uint)(0xFF000000 | v << 16 | v << 8 | v); }
             byte rr = (byte)(c * 21); byte gg = (byte)(r * 30); byte bb = (byte)((c ^ r) * 16);
-            return (uint)(0xFF000000 | (rr << 16) | (gg << 8) | bb);
+            return (uint)(0xFF000000 | rr << 16 | gg << 8 | bb);
         }
     }
 }

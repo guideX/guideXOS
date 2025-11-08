@@ -1,9 +1,9 @@
 using guideXOS;
+using guideXOS.DefaultApps;
 using guideXOS.FS;
 using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
-using System;
 using System.Drawing;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -55,6 +55,13 @@ unsafe class Program {
     static void KMain() {
         Animator.Initialize();
 
+        // Initialize legacy PS/2 input first so VirtualBox (default PS/2 devices) works out-of-the-box.
+        // This provides keyboard IRQ1 (0x21) and mouse IRQ12 (0x2C) handling even without USB HID.
+        try { PS2Keyboard.Initialize(); } catch { }
+        try { PS2Mouse.Initialise(); } catch { }
+        // Initialize VMware absolute pointer backdoor if present (no-op on other hypervisors)
+        try { VMwareTools.Initialize(); } catch { }
+
 #if USBDebug
         Hub.Initialize();
         HID.Initialize();
@@ -92,76 +99,39 @@ unsafe class Program {
             }
         }
 #else
-        Hub.Initialize();
-        HID.Initialize();
-        EHCI.Initialize();
+        try {
+            Hub.Initialize();
+            HID.Initialize();
+            EHCI.Initialize();
+            USB.StartPolling();
+        } catch { /* USB stack is optional; continue boot */ }
 
-        /*
-        if (HID.Keyboard != null) {
-            Console.Write("[Warning] Press please press any key to validate USB keyboard ");
-            bool res = Console.Wait(&USBKeyboardTest, 2000);
-            Console.WriteLine();
-            if (!res) {
-                lock (null) {
-                    USB.NumDevice--;
-                    HID.Keyboard = null;
-                }
+        try {
+            if (HID.Mouse == null) {
+                Console.WriteLine("USB Mouse not present");
             }
-        }
-        */
-        //if (HID.Mouse != null) {
-        //Console.Write("[Warning] Press please press Mouse any key to validate USB Mouse ");
-        //bool res = Console.Wait(&USBMouseTest, 2000);
-        //Console.WriteLine();
-        //if (!res) {
-        //lock (null) {
-        //USB.NumDevice--;
-        //HID.Mouse = null;
-        //}
-        //}
-        //}
-
-        USB.StartPolling();
-
-        //Use qemu for USB debug
-        //VMware won't connect virtual USB HIDs
-        if (HID.Mouse == null) {
-            Console.WriteLine("USB Mouse not present");
-        }
-        if (HID.Keyboard == null) {
-            Console.WriteLine("USB Keyboard not present");
-        }
+            if (HID.Keyboard == null) {
+                Console.WriteLine("USB Keyboard not present");
+            }
+        } catch { }
 #endif
 
         //Sized width to 512
-        Cursor = new PNG(File.ReadAllBytes("Images/Cursor.png"));
-        CursorMoving = new PNG(File.ReadAllBytes("Images/Grab.png"));
-        CursorBusy = new PNG(File.ReadAllBytes("Images/Busy.png"));
-        Wallpaper = new PNG(File.ReadAllBytes("Images/tronporche.png"));
+        try { Cursor = new PNG(File.ReadAllBytes("Images/Cursor.png")); } catch { Cursor = new Image(16,16); }
+        try { CursorMoving = new PNG(File.ReadAllBytes("Images/Grab.png")); } catch { CursorMoving = Cursor; }
+        try { CursorBusy = new PNG(File.ReadAllBytes("Images/Busy.png")); } catch { CursorBusy = Cursor; }
+        try { Wallpaper = new PNG(File.ReadAllBytes("Images/tronporche.png")); } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
         BitFont.Initialize();
         string CustomCharset = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         BitFont.RegisterBitFont(new BitFontDescriptor("Song", CustomCharset, File.ReadAllBytes("Fonts/Song.btf"), 16));
         FConsole = null;
         WindowManager.Initialize();
         Desktop.Initialize();
-        //Serial.WriteLine("Hello World");
-        //Console.WriteLine("Hello, World!");
-        //Console.WriteLine("Use Native AOT (Core RT) Technology.");
-        //test();
         Audio.Initialize();
         AC97.Initialize();
         if (AC97.DeviceLocated) Console.WriteLine("Device Located: " + AC97.DeviceName);
         ES1371.Initialize();
-        /*
-        for (; ; )
-        {
-            Console.WriteLine(Console.ReadLine());
-        }
-        */
-
-        //Console.WriteLine("Checking Network ...");
 #if NETWORK
-        //Console.WriteLine("Network Available");
         NETv4.Initialize();
         Intel825xx.Initialize();
         RTL8111.Initialize();
@@ -173,23 +143,7 @@ unsafe class Program {
             Console.Write("DHCP discovery failed\n");
             for (; ; ) Native.Hlt();
         }
-#else
-        NETv4.Configure(new NETv4.IPAddress(192, 168, 1, 65), new NETv4.IPAddress(192, 168, 1, 1), new NETv4.IPAddress(255, 255, 255, 0));
 #endif
-        //Console.Write("Network initialized.\n");
-
-        //Only single client is supported now!
-        TCPListener tc = new TCPListener(54188);
-        tc.Listen();
-        while (tc.Status != TCPStatus.Established) Native.Hlt();
-        string s = "hello world";
-        fixed (char* c = s)
-            tc.Send((byte*)c, s.Length * 2);
-        tc.Close();
-        while (tc.Status != TCPStatus.Closed) Native.Hlt();
-        tc.Remove();
-
-        for (; ; ) ;
 #endif
 
         // Apply saved display mode before wallpaper resize
@@ -222,17 +176,17 @@ unsafe class Program {
     public static void SMain() {
         Framebuffer.TripleBuffered = true;
 
-        /*
-        //This driver doesn't support drawing without update
-        if(PCI.GetDevice(0x15AD, 0x0405) != null)
-            Framebuffer.Graphics = new VMWareSVGAIIGraphics();
-        */
-
         Image wall = Wallpaper;
-        Wallpaper = wall.ResizeImage(Framebuffer.Width, Framebuffer.Height);
-        wall.Dispose();
+        try {
+            if (wall != null) {
+                Wallpaper = wall.ResizeImage(Framebuffer.Width, Framebuffer.Height);
+                wall.Dispose();
+            } else {
+                Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height);
+            }
+        } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
 
-        Lockscreen.Run();
+        //Lockscreen.Run();
         FConsole = null;
 
         // Ensure context menu exists
@@ -255,10 +209,14 @@ unsafe class Program {
             WindowManager.InputAll();
             WindowManager.FlushPendingCreates();
 
+            // Service audio playback from main loop
+            WAVPlayer.DoPlay();
+
             //clear screen
             Framebuffer.Graphics.Clear(0x0);
             //draw carpet or wallpaper
-            Framebuffer.Graphics.DrawImage((Framebuffer.Width / 2) - (Wallpaper.Width / 2), (Framebuffer.Height / 2) - (Wallpaper.Height / 2), Wallpaper);
+            if (Wallpaper != null)
+                Framebuffer.Graphics.DrawImage((Framebuffer.Width / 2) - (Wallpaper.Width / 2), (Framebuffer.Height / 2) - (Wallpaper.Height / 2), Wallpaper);
             //Inspects the system to see if the user has right clicked there is a small difference between these two functions
             if (Control.MouseButtons.HasFlag(MouseButtons.Right) && !rightClicked) {
                 rightClicked = true;
@@ -272,7 +230,7 @@ unsafe class Program {
             WindowManager.DrawAll();
             //draw cursor
             var img = Control.MouseButtons.HasFlag(MouseButtons.Left) ? CursorMoving : Cursor;
-            Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
+            if (img != null) Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
             //refresh screen
             Framebuffer.Update();
             //sleep to get lower cpu usage

@@ -1,10 +1,9 @@
 ﻿using guideXOS.Kernel.Drivers;
-using guideXOS.Graph;
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Drawing;
-
+using guideXOS.DefaultApps;
 namespace guideXOS.GUI {
     /// <summary>
     /// Start Menu
@@ -410,7 +409,10 @@ namespace guideXOS.GUI {
                     int ih = icon.Height; int iw = icon.Width;
                     // Hover effect backdrop
                     if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih) {
-                        int hx = listX - 6; int hy = y - 3; int hw = listW + 12; int hh = ih + 6;
+                        int hx = listX - 6; 
+                        int hy = y - 3; 
+                        int hw = listW + 12; 
+                        int hh = ih + 6;
                         UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
                         UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
                         Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF);

@@ -84,16 +84,30 @@ namespace guideXOS.OS {
         /// Load Default Apps
         /// </summary>
         private void LoadDefaultApps() {
-            var icon = new PNG(File.ReadAllBytes("Images/tools.png"));
-            _apps.Add(new App("Calculator", new PNG(File.ReadAllBytes("Images/calculator.png"))));
-            _apps.Add(new App("Clock", icon));
-            _apps.Add(new App("Paint", icon));
-            _apps.Add(new App("Console", icon));
+            var iconWidth = 32;
+            var path = "Images/BlueVelvet/" + iconWidth.ToString() + "/";
+            var icon = new PNG(File.ReadAllBytes(path + "documents.png"));
+            _apps.Add(new App("Calculator", new PNG(File.ReadAllBytes(path + "calculator.png"))));
+            _apps.Add(new App("Clock", new PNG(File.ReadAllBytes(path + "calendar.png"))));
+            _apps.Add(new App("Paint", new PNG(File.ReadAllBytes(path + "image.png"))));
+            _apps.Add(new App("Console", new PNG(File.ReadAllBytes(path + "edit.png"))));
             _apps.Add(new App("Monitor", icon));
-            _apps.Add(new App("StartMenu", icon));
-            _apps.Add(new App("Lock", icon));
-            _apps.Add(new App("Notepad", icon));
-            _apps.Add(new App("TaskManager", icon));
+            _apps.Add(new App("Lock", new PNG(File.ReadAllBytes(path + "lock.png"))));
+            _apps.Add(new App("Notepad", new PNG(File.ReadAllBytes(path + "notepad.png"))));
+            _apps.Add(new App("TaskManager", new PNG(File.ReadAllBytes(path + "applications.png"))));
+            // New apps (use tools icon fallback if specific icons missing)
+            //Image browserIcon; 
+            Image ircIcon; 
+            //Image audioIcon; 
+            //Image ftpIcon;
+            //try { browserIcon = new PNG(File.ReadAllBytes("Images/BlueVelvet/32/web.png")); } catch { browserIcon = icon; }
+            try { ircIcon = new PNG(File.ReadAllBytes("Images/BlueVelvet/32/chat.png")); } catch { ircIcon = icon; }
+            //try { audioIcon = new PNG(File.ReadAllBytes("Images/BlueVelvet/32/music.png")); } catch { audioIcon = icon; }
+            //try { ftpIcon = new PNG(File.ReadAllBytes("Images/BlueVelvet/32/network.png")); } catch { ftpIcon = icon; }
+            //_apps.Add(new App("Anomalocaris", browserIcon));
+            _apps.Add(new App("nexIRC", ircIcon));
+            //_apps.Add(new App("Audica", audioIcon));
+            //_apps.Add(new App("Gorganopsid", ftpIcon));
         }
         /// <summary>
         /// Load
@@ -130,12 +144,28 @@ namespace guideXOS.OS {
                             b = true;
                             break;
                         case "Console":
-                            //Program.InitConsole();
+                            if (Program.FConsole == null) Program.FConsole = new FConsole(160, 120);
                             _apps[i].AppObject = Program.FConsole;
                             b = true;
                             break;
                         case "TaskManager":
                             _apps[i].AppObject = new TaskManager(500, 500);
+                            b = true;
+                            break;
+                        case "Anomalocaris":
+                            _apps[i].AppObject = new Anomalocaris(220, 180);
+                            b = true;
+                            break;
+                        case "nexIRC":
+                            _apps[i].AppObject = new nexIRC(260, 220);
+                            b = true;
+                            break;
+                        case "Audica":
+                            _apps[i].AppObject = new Audica(300, 240);
+                            b = true;
+                            break;
+                        case "Gorganopsid":
+                            _apps[i].AppObject = new Gorganopsid(340, 260);
                             b = true;
                             break;
                     }

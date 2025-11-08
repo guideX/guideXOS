@@ -1,7 +1,8 @@
+using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using System.Windows.Forms;
 
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     /// <summary>
     /// Simple shutdown confirmation dialog with Yes/No buttons
     /// </summary>
@@ -44,7 +45,7 @@ namespace guideXOS.GUI {
                 }
                 // No -> close the dialog
                 if (mx >= noX && mx <= noX + BtnW && my >= btnY && my <= btnY + BtnH) {
-                    this.Visible = false;
+                    Visible = false;
                     return;
                 }
             }
@@ -73,8 +74,8 @@ namespace guideXOS.GUI {
             // Hover
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
-            bool overYes = (mx >= yesX && mx <= yesX + BtnW && my >= btnY && my <= btnY + BtnH);
-            bool overNo = (mx >= noX && mx <= noX + BtnW && my >= btnY && my <= btnY + BtnH);
+            bool overYes = mx >= yesX && mx <= yesX + BtnW && my >= btnY && my <= btnY + BtnH;
+            bool overNo = mx >= noX && mx <= noX + BtnW && my >= btnY && my <= btnY + BtnH;
 
             uint btnBg = 0xFF2A2A2A;
             uint btnBgHover = 0xFF343434;
@@ -83,12 +84,12 @@ namespace guideXOS.GUI {
             // No button
             Framebuffer.Graphics.FillRectangle(noX, btnY, BtnW, BtnH, overNo ? btnBgHover : btnBg);
             Framebuffer.Graphics.DrawRectangle(noX, btnY, BtnW, BtnH, border, 1);
-            WindowManager.font.DrawString(noX + 24, btnY + (BtnH / 2) - (WindowManager.font.FontSize / 2), "No");
+            WindowManager.font.DrawString(noX + 24, btnY + BtnH / 2 - WindowManager.font.FontSize / 2, "No");
 
             // Yes button
             Framebuffer.Graphics.FillRectangle(yesX, btnY, BtnW, BtnH, overYes ? btnBgHover : btnBg);
             Framebuffer.Graphics.DrawRectangle(yesX, btnY, BtnW, BtnH, border, 1);
-            WindowManager.font.DrawString(yesX + 22, btnY + (BtnH / 2) - (WindowManager.font.FontSize / 2), "Yes");
+            WindowManager.font.DrawString(yesX + 22, btnY + BtnH / 2 - WindowManager.font.FontSize / 2, "Yes");
         }
     }
 }

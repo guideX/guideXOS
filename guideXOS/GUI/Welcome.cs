@@ -27,6 +27,8 @@ namespace guideXOS.GUI {
             // Splash: fixed window, no minimize/maximize buttons
             ShowMinimize = false;
             ShowMaximize = false;
+            ShowTombstone = false;
+            ShowRestore = false;
             ShowInTaskbar = true;
         }
         /// <summary>

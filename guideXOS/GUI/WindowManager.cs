@@ -1,4 +1,5 @@
-﻿using guideXOS.FS;
+﻿using guideXOS.DefaultApps;
+using guideXOS.FS;
 using guideXOS.Misc;
 using System.Collections.Generic;
 using System.Drawing;

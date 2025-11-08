@@ -1,44 +1,57 @@
 using guideXOS.Kernel.Drivers;
 using System;
 using System.Drawing;
-using guideXOS; // NETv4, NIC drivers
-using guideXOS.OS; // AuthClient, Session
+using guideXOS.OS;
+using guideXOS.GUI;
 
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     internal class FConsole : Window {
-        private string Data;
+        private string Data; // output buffer
         public Image ScreenBuf;
-        private string Cmd;
+        private string Cmd; // current input
         private bool _keyDown = false; private byte _lastScan = 0;
+        private string _prompt = ">"; // prompt symbol
+        private string _cwd = ""; // current working directory
 
         public FConsole(int X, int Y) : base(X, Y, 640, 320) {
             ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowTombstone = true;
+            ShowRestore = true;
             Title = "Console";
             Cmd = string.Empty;
             Data = string.Empty;
             ScreenBuf = new Image(640, 320);
-            // Ensure built-in 8x16 font is initialized for ASCII rendering
             ASC16.Initialise();
+            _cwd = Desktop.Dir ?? "";
+            UpdateTitle();
             Rebind();
             Console.OnWrite += Console_OnWrite;
-            Console.WriteLine("Type help to get information!");
+            WriteLine("Type help to get information!");
+            WritePrompt();
         }
+
+        private void UpdateTitle() { Title = string.IsNullOrEmpty(_cwd) ? "Console" : "Console - " + _cwd; }
+
+        private void WritePrompt() { AppendRaw(GetPromptString()); }
+        private string GetPromptString() { string p = _cwd; if (string.IsNullOrEmpty(p)) p = "/"; return p + " " + _prompt + " "; }
 
         public void Rebind() { Keyboard.OnKeyChanged += Keyboard_OnKeyChanged; }
 
-        private static char MapFromKey(System.ConsoleKeyInfo key) {
+        private static char MapFromKey(ConsoleKeyInfo key) {
             if (key.KeyChar != '\0') return key.KeyChar;
             var k = key.Key;
-            bool shift = Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Shift);
-            bool caps = Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.CapsLock);
-            if (k == System.ConsoleKey.Space) return ' ';
-            if (k >= System.ConsoleKey.A && k <= System.ConsoleKey.Z) {
-                char c = (char)('a' + (k - System.ConsoleKey.A));
+            bool shift = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift);
+            bool caps = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.CapsLock);
+            if (k == ConsoleKey.Space) return ' ';
+            if (k >= ConsoleKey.A && k <= ConsoleKey.Z) {
+                char c = (char)('a' + (k - ConsoleKey.A));
                 if (shift ^ caps) { if (c >= 'a' && c <= 'z') c = (char)('A' + (c - 'a')); }
                 return c;
             }
-            if (k >= System.ConsoleKey.D0 && k <= System.ConsoleKey.D9) {
-                int d = (int)(k - System.ConsoleKey.D0);
+            if (k >= ConsoleKey.D0 && k <= ConsoleKey.D9) {
+                int d = k - ConsoleKey.D0;
                 if (!shift) return (char)('0' + d);
                 // Shifted number row
                 switch (d) {
@@ -55,45 +68,43 @@ namespace guideXOS.GUI {
                 }
             }
             switch (k) {
-                case System.ConsoleKey.OemPeriod: return shift ? '>' : '.';
-                case System.ConsoleKey.OemComma: return shift ? '<' : ',';
-                case System.ConsoleKey.OemMinus: return shift ? '_' : '-';
-                case System.ConsoleKey.OemPlus: return shift ? '+' : '=';
-                case System.ConsoleKey.Oem1: return shift ? ':' : ';';
-                case System.ConsoleKey.Oem2: return shift ? '?' : '/';
-                case System.ConsoleKey.Oem3: return shift ? '~' : '`';
-                case System.ConsoleKey.Oem4: return shift ? '{' : '[';
-                case System.ConsoleKey.Oem5: return shift ? '|' : '\\';
-                case System.ConsoleKey.Oem6: return shift ? '}' : ']';
-                case System.ConsoleKey.Oem7: return shift ? '"' : '\'';
+                case ConsoleKey.OemPeriod: return shift ? '>' : '.';
+                case ConsoleKey.OemComma: return shift ? '<' : ',';
+                case ConsoleKey.OemMinus: return shift ? '_' : '-';
+                case ConsoleKey.OemPlus: return shift ? '+' : '=';
+                case ConsoleKey.Oem1: return shift ? ':' : ';';
+                case ConsoleKey.Oem2: return shift ? '?' : '/';
+                case ConsoleKey.Oem3: return shift ? '~' : '`';
+                case ConsoleKey.Oem4: return shift ? '{' : '[';
+                case ConsoleKey.Oem5: return shift ? '|' : '\\';
+                case ConsoleKey.Oem6: return shift ? '}' : ']';
+                case ConsoleKey.Oem7: return shift ? '"' : '\'';
             }
             return '\0';
         }
 
-        private void Keyboard_OnKeyChanged(object sender, System.ConsoleKeyInfo key) {
-            if (!this.Visible) return;
-            if (key.KeyState != System.ConsoleKeyState.Pressed) { _keyDown = false; _lastScan = 0; return; }
+        private void Keyboard_OnKeyChanged(object sender, ConsoleKeyInfo key) {
+            if (!Visible) return;
+            if (key.KeyState != ConsoleKeyState.Pressed) { _keyDown = false; _lastScan = 0; return; }
             if (_keyDown && Keyboard.KeyInfo.ScanCode == _lastScan) return; // debounce same key while held
             _keyDown = true; _lastScan = (byte)Keyboard.KeyInfo.ScanCode;
 
-            if (key.Key == System.ConsoleKey.Backspace) {
-                if (Cmd.Length > 0) Cmd = Cmd.Substring(0, Cmd.Length - 1);
-                if (Data.Length > 0) Data = Data.Substring(0, Data.Length - 1);
+            if (key.Key == ConsoleKey.Backspace) {
+                if (Cmd.Length > 0) {
+                    Cmd = Cmd.Substring(0, Cmd.Length - 1); // remove from screen end
+                    if (Data.Length > 0) Data = Data.Substring(0, Data.Length - 1); // remove from output end
+                }
                 return;
             }
-
-            if (key.Key == System.ConsoleKey.Enter) {
-                HandleCommand(TrimSpaces(Cmd));
-                Console_OnWrite('\n'); Cmd = string.Empty; return;
+            if (key.Key == ConsoleKey.Enter) {
+                AppendRaw("\n"); HandleCommand(TrimSpaces(Cmd)); Cmd = string.Empty; WritePrompt(); return;
             }
-
             char ch = MapFromKey(key);
-            if (ch != '\0') { Console_OnWrite(ch); Cmd += ch; }
+            if (ch != '\0') { Cmd += ch; AppendRaw(ch.ToString()); }
         }
 
         private static string TrimSpaces(string s){
-            if (s == null) return string.Empty;
-            int a=0,b=s.Length-1; while(a<=b && s[a]==' ') a++; while(b>=a && s[b]==' ') b--; if (b<a) return string.Empty; return s.Substring(a,b-a+1);
+            if (s == null) return string.Empty; int a=0,b=s.Length-1; while(a<=b && s[a]==' ') a++; while(b>=a && s[b]==' ') b--; if (b<a) return string.Empty; return s.Substring(a,b-a+1);
         }
 
         private static bool TryParseIp(string s, out NETv4.IPAddress ip) {
@@ -113,14 +124,67 @@ namespace guideXOS.GUI {
             return true;
         }
 
+        private static bool StartsWithFast(string s, string pref){ int l=pref.Length; if (s.Length<l) return false; for(int i=0;i<l;i++){ if(s[i]!=pref[i]) return false; } return true; }
+        private static string JoinParts(string[] arr, char sep, int start){ if (start>=arr.Length) return string.Empty; string r=arr[start]; for(int i=start+1;i<arr.Length;i++){ r+=sep; r+=arr[i]; } return r; }
+
         private void HandleCommand(string cmdLine) {
             if (string.IsNullOrEmpty(cmdLine)) return;
             string[] parts = SplitArgs(cmdLine);
             string cmd = parts[0];
             switch (cmd) {
-                case "help":
-                    Console.WriteLine("Commands: help, shutdown, reboot, cpu, null, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <httpUrl>, authlogin <user> <pass>, authregister <user> <pass>, authtoken, logout");
+                case "cd": {
+                        if (parts.Length < 2) { WriteLine("Usage: cd <path>"); break; }
+                        string target = parts[1];
+                        if (target == "/" || target == "\\" ) { _cwd = ""; Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory"); break; }
+                        if (target == "..") {
+                            if (_cwd.Length > 0) {
+                                string p = _cwd;
+                                if (p[p.Length-1] == '/') p = p.Substring(0, p.Length-1);
+                                int last = p.LastIndexOf('/');
+                                if (last >= 0) p = p.Substring(0, last+1); else p = "";
+                                _cwd = p;
+                            }
+                            Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory"); break;
+                        }
+                        if (!target.EndsWith("/")) target += "/"; _cwd += target; Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory");
+                    }
                     break;
+                case "help": WriteLine("Commands: help, cd <path>, pwd, ls [path], cat <file>, echo <text> [>file], touch <file>, mkdir <dir>, rm <file>, shutdown, reboot, cpu, null, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <httpUrl>, authlogin <user> <pass>, authregister <user> <pass>, authtoken, logout"); break;
+                case "pwd": { string p = _cwd; if (string.IsNullOrEmpty(p)) p = "/"; WriteLine(p); } break;
+                case "ls": {
+                        string target = _cwd; if (parts.Length > 1) { target = parts[1]; if (target == "/") target = ""; if (target.Length > 0 && !target.EndsWith("/")) target += "/"; }
+                        var list = FS.File.GetFiles(target);
+                        if (list == null || list.Count == 0) { WriteLine("(empty)"); break; }
+                        for (int i=0;i<list.Count;i++){ var fi = list[i]; bool isDir = fi.Attribute == FS.FileAttribute.Directory; WriteLine((isDir?"d":"-")+" \t"+fi.Name); fi.Dispose(); }
+                    } break;
+                case "cat": {
+                        if (parts.Length < 2){ WriteLine("Usage: cat <file>"); break; }
+                        string path = parts[1]; if (path == "/") { WriteLine("Not a file"); break; }
+                        if (!StartsWithFast(path, "/") && _cwd.Length > 0) path = _cwd + path; // relative
+                        byte[] data = FS.File.ReadAllBytes(path);
+                        if (data == null) { WriteLine("Unable to read file"); break; }
+                        int len = data.Length; int max = len; char[] buf = new char[max]; for(int i=0;i<max;i++){ byte b=data[i]; buf[i]= b>=32 && b<127? (char)b : '.'; }
+                        WriteLine(new string(buf)); data.Dispose();
+                    } break;
+                case "echo": {
+                        if (parts.Length < 2){ WriteLine(""); break; }
+                        // detect redirection
+                        int gtIndex = -1; for(int i=1;i<parts.Length;i++){ if(parts[i]==">") { gtIndex=i; break; } }
+                        if (gtIndex==-1){ // no redirect
+                            string outText = JoinParts(parts,' ',1); WriteLine(outText); break; }
+                        if (gtIndex+1 >= parts.Length){ WriteLine("echo: missing filename after >"); break; }
+                        string fileName = parts[gtIndex+1]; string outText2=""; for(int i=1;i<gtIndex;i++){ if(i>1) outText2+=' '; outText2+=parts[i]; }
+                        if (!StartsWithFast(fileName, "/") && _cwd.Length>0) fileName = _cwd + fileName; byte[] d=new byte[outText2.Length]; for(int i=0;i<d.Length;i++) d[i]=(byte)(outText2[i]<128?outText2[i]:'?'); FS.File.WriteAllBytes(fileName,d); d.Dispose(); Desktop.InvalidateDirCache(); WriteLine("Written " + fileName);
+                    } break;
+                case "touch": {
+                        if (parts.Length<2){ WriteLine("Usage: touch <file>"); break; }
+                        string fileName = parts[1]; if (!StartsWithFast(fileName, "/") && _cwd.Length>0) fileName = _cwd + fileName; byte[] empty = new byte[0]; FS.File.WriteAllBytes(fileName, empty); empty.Dispose(); Desktop.InvalidateDirCache(); WriteLine("Created " + fileName); } break;
+                case "mkdir": {
+                        WriteLine("mkdir not supported by current filesystem");
+                    } break;
+                case "rm": {
+                        WriteLine("rm not supported (delete not implemented)");
+                    } break;
                 case "shutdown": Power.Shutdown(); break;
                 case "reboot": Power.Reboot(); break;
                 case "cpu": break;
@@ -205,7 +269,7 @@ namespace guideXOS.GUI {
                     Session.LoginToken = string.Empty; Console.WriteLine("Logged out.");
                     break;
                 default:
-                    Console.WriteLine($"No such command: \"{cmdLine}\"");
+                    WriteLine("No such command: \"" + cmdLine + "\"");
                     break;
             }
         }
@@ -223,7 +287,7 @@ namespace guideXOS.GUI {
             return res;
         }
 
-        public override void OnDraw() { base.OnDraw(); string s1 = Data + "_"; DrawString(X, Y, s1, Height, Width); }
+        public override void OnDraw() { base.OnDraw(); DrawString(X, Y, Data, Height, Width); }
 
         public void DrawString(int X, int Y, string Str, int HeightLimit = -1, int LineLimit = -1) {
             // Render with built-in ASC16 font to guarantee ASCII punctuation shows
@@ -245,11 +309,8 @@ namespace guideXOS.GUI {
             }
         }
 
-        private void Console_OnWrite(char chr) {
-            if (Program.FConsole != null && Program.FConsole.Visible == false) { WindowManager.MoveToEnd(Program.FConsole); Program.FConsole.Visible = true; }
-            Data += chr;
-        }
-
-        public void WriteLine(string line) { Console.WriteLine(line); }
+        private void AppendRaw(string s) { Data += s; }
+        private void Console_OnWrite(char chr) { AppendRaw(chr.ToString()); }
+        public void WriteLine(string line) { AppendRaw(line + "\n"); }
     }
 }

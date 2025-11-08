@@ -25,10 +25,15 @@ namespace guideXOS.DefaultApps {
         private SaveDialog _dlg;
         private SaveChangesDialog _confirmDlg;
         private byte _lastScan; private bool _keyDown;
+        // Status bar
+        private int _statusH = 26;
+        // Track up to two currently pressed make scan codes (0 = none)
+        private byte _k1; private byte _k2;
 
         public Notepad(int x, int y) : base(x, y, 700, 460) {
             Title = "Notepad";
             _text = string.Empty; _clickLock = false; _savedPath = null; _dirty = false; _dlg = null; _confirmDlg = null;
+            _k1 = 0; _k2 = 0;
             // subscribe keyboard handler
             Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
         }
@@ -98,8 +103,30 @@ namespace guideXOS.DefaultApps {
             return '\0';
         }
 
+        private void UpdateStatusKeys(ConsoleKeyInfo key) {
+            // Maintain up to two currently pressed make scan codes
+            byte scan = (byte)Keyboard.KeyInfo.ScanCode;
+            bool released = key.KeyState == ConsoleKeyState.Released;
+            byte make = released ? (byte)(scan >= 0x80 ? scan - 0x80 : scan) : scan;
+
+            if (released) {
+                if (_k1 == make) _k1 = 0;
+                else if (_k2 == make) _k2 = 0;
+            } else { // pressed
+                if (_k1 == 0 || _k1 == make) { _k1 = make; }
+                else if (_k2 == 0 || _k2 == make) { _k2 = make; }
+                else { _k2 = make; }
+            }
+        }
+
         private void Keyboard_OnKeyChanged(object sender, ConsoleKeyInfo key) {
             if (!Visible) return;
+            // Always update key status pair for statusbar
+            UpdateStatusKeys(key);
+
+            Desktop.msgbox.SetText($"Scan: 0x{Keyboard.KeyInfo.ScanCode:X2}");
+            Desktop.msgbox.Visible = true;
+
             if ((_dlg != null && _dlg.Visible) || (_confirmDlg != null && _confirmDlg.Visible)) return; // let dialog handle keys when visible
             if (key.KeyState != ConsoleKeyState.Pressed) { _keyDown = false; _lastScan = 0; return; }
             if (_keyDown && Keyboard.KeyInfo.ScanCode == _lastScan) return; // de-bounce to avoid repeats
@@ -164,11 +191,55 @@ namespace guideXOS.DefaultApps {
             uint cWrap = UI.ButtonFillColor(bxWrap, by, _btnWWrap, _btnH, 0xFF3A3A3A, 0xFF444444, 0xFF4A4A4A);
             Framebuffer.Graphics.FillRectangle(bxWrap, by, _btnWWrap, _btnH, cWrap); WindowManager.font.DrawString(bxWrap + 10, by + (_btnH / 2 - WindowManager.font.FontSize / 2), _wrap ? "Wrap" : "NoWrap");
 
-            int tx = cx; int ty = cy + _btnH + 8; int tw = cw; int th = ch - (_btnH + 8);
+            int tx = cx; int ty = cy + _btnH + 8; int tw = cw; int th = ch - (_btnH + 8) - (_statusH + 6);
+            if (th < 20) th = 20; // guard
             Framebuffer.Graphics.AFillRectangle(tx, ty, tw, th, 0x80282828);
             // Word wrap toggle
             if (_wrap) WindowManager.font.DrawString(tx + 6, ty + 6, _text, tw - 12, WindowManager.font.FontSize * 3);
             else WindowManager.font.DrawString(tx + 6, ty + 6, _text);
+
+            // Status bar (bottom)
+            DrawStatusBar(cx, cy, cw, ch);
+        }
+
+        private void DrawStatusBar(int cx, int cy, int cw, int ch) {
+            int sx = cx; int sy = Y + Height - _padding - _statusH; int sw = cw; int sh = _statusH;
+            // background and border
+            Framebuffer.Graphics.FillRectangle(sx, sy, sw, sh, 0xFF252525);
+            Framebuffer.Graphics.DrawRectangle(sx, sy, sw, sh, 0xFF3A3A3A, 1);
+
+            // Compose hex keys text (up to two) in format: 0xNN, 0xNN
+            string hex = string.Empty;
+            if (_k1 != 0 && _k2 != 0) hex = "0x" + _k1.ToString("X2") + ", " + "0x" + _k2.ToString("X2");
+            else if (_k1 != 0) hex = "0x" + _k1.ToString("X2");
+            else if (_k2 != 0) hex = "0x" + _k2.ToString("X2");
+
+            int textW = WindowManager.font.MeasureString(hex);
+            int rightPadding = 8;
+            int tx = sx + sw - rightPadding - textW;
+            int ty = sy + (sh / 2) - (WindowManager.font.FontSize / 2);
+            if (textW > 0) WindowManager.font.DrawString(tx, ty, hex);
+
+            // Badges for modifiers to the left of hex text
+            bool shift = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift);
+            bool caps = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.CapsLock);
+            int gap = 8;
+            int curX = tx - gap;
+            int badgeH = WindowManager.font.FontSize + 6;
+            int badgeY = sy + (sh / 2) - (badgeH / 2);
+
+            if (caps) { curX = DrawBadge(curX, badgeY, "CAPS"); curX -= 6; }
+            if (shift) { curX = DrawBadge(curX, badgeY, "SHIFT"); curX -= 6; }
+        }
+
+        private int DrawBadge(int rightX, int y, string text) {
+            int padX = 8; int h = WindowManager.font.FontSize + 6; int w = WindowManager.font.MeasureString(text) + padX * 2;
+            int x = rightX - w;
+            // subtle translucent fill and border (blue-ish like selection)
+            UIPrimitives.AFillRoundedRect(x, y, w, h, 0x332A5B9A, 6);
+            UIPrimitives.DrawRoundedRect(x, y, w, h, 0xFF3F7FBF, 1, 6);
+            WindowManager.font.DrawString(x + padX, y + (h / 2 - WindowManager.font.FontSize / 2), text);
+            return x; // return new left edge to continue placing leftwards
         }
     }
 }

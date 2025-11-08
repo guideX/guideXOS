@@ -6,17 +6,41 @@ namespace guideXOS.GUI {
     /// Window
     /// </summary>
     abstract class Window {
-        // Animation support
+        /// <summary>
+        /// Window Animation Type
+        /// </summary>
         enum WindowAnimationType { None, FadeIn, FadeOutClose, Minimize, Restore }
-        WindowAnimationType _animType = WindowAnimationType.None;
+        /// <summary>
+        /// Animation Type
+        /// </summary>
+        WindowAnimationType _animType = WindowAnimationType.FadeIn;
+        /// <summary>
+        /// Animation Start Ticks
+        /// </summary>
         ulong _animStartTicks;
+        /// <summary>
+        /// Animation Duration Ms
+        /// </summary>
         int _animDurationMs;
+        /// <summary>
+        /// Animation Start Y
+        /// </summary>
         int _animStartY;
+        /// <summary>
+        /// Animation End Y
+        /// </summary>
         int _animEndY;
+        /// <summary>
+        /// Overlay Alpha for fade
+        /// </summary>
         byte _overlayAlpha; // 0..255
-
+        /// <summary>
+        /// Is Animating
+        /// </summary>
         bool IsAnimating => _animType != WindowAnimationType.None;
-
+        /// <summary>
+        /// Begin Fade In
+        /// </summary>
         void BeginFadeIn() {
             if (!UISettings.EnableFadeAnimations) return;
             _animType = WindowAnimationType.FadeIn;
@@ -24,6 +48,9 @@ namespace guideXOS.GUI {
             _animDurationMs = UISettings.FadeInDurationMs;
             _overlayAlpha = 255;
         }
+        /// <summary>
+        /// Begin Fade Out Close
+        /// </summary>
         void BeginFadeOutClose() {
             if (!UISettings.EnableFadeAnimations) { this._visible = false; return; }
             _animType = WindowAnimationType.FadeOutClose;
@@ -31,6 +58,9 @@ namespace guideXOS.GUI {
             _animDurationMs = UISettings.FadeOutDurationMs;
             _overlayAlpha = 0;
         }
+        /// <summary>
+        /// Begin Minimize
+        /// </summary>
         void BeginMinimize() {
             if (!UISettings.EnableWindowSlideAnimations) { IsMinimized = true; return; }
             _animType = WindowAnimationType.Minimize;
@@ -39,6 +69,9 @@ namespace guideXOS.GUI {
             _animStartY = Y;
             _animEndY = Framebuffer.Height + Height; // slide below screen
         }
+        /// <summary>
+        /// Begin Restore
+        /// </summary>
         void BeginRestore() {
             if (!UISettings.EnableWindowSlideAnimations) { Y = _normY; IsMinimized = false; return; }
             // start from off-screen bottom to normal Y
@@ -49,6 +82,9 @@ namespace guideXOS.GUI {
             _animStartY = Y;
             _animEndY = _normY;
         }
+        /// <summary>
+        /// Update Animation
+        /// </summary>
         void UpdateAnimation() {
             if (!IsAnimating) return;
             // compute progress 0..1 based on Timer.Ticks (assumed ms-scale)
@@ -128,7 +164,14 @@ namespace guideXOS.GUI {
         /// Minimized or maximized state
         /// </summary>
         public bool IsMinimized { get; private set; }
+        /// <summary>
+        /// Is Maximized
+        /// </summary>
         public bool IsMaximized { get; private set; }
+        /// <summary>
+        /// Added: tombstone state (freeze UI until restored)
+        /// </summary>
+        public bool IsTombstoned { get; private set; }
         /// <summary>
         /// Controls whether this window shows in the taskbar
         /// </summary>
@@ -136,8 +179,19 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Controls visibility of Minimize/Maximize buttons
         /// </summary>
-        public bool ShowMinimize = true;
-        public bool ShowMaximize = true;
+        public bool ShowMinimize = false;
+        /// <summary>
+        /// Show Maximize button
+        /// </summary>
+        public bool ShowMaximize = false;
+        /// <summary>
+        /// Show Tombstone Button
+        /// </summary>
+        public bool ShowTombstone = false;
+        /// <summary>
+        /// Show Restore
+        /// </summary>
+        public bool ShowRestore = false;
         /// <summary>
         /// Constructor
         /// </summary>
@@ -187,6 +241,94 @@ namespace guideXOS.GUI {
         /// Index
         /// </summary>
         public int Index { get => WindowManager.Windows.IndexOf(this); }
+
+        // Title buttons state and layout
+        enum TitleButton { None, Minimize, Maximize, Restore, Tombstone, Close }
+        TitleButton _hoverBtn = TitleButton.None;
+        TitleButton _pressedBtn = TitleButton.None;
+        bool _captureButtons = false;
+        int _btnSize, _btnY, _btnH;
+        int _rcCloseX, _rcTombX, _rcRestoreX, _rcMaxX, _rcMinX;
+        const int _btnSpacing = 6;
+
+        void ComputeButtonRects() {
+            _btnSize = BarHeight - 12; if (_btnSize < 16) _btnSize = 16; _btnH = _btnSize; _btnY = Y - BarHeight + (BarHeight - _btnSize) / 2;
+            int right = X + Width - 8;
+            _rcCloseX = right - _btnSize;
+            _rcTombX = _rcCloseX - _btnSpacing - _btnSize;
+            _rcRestoreX = _rcTombX - _btnSpacing - _btnSize;
+            _rcMaxX = _rcRestoreX - _btnSpacing - _btnSize;
+            _rcMinX = _rcMaxX - _btnSpacing - _btnSize;
+        }
+
+        bool Hit(int mx, int my, int x, int y, int w, int h) => (mx >= x && mx <= x + w && my >= y && my <= y + h);
+
+        TitleButton HitTestButtons(int mx, int my) {
+            if (Hit(mx, my, _rcCloseX, _btnY, _btnSize, _btnH)) return TitleButton.Close;
+            if (ShowTombstone && Hit(mx, my, _rcTombX, _btnY, _btnSize, _btnH)) return TitleButton.Tombstone;
+            if (ShowRestore && Hit(mx, my, _rcRestoreX, _btnY, _btnSize, _btnH)) return TitleButton.Restore;
+            if (ShowMaximize && Hit(mx, my, _rcMaxX, _btnY, _btnSize, _btnH)) return TitleButton.Maximize;
+            if (ShowMinimize && Hit(mx, my, _rcMinX, _btnY, _btnSize, _btnH)) return TitleButton.Minimize;
+            return TitleButton.None;
+        }
+        /// <summary>
+        /// Perform Button
+        /// </summary>
+        /// <param name="b"></param>
+        void PerformButton(TitleButton b) {
+            switch (b) {
+                case TitleButton.Close: BeginFadeOutClose(); break;
+                case TitleButton.Minimize: if (ShowMinimize) Minimize(); break;
+                case TitleButton.Maximize: if (ShowMaximize) { if (IsMaximized) Restore(); else Maximize(); } break;
+                case TitleButton.Restore: if (ShowRestore) { Restore(); IsTombstoned = false; } break;
+                case TitleButton.Tombstone: if (ShowTombstone) { IsTombstoned = true; } break;
+            }
+        }
+
+        void DrawTitleButton(int x, int y, int sz, TitleButton type, bool hover, bool pressed) {
+            uint baseFill = pressed ? 0xFF2A2A2Au : (hover ? 0xFF343434u : 0xFF2E2E2Eu);
+            uint border = 0xFF505050u;
+            // Glow halo on hover
+            if (hover) UIPrimitives.AFillRoundedRect(x - 2, y - 2, sz + 4, sz + 4, 0x332E89FF, 6);
+            UIPrimitives.AFillRoundedRect(x, y, sz, sz, baseFill, 6);
+            UIPrimitives.DrawRoundedRect(x, y, sz, sz, border, 1, 6);
+
+            uint fg = pressed ? 0xFFEEEEEEu : 0xFFFAFAFAu;
+            int cx = x + sz / 2; int cy = y + sz / 2; int lw = 2;
+            switch (type) {
+                case TitleButton.Close: {
+                        int r = sz / 3;
+                        // approximate thickness by drawing two lines
+                        Framebuffer.Graphics.DrawLine(cx - r, cy - r, cx + r, cy + r, fg);
+                        Framebuffer.Graphics.DrawLine(cx - r + 1, cy - r, cx + r + 1, cy + r, fg);
+                        Framebuffer.Graphics.DrawLine(cx + r, cy - r, cx - r, cy + r, fg);
+                        Framebuffer.Graphics.DrawLine(cx + r + 1, cy - r, cx - r + 1, cy + r, fg);
+                        break;
+                    }
+                case TitleButton.Minimize: {
+                        int w = sz / 2; int hx = cx - w / 2; int hy = y + sz - 8;
+                        Framebuffer.Graphics.FillRectangle(hx, hy, w, lw, fg);
+                        break;
+                    }
+                case TitleButton.Maximize: {
+                        int s = sz / 2; int rx = cx - s / 2; int ry = cy - s / 2;
+                        Framebuffer.Graphics.DrawRectangle(rx, ry, s, s, fg, lw);
+                        break;
+                    }
+                case TitleButton.Restore: {
+                        int s = sz / 2; int rx1 = cx - s / 2 + 3; int ry1 = cy - s / 2; int rx2 = cx - s / 2; int ry2 = cy - s / 2 + 3;
+                        Framebuffer.Graphics.DrawRectangle(rx1, ry1, s, s, fg, 1);
+                        Framebuffer.Graphics.DrawRectangle(rx2, ry2, s, s, fg, 1);
+                        break;
+                    }
+                case TitleButton.Tombstone: {
+                        int w = sz / 2; int rx = cx - w / 2; int ry = cy - w / 2;
+                        UIPrimitives.DrawRoundedRect(rx, ry, w, w + 3, fg, 1, 6);
+                        Framebuffer.Graphics.FillRectangle(rx - 2, ry + w + 4, w + 4, 2, fg);
+                        break;
+                    }
+            }
+        }
         /// <summary>
         /// On Input
         /// </summary>
@@ -195,52 +337,36 @@ namespace guideXOS.GUI {
             if (IsMinimized) return;
             if (_animType != WindowAnimationType.None) return;
 
-            if (Control.MouseButtons == MouseButtons.Left) {
-                // Close
-                if (
-                    !WindowManager.HasWindowMoving &&
-                    Control.MousePosition.X > CloseButtonX && Control.MousePosition.X < CloseButtonX + WindowManager.CloseButton.Width &&
-                    Control.MousePosition.Y > CloseButtonY && Control.MousePosition.Y < CloseButtonY + WindowManager.CloseButton.Height
-                ) {
-                    BeginFadeOutClose();
-                    return;
-                }
-                // Minimize
-                if (ShowMinimize && !WindowManager.HasWindowMoving && Control.MousePosition.X > MinButtonX && Control.MousePosition.X < MinButtonX + WindowManager.MinimizeButton.Width && Control.MousePosition.Y > ButtonsY && Control.MousePosition.Y < ButtonsY + WindowManager.MinimizeButton.Height) {
-                    Minimize(); return;
-                }
-                // Maximize/Restore
-                if (ShowMaximize && !WindowManager.HasWindowMoving && Control.MousePosition.X > MaxButtonX && Control.MousePosition.X < MaxButtonX + WindowManager.MaximizeButton.Width && Control.MousePosition.Y > ButtonsY && Control.MousePosition.Y < ButtonsY + WindowManager.MaximizeButton.Height) {
-                    if (IsMaximized) Restore(); else Maximize(); return;
-                }
-                // Drag title bar
-                if (!WindowManager.HasWindowMoving && !Move && Control.MousePosition.X > X && Control.MousePosition.X < X + Width && Control.MousePosition.Y > Y - BarHeight && Control.MousePosition.Y < Y) {
-                    WindowManager.MoveToEnd(this);
-                    Move = true;
-                    WindowManager.HasWindowMoving = true;
-                    OffsetX = Control.MousePosition.X - X;
-                    OffsetY = Control.MousePosition.Y - Y;
-                }
+            ComputeButtonRects();
+            int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
+            _hoverBtn = HitTestButtons(mx, my);
+            bool left = Control.MouseButtons == MouseButtons.Left;
+
+            // Title buttons interaction
+            if (left) {
+                if (!_captureButtons && _hoverBtn != TitleButton.None) { _pressedBtn = _hoverBtn; _captureButtons = true; return; }
             } else {
-                Move = false;
-                WindowManager.HasWindowMoving = false;
+                if (_captureButtons) {
+                    if (_hoverBtn == _pressedBtn) PerformButton(_pressedBtn);
+                    _pressedBtn = TitleButton.None; _captureButtons = false; return;
+                }
             }
 
+            // Block other input when tombstoned
+            if (IsTombstoned) return;
+
+            // Drag title bar
+            if (Control.MouseButtons == MouseButtons.Left) {
+                if (!WindowManager.HasWindowMoving && !Move && mx > X && mx < X + Width && my > Y - BarHeight && my < Y) {
+                    WindowManager.MoveToEnd(this);
+                    Move = true; WindowManager.HasWindowMoving = true; OffsetX = mx - X; OffsetY = my - Y;
+                }
+            } else { Move = false; WindowManager.HasWindowMoving = false; }
+
             if (Move) {
-                X = Control.MousePosition.X - OffsetX;
-                Y = Control.MousePosition.Y - OffsetY;
-                ClampToScreen();
-                _normX = X; _normY = Y; _normW = Width; _normH = Height;
+                X = mx - OffsetX; Y = my - OffsetY; ClampToScreen(); _normX = X; _normY = Y; _normW = Width; _normH = Height;
             }
         }
-        /// <summary>
-        /// Button placement
-        /// </summary>
-        private int ButtonsY => Y - BarHeight + (BarHeight / 2) - (WindowManager.CloseButton.Height / 2);
-        private int CloseButtonX => X + Width + 2 - (BarHeight / 2) - (WindowManager.CloseButton.Width / 2);
-        private int CloseButtonY => Y - BarHeight + (BarHeight / 2) - (WindowManager.CloseButton.Height / 2);
-        private int MaxButtonX => CloseButtonX - (WindowManager.MaximizeButton.Width + 6);
-        private int MinButtonX => MaxButtonX - (WindowManager.MinimizeButton.Width + 6);
         /// <summary>
         /// On Draw
         /// </summary>
@@ -249,38 +375,40 @@ namespace guideXOS.GUI {
             if (IsMinimized && _animType != WindowAnimationType.Restore) return;
             if (Framebuffer.Graphics == null || WindowManager.font == null) return;
 
-            // Update animation state and adjust properties
             UpdateAnimation();
 
-            // Glassy title bar: blur background then tint (smaller radius for perf)
-            int barX = X;
-            int barY = Y - BarHeight;
-            int barW = Width;
-            int barH = BarHeight;
+            int barX = X; int barY = Y - BarHeight; int barW = Width; int barH = BarHeight;
             Framebuffer.Graphics.BlurRectangle(barX, barY, barW, barH, 3);
-            // subtle dark tint with alpha, rounded at top for nicer look
             UIPrimitives.AFillRoundedRectTop(barX, barY, barW, barH, 0x66111111, 4);
 
-            string title = Title;
-            if (title == null) title = string.Empty;
+            string title = Title ?? string.Empty;
             int measured = WindowManager.font.MeasureString(title);
             int tx = X + (Width / 2) - (measured / 2);
             int ty = Y - BarHeight + (BarHeight / 4);
             WindowManager.font.DrawString(tx, ty, title);
-            // Buttons
-            if (WindowManager.CloseButton != null)
-                Framebuffer.Graphics.DrawImage(CloseButtonX, CloseButtonY, WindowManager.CloseButton);
-            if (ShowMaximize && WindowManager.MaximizeButton != null)
-                Framebuffer.Graphics.DrawImage(MaxButtonX, ButtonsY, WindowManager.MaximizeButton);
-            if (ShowMinimize && WindowManager.MinimizeButton != null)
-                Framebuffer.Graphics.DrawImage(MinButtonX, ButtonsY, WindowManager.MinimizeButton);
-            // Content background: slightly translucent with subtle rounding
+
+            // Custom title buttons with glow and press states
+            ComputeButtonRects();
+            DrawTitleButton(_rcMinX, _btnY, _btnSize, TitleButton.Minimize, _hoverBtn == TitleButton.Minimize, _pressedBtn == TitleButton.Minimize && _captureButtons);
+            DrawTitleButton(_rcMaxX, _btnY, _btnSize, TitleButton.Maximize, _hoverBtn == TitleButton.Maximize, _pressedBtn == TitleButton.Maximize && _captureButtons);
+            DrawTitleButton(_rcRestoreX, _btnY, _btnSize, TitleButton.Restore, _hoverBtn == TitleButton.Restore, _pressedBtn == TitleButton.Restore && _captureButtons);
+            DrawTitleButton(_rcTombX, _btnY, _btnSize, TitleButton.Tombstone, _hoverBtn == TitleButton.Tombstone, _pressedBtn == TitleButton.Tombstone && _captureButtons);
+            DrawTitleButton(_rcCloseX, _btnY, _btnSize, TitleButton.Close, _hoverBtn == TitleButton.Close, _pressedBtn == TitleButton.Close && _captureButtons);
+
+            // Content
             UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0xCC222222, 4);
             DrawBorder();
 
-            // Fade overlay if active
+            // Tombstone overlay
+            if (IsTombstoned) {
+                UIPrimitives.AFillRoundedRect(X, Y, Width, Height, 0x88111111, 4);
+                string msg = "Tombstoned"; int tw = WindowManager.font.MeasureString(msg);
+                WindowManager.font.DrawString(X + (Width - tw) / 2, Y + (Height - WindowManager.font.FontSize) / 2, msg);
+            }
+
+            // Fade overlay
             if (_overlayAlpha > 0 && _animType != WindowAnimationType.None && (_animType == WindowAnimationType.FadeIn || _animType == WindowAnimationType.FadeOutClose)) {
-                uint col = (uint)(_overlayAlpha) << 24; // black with alpha
+                uint col = (uint)(_overlayAlpha) << 24;
                 UIPrimitives.AFillRoundedRect(X - 1, Y - BarHeight - 1, Width + 2, Height + BarHeight + 2, col, 4);
             }
         }
@@ -332,5 +460,13 @@ namespace guideXOS.GUI {
             X = 0; Y = BarHeight; Width = Framebuffer.Width; Height = Framebuffer.Height - (BarHeight + WindowManagerMinBar());
         }
         private int WindowManagerMinBar() { return 40; } // taskbar height
+        /// <summary>
+        /// Tombstone (freeze/disable) the window until restored
+        /// </summary>
+        public void Tombstone() { IsTombstoned = true; }
+        /// <summary>
+        /// Remove tombstone (enable input)
+        /// </summary>
+        public void Untombstone() { IsTombstoned = false; }
     }
 }

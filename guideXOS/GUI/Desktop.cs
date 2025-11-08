@@ -1,12 +1,11 @@
+using guideXOS.DefaultApps;
 using guideXOS.FS;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using guideXOS.OS;
 using System.Collections.Generic;
-//using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
-using guideXOS.Graph;
 namespace guideXOS.GUI {
     /// <summary>
     /// Desktop

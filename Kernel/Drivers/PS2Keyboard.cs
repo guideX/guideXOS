@@ -1,102 +1,130 @@
-using guideXOS;
+//http://cc.etsii.ull.es/ftp/antiguo/EC/AOA/APPND/Apndxc.pdf
+using guideXOS.Misc;
 using System;
-
+using static System.ConsoleKey;
 namespace guideXOS.Kernel.Drivers {
-    public static class PS2Keyboard {
-        private static bool _shift = false;
-        private static bool _capsLock = false;
-        private static bool _extended = false; // <-- Tracks 0xE0 state
+    /// <summary>
+    /// PS2 Keyboard
+    /// </summary>
+    public static unsafe class PS2Keyboard {
+        /// <summary>
+        /// Key Chars
+        /// </summary>
+        private static char[] _keyChars;
+        /// <summary>
+        /// Key Chars Shift
+        /// </summary>
+        private static char[] _keyCharsShift;
+        /// <summary>
+        /// Keys
+        /// </summary>
+        private static ConsoleKey[] _keys;
 
-        private static readonly char[] _scanCodeMap = new char[]
-        {
-            '\0','\x1B','1','2','3','4','5','6','7','8','9','0','-','=', '\b',
-            '\t','q','w','e','r','t','y','u','i','o','p','[',']','\n','\0',
-            'a','s','d','f','g','h','j','k','l',';','\'','`','\0','\\',
-            'z','x','c','v','b','n','m',',','.','/','\0','*','\0',' ','\0',
-            '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0',
-            '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0',
-            '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0'
-        };
+        // Keep track of modifier state separately
+        private static bool _shiftPressed = false;
+        private static bool _ctrlPressed = false;
+        private static bool _altPressed = false;
+        private static bool _capsLockOn = false;
 
-        private static char ToUpper(char c) {
-            if (c >= 'a' && c <= 'z') return (char)(c - 32);
-            return c;
+        /// <summary>
+        /// Initialize
+        /// </summary>
+        /// <returns></returns>
+        public static bool Initialize() {
+            _keyChars = new char[] {
+                '\0','\0','1','2','3','4','5','6','7','8','9','0','-','=','\b','\t',
+                'q','w','e','r','t','y','u','i','o','p','[',']','\n','\0',
+                'a','s','d','f','g','h','j','k','l',';','\'','`','\0','\\',
+                'z','x','c','v','b','n','m',',','.','/','\0','*','\0',' ','\0',
+                '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','7','8','9','-',
+                '4','5','6','+','1','2','3','0','.','\0','\0','\0','\0','\0'
+            };
+            _keyCharsShift = new char[] {
+                '\0','\0','!','@','#','$','%','^','&','*','(',')','_','+','\b','\t',
+                'Q','W','E','R','T','Y','U','I','O','P','{','}','\n','\0',
+                'A','S','D','F','G','H','J','K','L',':','\"','~','\0','|',
+                'Z','X','C','V','B','N','M','<','>','?','\0','*','\0',' ','\0',
+                '\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','\0','7','8','9','-',
+                '4','5','6','+','1','2','3','0','.','\0','\0','\0','\0','\0'
+            };
+            _keys = new[] {
+                None, Escape, D1, D2, D3, D4, D5, D6, D7, D8, D9, D0, OemMinus, OemPlus, Backspace, Tab,
+                Q, W, E, R, T, Y, U, I, O, P, Oem4, Oem6, Return, LControlKey,
+                A, S, D, F, G, H, J, K, L, Oem1, Oem7, Oem3, LShiftKey, Oem8,
+                Z, X, C, V, B, N, M, OemComma, OemPeriod, Oem2, RShiftKey, Multiply, LMenu, Space, Capital, F1, F2, F3, F4, F5,
+                F6, F7, F8, F9, F10, NumLock, Scroll, Home, Up, Prior, Subtract, Left, Clear, Right, Add, End,
+                Down, Next, Insert, Delete, Snapshot, None, Oem5, F11, F12
+            };
+            Keyboard.CleanKeyInfo();
+            Interrupts.EnableInterrupt(0x21, &OnInterrupt);
+            return true;
         }
+        /// <summary>
+        /// On Interrupt
+        /// </summary>
+        public static void OnInterrupt() {
+            byte b = Native.In8(0x60);
+            PS2Keyboard.ProcessKey(b);
+        }
+        /// <summary>
+        /// Process Key
+        /// </summary>
+        /// <param name="b"></param>
+        public static void ProcessKey(byte b) {
+            bool isRelease = (b & 0x80) != 0;
+            byte scanCode = (byte)(b & 0x7F);
 
-        public static void Initialize() { }
+            if (scanCode >= _keys.Length) return;
 
-        public static void HandleScanCode(byte scanCode) {
-            // Check for extended sequence prefix
-            if (scanCode == 0xE0) {
-                _extended = true;
-                return; // wait for next interrupt
+            Keyboard.KeyInfo.ScanCode = b;
+            Keyboard.KeyInfo.KeyState = isRelease ? ConsoleKeyState.Released : ConsoleKeyState.Pressed;
+
+            // Handle modifier keys and update our tracked state
+            if (scanCode == 0x1D) { // Ctrl
+                _ctrlPressed = !isRelease;
+            }
+            if (scanCode == 0x2A || scanCode == 0x36) { // Left or Right Shift
+                _shiftPressed = !isRelease;
+            }
+            if (scanCode == 0x38) { // Alt
+                _altPressed = !isRelease;
+            }
+            if (scanCode == 0x3A && !isRelease) { // CapsLock toggle on press
+                _capsLockOn = !_capsLockOn;
             }
 
-            bool keyReleased = (scanCode & 0x80) != 0;
-            scanCode &= 0x7F;
+            // Update Keyboard.KeyInfo.Modifiers based on our tracked state
+            Keyboard.KeyInfo.Modifiers = ConsoleModifiers.None;
+            if (_shiftPressed) Keyboard.KeyInfo.Modifiers |= ConsoleModifiers.Shift;
+            if (_ctrlPressed) Keyboard.KeyInfo.Modifiers |= ConsoleModifiers.Control;
+            if (_altPressed) Keyboard.KeyInfo.Modifiers |= ConsoleModifiers.Alt;
+            if (_capsLockOn) Keyboard.KeyInfo.Modifiers |= ConsoleModifiers.CapsLock;
 
-            // Handle modifier keys
-            if (!_extended) {
-                if (scanCode == 42 || scanCode == 54) // Shift
-                {
-                    _shift = !keyReleased;
-                    return;
-                }
+            // Determine the character based on the current modifier state
+            Keyboard.KeyInfo.KeyChar = '\0';
 
-                if (scanCode == 58 && !keyReleased) // Caps lock toggle
-                {
-                    _capsLock = !_capsLock;
-                    return;
-                }
-            }
+            if (scanCode < _keyChars.Length) {
+                char baseChar = _keyChars[scanCode];
 
-            // Handle extended keys (like right ctrl, arrow keys, numpad enter, etc.)
-            if (_extended) {
-                // Example: ignore arrows, handle keypad symbols properly
-                if (scanCode == 0x35 && !keyReleased) {
-                    // '/' key on keypad or extended keyboard
-                    Console.Write('/');
-                }
-                _extended = false; // reset extended flag
-                return;
-            }
-
-            // Standard key processing
-            if (scanCode >= _scanCodeMap.Length) return;
-
-            char c = _scanCodeMap[scanCode];
-            if (c == '\0') return;
-
-            if ((_shift ^ _capsLock) && c >= 'a' && c <= 'z')
-                c = ToUpper(c);
-            else if (_shift) {
-                // Handle shifted symbols
-                switch (c) {
-                    case '1': c = '!'; break;
-                    case '2': c = '@'; break;
-                    case '3': c = '#'; break;
-                    case '4': c = '$'; break;
-                    case '5': c = '%'; break;
-                    case '6': c = '^'; break;
-                    case '7': c = '&'; break;
-                    case '8': c = '*'; break;
-                    case '9': c = '('; break;
-                    case '0': c = ')'; break;
-                    case '-': c = '_'; break;
-                    case '=': c = '+'; break;
-                    case '[': c = '{'; break;
-                    case ']': c = '}'; break;
-                    case '\\': c = '|'; break;
-                    case ';': c = ':'; break;
-                    case '\'': c = '"'; break;
-                    case ',': c = '<'; break;
-                    case '.': c = '>'; break;
-                    case '/': c = '?'; break;
+                if (_shiftPressed && scanCode < _keyCharsShift.Length) {
+                    // Shift is pressed - use shift map
+                    Keyboard.KeyInfo.KeyChar = _keyCharsShift[scanCode];
+                } else if (_capsLockOn && char.IsLetter(baseChar)) {
+                    // CapsLock only affects letters
+                    Keyboard.KeyInfo.KeyChar = baseChar.ToUpper();
+                } else {
+                    // Normal character
+                    Keyboard.KeyInfo.KeyChar = baseChar;
                 }
             }
 
-            if (!keyReleased)
-                Console.Write(c);
+            // Set the ConsoleKey
+            Keyboard.KeyInfo.Key = _keys[scanCode];
+
+            Keyboard.InvokeOnKeyChanged(Keyboard.KeyInfo);
+
+            //This is for some kind of PC that have PS2 emulation but doesn't have PS2 mouse emulation
+            Kbd2Mouse.OnKeyChanged(Keyboard.KeyInfo);
         }
     }
 }

@@ -17,7 +17,8 @@ namespace PetaPoco
 
         public Database(string connectionStringName)
         {
-            var cs = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
+            var cs = System.Configuration.ConfigurationManager.ConnectionStrings[0];
+            //var cs = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
             if (cs == null) throw new InvalidOperationException("Missing connection string: " + connectionStringName);
             _connectionString = cs.ConnectionString;
             _providerName = cs.ProviderName ?? "System.Data.SqlClient";

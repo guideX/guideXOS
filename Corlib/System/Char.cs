@@ -2,6 +2,17 @@
 
 namespace System {
     public struct Char {
+        /// <summary>
+        /// Custom function to check if a character is a basic English letter (A-Z or a-z).
+        /// This explicitly excludes accented characters, unlike Char.IsLetter().
+        /// </summary>
+        public static bool IsLetter(char c) {
+            return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
+        }
+        /// <summary>
+        /// To String
+        /// </summary>
+        /// <returns></returns>
         public override string ToString() {
             string r = " ";
             r._firstChar = this;

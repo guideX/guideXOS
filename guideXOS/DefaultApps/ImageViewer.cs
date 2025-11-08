@@ -1,6 +1,7 @@
+using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using System.Drawing;
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     /// <summary>
     /// Image Viewer
     /// </summary>
@@ -25,7 +26,7 @@ namespace guideXOS.GUI {
         public override void OnDraw() {
             base.OnDraw();
             if (image != null)
-                Framebuffer.Graphics.DrawImage(X + (Width / 2) - (image.Width / 2), Y + (Height / 2) - (image.Height / 2), image);
+                Framebuffer.Graphics.DrawImage(X + Width / 2 - image.Width / 2, Y + Height / 2 - image.Height / 2, image);
         }
         /// <summary>
         /// Set Image

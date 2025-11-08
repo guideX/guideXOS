@@ -3,8 +3,9 @@ using guideXOS.Kernel.Drivers;
 using System;
 using System.Windows.Forms;
 using System.Collections.Generic;
+using guideXOS.GUI;
 
-namespace guideXOS.GUI {
+namespace guideXOS.DefaultApps {
     // A more Windows-like Disk Management UI with multi-disk support (System IDE + USB MSC),
     // left disk list, right volumes grid, and partition map. Buttons to switch filesystem drivers.
     internal class DiskManager : Window {
@@ -98,10 +99,10 @@ namespace guideXOS.GUI {
             }
             if (_selectedDiskIndex >= _disks.Count) _selectedDiskIndex = _disks.Count - 1; if (_selectedDiskIndex < 0) _selectedDiskIndex = 0;
             var sel = GetSelected();
-            _cachedTotalCaption = sel != null && sel.HaveInfo ? $"Total: {FmtSize(sel.TotalSectors * (sel.BytesPerSector == 0 ? 512UL : (ulong)sel.BytesPerSector))}" : null;
+            _cachedTotalCaption = sel != null && sel.HaveInfo ? $"Total: {FmtSize(sel.TotalSectors * (sel.BytesPerSector == 0 ? 512UL : sel.BytesPerSector))}" : null;
         }
 
-        private DiskEntry GetSelected() { return (_disks.Count > 0 && _selectedDiskIndex >= 0 && _selectedDiskIndex < _disks.Count) ? _disks[_selectedDiskIndex] : null; }
+        private DiskEntry GetSelected() { return _disks.Count > 0 && _selectedDiskIndex >= 0 && _selectedDiskIndex < _disks.Count ? _disks[_selectedDiskIndex] : null; }
 
         private void ProbeOnce() {
             try {
@@ -116,9 +117,9 @@ namespace guideXOS.GUI {
 
         private static string FmtSize(ulong bytes) {
             const ulong KB = 1024; const ulong MB = 1024 * 1024; const ulong GB = 1024 * 1024 * 1024;
-            if (bytes >= GB) return ((bytes + (GB / 10)) / GB).ToString() + " GB";
-            if (bytes >= MB) return ((bytes + (MB / 10)) / MB).ToString() + " MB";
-            if (bytes >= KB) return ((bytes + (KB / 10)) / KB).ToString() + " KB";
+            if (bytes >= GB) return ((bytes + GB / 10) / GB).ToString() + " GB";
+            if (bytes >= MB) return ((bytes + MB / 10) / MB).ToString() + " MB";
+            if (bytes >= KB) return ((bytes + KB / 10) / KB).ToString() + " KB";
             return bytes.ToString() + " B";
         }
 
@@ -129,12 +130,12 @@ namespace guideXOS.GUI {
                 unsafe { fixed (byte* p = sec) Disk.Instance.Read(lbaStart, 1, p); }
                 if (sec.Length >= 512 && sec[257] == (byte)'u' && sec[258] == (byte)'s' && sec[259] == (byte)'t' && sec[260] == (byte)'a' && sec[261] == (byte)'r') return "TarFS";
                 if (sec.Length >= 512 && sec[510] == 0x55 && sec[511] == 0xAA) {
-                    ushort bytsPerSec = (ushort)(sec[11] | (sec[12] << 8)); byte secPerClus = sec[13];
+                    ushort bytsPerSec = (ushort)(sec[11] | sec[12] << 8); byte secPerClus = sec[13];
                     if (bytsPerSec == 512 || bytsPerSec == 1024 || bytsPerSec == 2048 || bytsPerSec == 4096) if (secPerClus != 0) return "FAT";
                 }
                 // EXT
                 var sb = new byte[1024]; unsafe { fixed (byte* p2 = sb) Disk.Instance.Read(lbaStart + 2, 2, p2); }
-                ushort magic = (ushort)(sb[56] | (sb[57] << 8)); if (magic == 0xEF53) return "EXT2";
+                ushort magic = (ushort)(sb[56] | sb[57] << 8); if (magic == 0xEF53) return "EXT2";
             } catch { }
             return "Unknown";
         }
@@ -161,8 +162,8 @@ namespace guideXOS.GUI {
                         for (int i = 0; i < 4; i++) {
                             int off = 446 + i * 16;
                             Part part = new Part(); part.Status = mbr[off + 0]; part.Type = mbr[off + 4];
-                            part.LbaStart = (uint)(mbr[off + 8] | (mbr[off + 9] << 8) | (mbr[off + 10] << 16) | (mbr[off + 11] << 24));
-                            part.LbaCount = (uint)(mbr[off + 12] | (mbr[off + 13] << 8) | (mbr[off + 14] << 16) | (mbr[off + 15] << 24));
+                            part.LbaStart = (uint)(mbr[off + 8] | mbr[off + 9] << 8 | mbr[off + 10] << 16 | mbr[off + 11] << 24);
+                            part.LbaCount = (uint)(mbr[off + 12] | mbr[off + 13] << 8 | mbr[off + 14] << 16 | mbr[off + 15] << 24);
                             part.Fs = DetectFsAtLBA(part.LbaStart);
                             entry.Parts[i] = part;
                         }
@@ -251,13 +252,13 @@ namespace guideXOS.GUI {
             if (sum != w) {
                 // scale down if necessary
                 if (sum > w) {
-                    float scale = (float)w / (float)sum;
+                    float scale = w / (float)sum;
                     int newsum = 0;
                     for (int i = 0; i < cw.Length; i++) { cw[i] = (int)(cw[i] * scale); if (cw[i] < 60) cw[i] = 60; newsum += cw[i]; }
                     // adjust last column to absorb diff
                     int diff = w - newsum; cw[cw.Length - 1] += diff;
                 } else {
-                    cw[cw.Length - 1] += (w - sum);
+                    cw[cw.Length - 1] += w - sum;
                 }
             }
 
@@ -273,8 +274,8 @@ namespace guideXOS.GUI {
                     string vol = sel.Name + ", Partition " + (i + 1).ToString();
                     string layout = "Simple";
                     string type = p.Fs ?? "Unknown";
-                    string status = (p.Status == 0x80 ? "Healthy (Active)" : "Healthy");
-                    ulong capB = (ulong)p.LbaCount * (sel.BytesPerSector == 0 ? 512UL : (ulong)sel.BytesPerSector);
+                    string status = p.Status == 0x80 ? "Healthy (Active)" : "Healthy";
+                    ulong capB = p.LbaCount * (sel.BytesPerSector == 0 ? 512UL : sel.BytesPerSector);
                     string cap = FmtSize(capB);
                     string free = "N/A"; string pct = "N/A";
                     DrawCell(cx, rowY, cw[0], RowH, vol); cx += cw[0];
@@ -299,13 +300,13 @@ namespace guideXOS.GUI {
             for (int i = 0; i < 4; i++) {
                 var p = sel.Parts[i]; if (p.LbaCount == 0) continue;
                 ulong start = p.LbaStart; ulong count = p.LbaCount; if (start > total) continue; if (start + count > total) count = total - start;
-                int segX = x + (int)((start * (ulong)w) / total); int segW = (int)((count * (ulong)w) / total); if (segW <= 0) segW = 1;
+                int segX = x + (int)(start * (ulong)w / total); int segW = (int)(count * (ulong)w / total); if (segW <= 0) segW = 1;
                 uint color = 0xFF4C8BF5; Framebuffer.Graphics.FillRectangle(segX, barY, segW, barH, color);
-                string lbl = (p.Fs ?? "Unknown") + ", " + FmtSize((ulong)p.LbaCount * (sel.BytesPerSector == 0 ? 512UL : (ulong)sel.BytesPerSector));
+                string lbl = (p.Fs ?? "Unknown") + ", " + FmtSize(p.LbaCount * (sel.BytesPerSector == 0 ? 512UL : sel.BytesPerSector));
                 // clip label within bar
                 int maxW = segW - 8; if (maxW > 20) WindowManager.font.DrawString(segX + 4, barY + (barH / 2 - WindowManager.font.FontSize / 2), lbl, maxW, WindowManager.font.FontSize);
             }
-            string cap = _cachedTotalCaption ?? $"Total: {FmtSize(sel.TotalSectors * (sel.BytesPerSector == 0 ? 512UL : (ulong)sel.BytesPerSector))}";
+            string cap = _cachedTotalCaption ?? $"Total: {FmtSize(sel.TotalSectors * (sel.BytesPerSector == 0 ? 512UL : sel.BytesPerSector))}";
             // ensure stays within right pane width
             WindowManager.font.DrawString(x, barY + barH + 6, cap, w, WindowManager.font.FontSize);
         }
@@ -372,8 +373,8 @@ namespace guideXOS.GUI {
 
             int off = 446 + freeSlot * 16; mbr[off + 0] = 0x00; mbr[off + 1] = 0xFE; mbr[off + 2] = 0xFF; mbr[off + 3] = 0xFF; mbr[off + 4] = 0x07; mbr[off + 5] = 0xFE; mbr[off + 6] = 0xFF; mbr[off + 7] = 0xFF;
             uint start = (uint)bestS; uint count = (uint)(bestE - bestS);
-            mbr[off + 8] = (byte)(start & 0xFF); mbr[off + 9] = (byte)((start >> 8) & 0xFF); mbr[off + 10] = (byte)((start >> 16) & 0xFF); mbr[off + 11] = (byte)((start >> 24) & 0xFF);
-            mbr[off + 12] = (byte)(count & 0xFF); mbr[off + 13] = (byte)((count >> 8) & 0xFF); mbr[off + 14] = (byte)((count >> 16) & 0xFF); mbr[off + 15] = (byte)((count >> 24) & 0xFF);
+            mbr[off + 8] = (byte)(start & 0xFF); mbr[off + 9] = (byte)(start >> 8 & 0xFF); mbr[off + 10] = (byte)(start >> 16 & 0xFF); mbr[off + 11] = (byte)(start >> 24 & 0xFF);
+            mbr[off + 12] = (byte)(count & 0xFF); mbr[off + 13] = (byte)(count >> 8 & 0xFF); mbr[off + 14] = (byte)(count >> 16 & 0xFF); mbr[off + 15] = (byte)(count >> 24 & 0xFF);
             mbr[510] = 0x55; mbr[511] = 0xAA;
             try { WithDisk(sel, () => { unsafe { fixed (byte* p = mbr) Disk.Instance.Write(0, 1, p); } }); _status = "Partition created. Refresh to view."; RefreshDisks(); } catch { _status = "Failed to write MBR"; }
         }

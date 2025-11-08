@@ -1,25 +1,37 @@
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddRazorPages();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/Error");
 }
+
+app.UseStaticFiles();
+
 app.UseRouting();
 
-app.UseAuthorization();
+// Very light-weight token forwarding: pages read token from cookie/localStorage via JS
 
-app.MapStaticAssets();
+app.MapRazorPages();
+app.MapControllers();
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}")
-    .WithStaticAssets();
+// Default route to desktop and fallback redirect to avoid ambiguous matches
+app.MapGet("/", async context =>
+{
+    context.Response.Redirect("/Desktop");
+    await Task.CompletedTask;
+});
 
+app.MapFallback(async context =>
+{
+    context.Response.Redirect("/Desktop");
+    await Task.CompletedTask;
+});
 
 app.Run();
