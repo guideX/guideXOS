@@ -12,7 +12,7 @@ namespace guideXOS.GUI {
         // Tabs
         private int _tabH = 28;
         private int _tabGap = 6;
-        private int _currentTab = 0; // 0 = Processes, 1 = Performance
+        private int _currentTab = 0; // 0 = Processes, 1 = Performance, 2 = Tombstoned
 
         // Layout
         private int _padding = 10;
@@ -23,6 +23,7 @@ namespace guideXOS.GUI {
 
         // Selection
         private int _selectedIndex = -1;
+        private int _selectedTombIndex = -1;
 
         // Performance charts
         class Chart {
@@ -88,12 +89,13 @@ namespace guideXOS.GUI {
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
-                int tabW = (cw - _tabGap) / 2;
-                int t0x = cx;
-                int t1x = cx + tabW + _tabGap;
-                if (my >= cy && my <= cy + _tabH) {
-                    if (mx >= t0x && mx <= t0x + tabW) { _currentTab = 0; return; }
-                    if (mx >= t1x && mx <= t1x + tabW) { _currentTab = 1; return; }
+                int tabCount = 3;
+                int tabW = (cw - (_tabGap * (tabCount - 1))) / tabCount;
+                int tx = cx;
+                for (int t = 0; t < tabCount; t++) {
+                    int tx2 = tx;
+                    if (my >= cy && my <= cy + _tabH && mx >= tx2 && mx <= tx2 + tabW) { _currentTab = t; return; }
+                    tx += tabW + _tabGap;
                 }
 
                 if (_currentTab == 0) {
@@ -127,6 +129,36 @@ namespace guideXOS.GUI {
                     if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
                         OnEndTask();
                     }
+                } else if (_currentTab == 2) {
+                    // Tombstoned tab
+                    // Hit-test list area
+                    int headerH = _rowHeight;
+                    int listX = cx;
+                    int listY = contentY;
+                    int listW = cw;
+                    int listH = ch - (_rowHeight + 60); // leave space for buttons
+
+                    // Row selection
+                    if (mx >= listX && mx <= listX + listW && my >= listY + headerH && my <= listY + listH) {
+                        int row = (my - (listY + headerH)) / _rowHeight;
+                        if (row < 0) row = 0;
+                        int tombCount = CountTombstoned();
+                        if (row < tombCount) _selectedTombIndex = row;
+                    }
+
+                    // Buttons
+                    int btnW = 150, btnH = 28;
+                    int btnRestoreX = X + Width - _padding - btnW;
+                    int btnRestoreY = Y + Height - _padding - btnH * 2 - 8;
+                    int btnEndX = X + Width - _padding - btnW;
+                    int btnEndY = Y + Height - _padding - btnH;
+                    if (mx >= btnRestoreX && mx <= btnRestoreX + btnW && my >= btnRestoreY && my <= btnRestoreY + btnH) {
+                        RestoreTombstoned();
+                    }
+
+                    if (mx >= btnEndX && mx <= btnEndX + btnW && my >= btnEndY && my <= btnEndY + btnH) {
+                        EndTombstoned();
+                    }
                 }
             } else if (Control.MouseButtons.HasFlag(MouseButtons.None)) {
                 _scrollDrag = false;
@@ -159,16 +191,88 @@ namespace guideXOS.GUI {
             int ch = chAll - _tabH - _tabGap;
 
             // Tabs background
-            int tabW = (cw - _tabGap) / 2;
-            DrawTab(cx, cy, tabW, _tabH, "Processes", _currentTab == 0);
-            DrawTab(cx + tabW + _tabGap, cy, tabW, _tabH, "Performance", _currentTab == 1);
+            int tabCount = 3;
+            int tabW = (cw - (_tabGap * (tabCount - 1))) / tabCount;
+            int tx = cx;
+            DrawTab(tx, cy, tabW, _tabH, "Processes", _currentTab == 0);
+            tx += tabW + _tabGap;
+            DrawTab(tx, cy, tabW, _tabH, "Performance", _currentTab == 1);
+            tx += tabW + _tabGap;
+            DrawTab(tx, cy, tabW, _tabH, "Tombstoned", _currentTab == 2);
 
             // Content panel
             Framebuffer.Graphics.FillRectangle(cx, contentY, cw, ch, 0xFF1E1E1E);
             Framebuffer.Graphics.DrawRectangle(cx - 1, contentY - 1, cw + 2, ch + 2, 0xFF333333, 1);
 
             if (_currentTab == 0) DrawProcesses(cx, contentY, cw, ch);
-            else DrawPerformance(cx, contentY, cw, ch);
+            else if (_currentTab == 1) DrawPerformance(cx, contentY, cw, ch);
+            else DrawTombstoned(cx, contentY, cw, ch);
+        }
+
+        private void DrawTombstoned(int x, int y, int w, int h) {
+            int headerH = _rowHeight;
+            DrawHeaderCell(x, y, w, headerH, "Tombstoned Apps");
+            int listY = y + headerH;
+            int listH = h - headerH - 60; // leave space for buttons
+            int dy = listY;
+            int tombCount = CountTombstoned();
+            for (int i = 0; i < tombCount; i++) {
+                var win = GetTombstonedAt(i);
+                bool sel = (i == _selectedTombIndex);
+                if (sel) Framebuffer.Graphics.FillRectangle(x, dy, w, _rowHeight, 0xFF2A2A2A);
+                string name = win != null ? (win.Title ?? "(no title)") : "(null)";
+                WindowManager.font.DrawString(x + 6, dy + 6, name, w - 12, WindowManager.font.FontSize);
+                dy += _rowHeight;
+            }
+
+            // Buttons
+            int btnW = 150, btnH = 28;
+            int btnRestoreX = X + Width - _padding - btnW;
+            int btnRestoreY = Y + Height - _padding - btnH * 2 - 8;
+            int btnEndX = X + Width - _padding - btnW;
+            int btnEndY = Y + Height - _padding - btnH;
+            Framebuffer.Graphics.FillRectangle(btnRestoreX, btnRestoreY, btnW, btnH, 0xFF26482E);
+            WindowManager.font.DrawString(btnRestoreX + 10, btnRestoreY + (btnH / 2 - WindowManager.font.FontSize / 2), "Restore");
+            Framebuffer.Graphics.FillRectangle(btnEndX, btnEndY, btnW, btnH, 0xFF482626);
+            WindowManager.font.DrawString(btnEndX + 10, btnEndY + (btnH / 2 - WindowManager.font.FontSize / 2), "End Tombstoned App");
+        }
+
+        private int CountTombstoned() {
+            int c = 0;
+            for (int i = 0; i < WindowManager.Windows.Count; i++) {
+                if (WindowManager.Windows[i].IsTombstoned) c++;
+            }
+            return c;
+        }
+
+        private Window GetTombstonedAt(int idx) {
+            int c = 0;
+            for (int i = 0; i < WindowManager.Windows.Count; i++) {
+                var w = WindowManager.Windows[i];
+                if (w.IsTombstoned) {
+                    if (c == idx) return w;
+                    c++;
+                }
+            }
+            return null;
+        }
+
+        private void RestoreTombstoned() {
+            if (_selectedTombIndex < 0) return;
+            var w = GetTombstonedAt(_selectedTombIndex);
+            if (w != null) {
+                w.Untombstone();
+                WindowManager.MoveToEnd(w);
+            }
+        }
+
+        private void EndTombstoned() {
+            if (_selectedTombIndex < 0) return;
+            var w = GetTombstonedAt(_selectedTombIndex);
+            if (w != null) {
+                WindowManager.Windows.Remove(w);
+                _selectedTombIndex = -1;
+            }
         }
 
         private void DrawTab(int x, int y, int w, int h, string title, bool selected) {

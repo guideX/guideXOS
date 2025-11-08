@@ -223,6 +223,8 @@ namespace guideXOS.GUI {
                 }
             }
             // Selection marquee unchanged...
+            // Draw taskbar and handle Start Menu interactions
+            Taskbar.Draw();
         }
         /// <summary>
         /// Last Point

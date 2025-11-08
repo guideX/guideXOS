@@ -289,8 +289,8 @@ namespace guideXOS.GUI {
                 case TitleButton.Close: BeginFadeOutClose(); break;
                 case TitleButton.Minimize: if (ShowMinimize) Minimize(); break;
                 case TitleButton.Maximize: if (ShowMaximize) { if (IsMaximized) Restore(); else Maximize(); } break;
-                case TitleButton.Restore: if (ShowRestore) { Restore(); IsTombstoned = false; } break;
-                case TitleButton.Tombstone: if (ShowTombstone) { IsTombstoned = true; } break;
+                case TitleButton.Restore: if (ShowRestore) { Restore(); IsTombstoned = false; this.Visible = true; } break;
+                case TitleButton.Tombstone: if (ShowTombstone) { IsTombstoned = true; this.Visible = false; } break;
             }
         }
 
@@ -506,11 +506,11 @@ namespace guideXOS.GUI {
         /// <summary>
         /// Tombstone (freeze/disable) the window until restored
         /// </summary>
-        public void Tombstone() { IsTombstoned = true; }
+        public void Tombstone() { IsTombstoned = true; this.Visible = false; }
         /// <summary>
         /// Remove tombstone (enable input)
         /// </summary>
-        public void Untombstone() { IsTombstoned = false; }
+        public void Untombstone() { IsTombstoned = false; this.Visible = true; }
         /// <summary>
         /// On Global Key
         /// </summary>
