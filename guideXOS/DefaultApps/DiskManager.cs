@@ -51,6 +51,12 @@ namespace guideXOS.DefaultApps {
         private int _bxRefreshX, _bxRefreshY;
 
         public DiskManager(int x, int y, int w = 920, int h = 560) : base(x, y, w, h) {
+            IsResizable = true;
+            ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowRestore = true;
+            ShowTombstone = true;
             Title = "Disk Management";
             _status = BuildStatus();
             RefreshDisks();

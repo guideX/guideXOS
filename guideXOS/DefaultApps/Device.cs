@@ -20,8 +20,12 @@ namespace guideXOS.DefaultApps {
 
         public Devices(int X, int Y, int W = 700, int H = 520) : base(X, Y, W, H) {
             Title = "Devices";
-            ShowInTaskbar = true;
             IsResizable = true;
+            ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowRestore = true;
+            ShowTombstone = true;
             BuildRows();
         }
 

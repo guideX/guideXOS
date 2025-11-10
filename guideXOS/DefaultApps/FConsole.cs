@@ -22,6 +22,7 @@ namespace guideXOS.DefaultApps {
             ShowMinimize = true;
             ShowTombstone = true;
             ShowRestore = true;
+            IsResizable = true;
             Title = "Console";
             Cmd = string.Empty;
             Data = string.Empty;
@@ -37,10 +38,14 @@ namespace guideXOS.DefaultApps {
             _textBufferForVi = string.Empty; _viPath = null; _viMode = false; _viInsert = false; _viCursor = 0;
         }
 
-        private void UpdateTitle() { Title = string.IsNullOrEmpty(_cwd) ? "Console" : "Console - " + _cwd; }
+        private void UpdateTitle() { Title = string.IsNullOrEmpty(_cwd) ? "Console" : "Console - /" + _cwd; }
 
         private void WritePrompt() { AppendRaw(GetPromptString()); }
-        private string GetPromptString() { string p = _cwd; if (string.IsNullOrEmpty(p)) p = "/"; return p + " " + _prompt + " "; }
+        private string GetPromptString() {
+            // Format prompt like [/path/] >
+            string p = string.IsNullOrEmpty(_cwd) ? "/" : "/" + _cwd; if (!p.EndsWith("/")) p += "/";
+            return "[" + p + "] " + _prompt + " ";
+        }
 
         public void Rebind() { Keyboard.OnKeyChanged += Keyboard_OnKeyChanged; }
 
@@ -161,14 +166,29 @@ namespace guideXOS.DefaultApps {
             string[] parts = SplitArgs(cmdLine);
             string cmd = parts[0];
             switch (cmd) {
-                case "help": WriteLine("Commands: help, pwd, ls, cd, goback, cdback, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
-                case "pwd": { string p = _cwd; if (string.IsNullOrEmpty(p)) p = "/"; WriteLine(p); } break;
+                case "help": WriteLine("Commands: help, pwd, ls, ll, cd, goback, cdback, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
+                case "pwd": { string p = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; WriteLine(p); } break;
                 case "ls": {
                         string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
-                        if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + target); break; }
+                        if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + (parts.Length>1?parts[1]:target)); break; }
                         var names = Posix.List(target);
                         if (names.Length == 0) { WriteLine("(empty)"); break; }
                         for (int i=0;i<names.Length;i++){ WriteLine(names[i]); }
+                    } break;
+                case "ll": { // verbose listing
+                        string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
+                        if (!Posix.DirectoryExists(target)) { WriteLine("ll: cannot access: " + (parts.Length>1?parts[1]:target)); break; }
+                        string rel = target=="/"?"":target.Substring(1);
+                        var list = FS.File.GetFiles(rel);
+                        if (list==null||list.Count==0){ WriteLine("(empty)"); break; }
+                        for(int i=0;i<list.Count;i++){
+                            var fi = list[i];
+                            char type = fi.Attribute==guideXOS.FS.FileAttribute.Directory? 'd':'-';
+                            // Attempt lightweight size (fallback to 0 if not exposed)
+                            uint size = 0;
+                            // Print name padded
+                            WriteLine(type + " " + PadRight(fi.Name,24) + " " + size.ToString());
+                        }
                     } break;
                 case "goback": case "cdback": case "cd" when parts.Length>1 && (parts[1]=="back"||parts[1]==".."):{
                         if (string.IsNullOrEmpty(_cwd)){ WriteLine("Already at root"); break; }
@@ -310,6 +330,8 @@ namespace guideXOS.DefaultApps {
                     break;
             }
         }
+
+        private static string PadRight(string s, int w){ if (s==null) s=""; int len=s.Length; if (len>=w) return s; char[] arr = new char[w]; int i=0; for(; i<len; i++) arr[i]=s[i]; for(; i<w; i++) arr[i]=' '; string r = new string(arr,0,w); arr.Dispose(); return r; }
 
         private static string[] SplitArgs(string s) {
             // simple split by spaces

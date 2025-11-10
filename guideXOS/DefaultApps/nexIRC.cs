@@ -30,6 +30,12 @@ namespace guideXOS.DefaultApps {
         private bool _handshakeSent;
 
         public nexIRC(int x, int y) : base(x, y, 800, 520) {
+            IsResizable = true;
+            ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowRestore = true;
+            ShowTombstone = true;
             Title = "nexIRC"; ShowInTaskbar = true;
             _log = new List<string>(256); _channels = new List<string>(32); _channels.Add(_currentChannel);
             Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;

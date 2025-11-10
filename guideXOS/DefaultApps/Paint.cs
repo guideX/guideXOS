@@ -10,7 +10,12 @@ namespace guideXOS.DefaultApps {
         Image img;
         Graphics g;
         public Paint(int X, int Y) : base(X, Y, 490, 500) {
+            IsResizable = true;
             ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowRestore = true;
+            ShowTombstone = true;
             Title = "Paint";
             Btns = new List<Button>();
             AddButton(10, 10, 0xFFC0392B);

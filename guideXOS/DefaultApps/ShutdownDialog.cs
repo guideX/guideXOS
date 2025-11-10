@@ -21,6 +21,12 @@ namespace guideXOS.DefaultApps {
             360,
             160) {
             Title = "Confirm Shutdown";
+            IsResizable = false;
+            ShowInTaskbar = true;
+            ShowMaximize = false;
+            ShowMinimize = true;
+            ShowRestore = false;
+            ShowTombstone = false;
         }
 
         public override void OnInput() {

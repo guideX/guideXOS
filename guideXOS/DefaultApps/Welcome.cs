@@ -31,6 +31,7 @@ namespace guideXOS.DefaultApps {
             ShowTombstone = false;
             ShowRestore = false;
             ShowInTaskbar = true;
+            IsResizable = false;
         }
         /// <summary>
         /// On Draw

@@ -24,6 +24,12 @@ namespace guideXOS.DefaultApps {
         /// <param name="X"></param>
         /// <param name="Y"></param>
         public unsafe Calculator(int X, int Y) : base(X, Y, 450, 140) {
+            IsResizable = true;
+            ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowRestore = true;
+            ShowTombstone = true;
             Title = "Calculator";
             Btns = new List<Button>();
             image = new Image(Width, Height);

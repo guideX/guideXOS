@@ -4,7 +4,9 @@ using guideXOS.Misc;
 using System.Windows.Forms;
 using System.Drawing;
 using System;
-namespace guideXOS.GUI {
+using guideXOS.GUI;
+
+namespace guideXOS.DefaultApps {
     /// <summary>
     /// Task Manager window with Processes and Performance tabs
     /// </summary>
@@ -88,7 +90,7 @@ namespace guideXOS.GUI {
             int cy = Y + _padding;
             int cw = Width - _padding * 2;
             int contentY = cy + _tabH + _tabGap;
-            int ch = Height - (contentY - (Y)) - _padding;
+            int ch = Height - (contentY - Y) - _padding;
 
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
@@ -96,7 +98,7 @@ namespace guideXOS.GUI {
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
                 int tabCount = 3;
-                int tabW = (cw - (_tabGap * (tabCount - 1))) / tabCount;
+                int tabW = (cw - _tabGap * (tabCount - 1)) / tabCount;
                 int tx = cx;
                 for (int t = 0; t < tabCount; t++) {
                     int tx2 = tx;
@@ -122,7 +124,7 @@ namespace guideXOS.GUI {
 
                     // Row selection
                     if (mx >= listX && mx <= listX + listW && my >= listY + headerH && my <= listY + listH) {
-                        int relativeY = (my - (listY + headerH)) + (_scrollOffset * _rowHeight);
+                        int relativeY = my - (listY + headerH) + _scrollOffset * _rowHeight;
                         int row = relativeY / _rowHeight;
                         if (row < 0) row = 0;
                         if (row < WindowManager.Windows.Count) _selectedIndex = row;
@@ -180,7 +182,7 @@ namespace guideXOS.GUI {
                 int maxScroll = maxRows - rowsVisible; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
                 // map roughly 1 row per rowHeight pixels
-                _scrollOffset = _scrollStartOffset + (dy / (_rowHeight));
+                _scrollOffset = _scrollStartOffset + dy / _rowHeight;
                 if (_scrollOffset < 0) _scrollOffset = 0;
                 if (_scrollOffset > maxScroll) _scrollOffset = maxScroll;
             }
@@ -198,7 +200,7 @@ namespace guideXOS.GUI {
 
             // Tabs background
             int tabCount = 3;
-            int tabW = (cw - (_tabGap * (tabCount - 1))) / tabCount;
+            int tabW = (cw - _tabGap * (tabCount - 1)) / tabCount;
             int tx = cx;
             DrawTab(tx, cy, tabW, _tabH, "Processes", _currentTab == 0);
             tx += tabW + _tabGap;
@@ -224,9 +226,9 @@ namespace guideXOS.GUI {
             int tombCount = CountTombstoned();
             for (int i = 0; i < tombCount; i++) {
                 var win = GetTombstonedAt(i);
-                bool sel = (i == _selectedTombIndex);
+                bool sel = i == _selectedTombIndex;
                 if (sel) Framebuffer.Graphics.FillRectangle(x, dy, w, _rowHeight, 0xFF2A2A2A);
-                string name = win != null ? (win.Title ?? "(no title)") : "(null)";
+                string name = win != null ? win.Title ?? "(no title)" : "(null)";
                 WindowManager.font.DrawString(x + 6, dy + 6, name, w - 12, WindowManager.font.FontSize);
                 dy += _rowHeight;
             }
@@ -285,8 +287,8 @@ namespace guideXOS.GUI {
             uint bg = selected ? 0xFF2C2C2C : 0xFF242424;
             Framebuffer.Graphics.FillRectangle(x, y, w, h, bg);
             Framebuffer.Graphics.DrawRectangle(x, y, w, h, 0xFF3A3A3A, 1);
-            int tx = x + (w / 2) - (WindowManager.font.MeasureString(title) / 2);
-            int ty = y + (h / 2) - (WindowManager.font.FontSize / 2);
+            int tx = x + w / 2 - WindowManager.font.MeasureString(title) / 2;
+            int ty = y + h / 2 - WindowManager.font.FontSize / 2;
             WindowManager.font.DrawString(tx, ty, title);
         }
 
@@ -321,7 +323,7 @@ namespace guideXOS.GUI {
             int dy = listY;
             for (int i = startRow; i < endRow; i++) {
                 var wdw = WindowManager.Windows[i];
-                bool sel = (i == _selectedIndex);
+                bool sel = i == _selectedIndex;
                 uint bg = sel ? 0xFF2A2A2A : 0x00000000u;
                 if (bg != 0) Framebuffer.Graphics.FillRectangle(x, dy, w, _rowHeight, bg);
                 int cx = x;
@@ -340,9 +342,9 @@ namespace guideXOS.GUI {
             int sbW = 10;
             int sbX = X + Width - _padding - sbW;
             Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF1A1A1A);
-            int thumbH = (rowsVisible * listH) / (totalRows == 0 ? 1 : totalRows); if (thumbH < 16) thumbH = 16; if (thumbH > listH) thumbH = listH;
-            int maxScroll = (totalRows - rowsVisible); if (maxScroll < 0) maxScroll = 0;
-            int thumbY = listY + (maxScroll == 0 ? 0 : (_scrollOffset * (listH - thumbH)) / (maxScroll));
+            int thumbH = rowsVisible * listH / (totalRows == 0 ? 1 : totalRows); if (thumbH < 16) thumbH = 16; if (thumbH > listH) thumbH = listH;
+            int maxScroll = totalRows - rowsVisible; if (maxScroll < 0) maxScroll = 0;
+            int thumbY = listY + (maxScroll == 0 ? 0 : _scrollOffset * (listH - thumbH) / maxScroll);
             Framebuffer.Graphics.FillRectangle(sbX, thumbY, sbW, thumbH, 0xFF3A3A3A);
 
             // Footer - End Task button
@@ -362,7 +364,7 @@ namespace guideXOS.GUI {
         private static int WavePct(ulong ticks, int period) {
             int t = (int)(ticks % (ulong)period);
             int up = period / 2;
-            if (t < up) return (t * 100) / up; else return ((period - t) * 100) / up;
+            if (t < up) return t * 100 / up; else return (period - t) * 100 / up;
         }
 
         private static string ToMBString(ulong bytes) {
@@ -382,14 +384,14 @@ namespace guideXOS.GUI {
             // assume ticks are milliseconds
             ulong totalSec = ticks / 1000UL;
             ulong s = totalSec % 60UL;
-            ulong m = (totalSec / 60UL) % 60UL;
-            ulong h = (totalSec / 3600UL);
-            return h.ToString() + ":" + (m < 10 ? ("0" + m.ToString()) : m.ToString()) + ":" + (s < 10 ? ("0" + s.ToString()) : s.ToString());
+            ulong m = totalSec / 60UL % 60UL;
+            ulong h = totalSec / 3600UL;
+            return h.ToString() + ":" + (m < 10 ? "0" + m.ToString() : m.ToString()) + ":" + (s < 10 ? "0" + s.ToString() : s.ToString());
         }
 
         private void DrawPerformance(int x, int y, int w, int h) {
             // Update charts less often to reduce work
-            if (_lastPerfTick != Timer.Ticks && (Timer.Ticks % 10) == 0) {
+            if (_lastPerfTick != Timer.Ticks && Timer.Ticks % 10 == 0) {
                 _lastPerfTick = Timer.Ticks;
 
                 // CPU
@@ -405,15 +407,15 @@ namespace guideXOS.GUI {
                 // Disk (synthetic animation so chart isn't flat). If real stats are added later, replace here.
                 _diskUtilPct = WavePct(Timer.Ticks, 240);
                 _diskActivePct = WavePct(Timer.Ticks + 60, 300);
-                _diskReadKBps = (_diskUtilPct * 4);  // up to ~400 KB/s
-                _diskWriteKBps = (_diskActivePct * 3) / 2; // up to ~150 KB/s
-                _diskRespMs = 1 + (_diskActivePct / 10);
+                _diskReadKBps = _diskUtilPct * 4;  // up to ~400 KB/s
+                _diskWriteKBps = _diskActivePct * 3 / 2; // up to ~150 KB/s
+                _diskRespMs = 1 + _diskActivePct / 10;
                 UpdateChart(_diskChart, _diskUtilPct, 0xFFE67E22);
 
                 // Network (synthetic animation). If NET driver exposes counters, wire them here.
                 _netUtilPct = WavePct(Timer.Ticks + 120, 280);
-                _netSendKBps = (_netUtilPct * 2); // up to ~200 KB/s
-                _netRecvKBps = ((100 - _netUtilPct) * 2);
+                _netSendKBps = _netUtilPct * 2; // up to ~200 KB/s
+                _netRecvKBps = (100 - _netUtilPct) * 2;
                 // accumulate bytes for labels (rough estimate per tick quantum)
                 _bytesSent += (ulong)(_netSendKBps * 1024 / 10);
                 _bytesRecv += (ulong)(_netRecvKBps * 1024 / 10);
@@ -460,7 +462,7 @@ namespace guideXOS.GUI {
 
             ulong total = Allocator.MemorySize;
             ulong used = Allocator.MemoryInUse;
-            ulong avail = total > used ? (total - used) : 0UL;
+            ulong avail = total > used ? total - used : 0UL;
             WindowManager.font.DrawString(x, infoY, "In use: " + ToMBString(used) + " (" + _memUtilPct.ToString() + "%)"); infoY += WindowManager.font.FontSize + 2;
             WindowManager.font.DrawString(x, infoY, "Available: " + ToMBString(avail)); infoY += WindowManager.font.FontSize + 2;
             WindowManager.font.DrawString(x, infoY, "Total: " + ToMBString(total)); infoY += WindowManager.font.FontSize + 2;
@@ -498,8 +500,8 @@ namespace guideXOS.GUI {
             // Clear current column
             chart.graphics.FillRectangle(chart.writeX, 0, ChartLineWidth, h, 0xFF222222);
             // Compute y positions (invert for top origin)
-            int newY = h - (h * valuePct / 100) - 1; if (newY < 0) newY = 0;
-            int prevY = h - (h * (100 - chart.lastValue) / 100) - 1; if (prevY < 0) prevY = 0; // adjust previous basis
+            int newY = h - h * valuePct / 100 - 1; if (newY < 0) newY = 0;
+            int prevY = h - h * (100 - chart.lastValue) / 100 - 1; if (prevY < 0) prevY = 0; // adjust previous basis
             // Draw vertical segment from previous to new
             chart.graphics.DrawLine(chart.writeX, prevY, chart.writeX, newY, color);
             chart.lastValue = 100 - valuePct; // store inverted again for legacy usage
