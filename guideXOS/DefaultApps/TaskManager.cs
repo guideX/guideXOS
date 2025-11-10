@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using System.Drawing;
 using System;
 using guideXOS.GUI;
+using System.Collections.Generic;
 
 namespace guideXOS.DefaultApps {
     /// <summary>
@@ -67,6 +68,11 @@ namespace guideXOS.DefaultApps {
         private int _diskActivePct;
         private int _diskRespMs;
 
+        // Owner memory sampling for leak detection
+        private Dictionary<int, ulong> _lastOwnerBytes;
+        private Dictionary<int, int> _ownerKBps; // KB per second (positive = growth)
+        private ulong _lastOwnerSampleTick;
+
         public TaskManager(int X, int Y, int Width = 760, int Height = 520) : base(X, Y, Width, Height) {
             ShowInTaskbar = true;
             ShowMaximize = true;
@@ -80,20 +86,33 @@ namespace guideXOS.DefaultApps {
             _memChart = new Chart(chartW, chartH, "Memory");
             _diskChart = new Chart(chartW, chartH, "Disk");
             _netChart = new Chart(chartW, chartH, "Network");
+            // Enable perf tracking now that Task Manager is active
+            WindowManager.EnablePerfTracking();
+
+            // initialize owner sampling
+            _lastOwnerBytes = new Dictionary<int, ulong>();
+            _ownerKBps = new Dictionary<int, int>();
+            _lastOwnerSampleTick = Timer.Ticks;
+        }
+
+        public override void OnSetVisible(bool value) {
+            base.OnSetVisible(value);
+            if (!value) { // when hiding, stop perf tracking to reduce contention
+                WindowManager.DisablePerfTracking();
+            }
         }
 
         public override void OnInput() {
             base.OnInput();
             if (!Visible || IsMinimized) return;
+            int cx = X + _padding; int cy = Y + _padding; int cw = Width - _padding * 2; int contentY = cy + _tabH + _tabGap; int ch = Height - (contentY - Y) - _padding; int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
 
-            int cx = X + _padding;
-            int cy = Y + _padding;
-            int cw = Width - _padding * 2;
-            int contentY = cy + _tabH + _tabGap;
-            int ch = Height - (contentY - Y) - _padding;
-
-            int mx = Control.MousePosition.X;
-            int my = Control.MousePosition.Y;
+            // If right mouse button is pressed within this window, mark input as handled so desktop doesn't open its context menu
+            if (Control.MouseButtons.HasFlag(MouseButtons.Right)) {
+                if (mx >= X && mx <= X + Width && my >= Y && my <= Y + Height) {
+                    WindowManager.MouseHandled = true;
+                }
+            }
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
@@ -175,16 +194,12 @@ namespace guideXOS.DefaultApps {
             // Handle scroll dragging
             if (_scrollDrag) {
                 int headerH = _rowHeight;
-                int listY = contentY;
                 int listH = ch - (_rowHeight + 12);
                 int maxRows = WindowManager.Windows.Count;
                 int rowsVisible = (listH - headerH) / _rowHeight; if (rowsVisible < 1) rowsVisible = 1;
                 int maxScroll = maxRows - rowsVisible; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
-                // map roughly 1 row per rowHeight pixels
-                _scrollOffset = _scrollStartOffset + dy / _rowHeight;
-                if (_scrollOffset < 0) _scrollOffset = 0;
-                if (_scrollOffset > maxScroll) _scrollOffset = maxScroll;
+                _scrollOffset = _scrollStartOffset + dy / _rowHeight; if (_scrollOffset < 0) _scrollOffset = 0; if (_scrollOffset > maxScroll) _scrollOffset = maxScroll;
             }
         }
 
@@ -331,15 +346,24 @@ namespace guideXOS.DefaultApps {
                 WindowManager.font.DrawString(cx + 6, dy + 6, name, colNameW - 12, WindowManager.font.FontSize);
                 cx += colNameW;
 
-                // CPU: no per-window counter yet
-                WindowManager.font.DrawString(cx + 6, dy + 6, "-"); cx += colCpuW;
+                // CPU: per-window counter via WindowManager
+                int ownerId = wdw.OwnerId;
+                int cpuPct = WindowManager.GetWindowCpuPct(ownerId);
+                WindowManager.font.DrawString(cx + 6, dy + 6, cpuPct.ToString()); cx += colCpuW;
 
                 // Memory per window: use allocator per-owner accounting
                 // Each Window exposes a stable Index, use it as owner id
-                int ownerId = wdw.Index + 1; // make it > 0
                 ulong bytes = Allocator.GetOwnerBytes(ownerId);
-                string memText = bytes == 0 ? "-" : (bytes / (1024UL * 1024UL)).ToString() + " MB";
-                WindowManager.font.DrawString(cx + 6, dy + 6, memText); cx += colMemW;
+                string memText = ToMBString(bytes);
+                // owner label and leak rate
+                string ownerLabel = ownerId == 0 ? string.Empty : " (#" + ownerId.ToString() + ")";
+                string leakText = string.Empty;
+                if (_ownerKBps != null && _ownerKBps.ContainsKey(ownerId)) {
+                    int kb = _ownerKBps[ownerId];
+                    if (kb != 0) leakText = (kb > 0 ? "+" : "") + kb.ToString() + " KB/s";
+                }
+                string combined = memText + ownerLabel + (leakText.Length > 0 ? " " + leakText : string.Empty);
+                WindowManager.font.DrawString(cx + 6, dy + 6, combined); cx += colMemW;
 
                 // Disk/Net per-window not implemented
                 WindowManager.font.DrawString(cx + 6, dy + 6, "-"); cx += colDiskW;
@@ -433,6 +457,12 @@ namespace guideXOS.DefaultApps {
                 // Other labels
                 _procCount = WindowManager.Windows.Count;
                 _threadCount = ThreadPool.ThreadCount;
+
+                // Sample owner bytes every ~1000ms to compute KB/s per owner
+                if ((long)(Timer.Ticks - _lastOwnerSampleTick) >= 1000) {
+                    SampleOwnerBytes();
+                    _lastOwnerSampleTick = Timer.Ticks;
+                }
             }
 
             // Layout 2x2 grid
@@ -475,8 +505,28 @@ namespace guideXOS.DefaultApps {
             WindowManager.font.DrawString(x, infoY, "In use: " + ToMBString(used) + " (" + _memUtilPct.ToString() + "%)"); infoY += WindowManager.font.FontSize + 2;
             WindowManager.font.DrawString(x, infoY, "Available: " + ToMBString(avail)); infoY += WindowManager.font.FontSize + 2;
             WindowManager.font.DrawString(x, infoY, "Total: " + ToMBString(total)); infoY += WindowManager.font.FontSize + 2;
-            // extra
-            WindowManager.font.DrawString(x, infoY, "Cached: N/A");
+            // show top growing owner and top tag
+            int topOwner = 0; int topKbps = 0;
+            var ownerKeys = _ownerKBps.Keys;
+            for (int _i = 0; _i < ownerKeys.Count; _i++) {
+                int ok = ownerKeys[_i]; int val = _ownerKBps[ok]; if (Math.Abs(val) > Math.Abs(topKbps)) { topKbps = val; topOwner = ok; }
+            }
+            if (topOwner != 0) {
+                WindowManager.font.DrawString(x, infoY, "Top owner: #" + topOwner + " " + (topKbps > 0 ? "+" : "") + topKbps.ToString() + " KB/s"); infoY += WindowManager.font.FontSize + 2;
+            } else {
+                WindowManager.font.DrawString(x, infoY, "Top owner: N/A"); infoY += WindowManager.font.FontSize + 2;
+            }
+            // top tag
+            int topTag = -1; ulong topTagBytes = 0;
+            for (int t = 0; t < (int)Allocator.AllocTag.Count; t++) {
+                ulong tb = Allocator.GetTagBytes((Allocator.AllocTag)t);
+                if (tb > topTagBytes) { topTagBytes = tb; topTag = t; }
+            }
+            if (topTag >= 0) {
+                WindowManager.font.DrawString(x, infoY, "Top tag: " + ((Allocator.AllocTag)topTag).ToString() + " " + ToMBString(topTagBytes));
+            } else {
+                WindowManager.font.DrawString(x, infoY, "Top tag: N/A");
+            }
         }
 
         private void DrawDiskPanel(int x, int y, Chart chart, int w, int h) {
@@ -527,6 +577,35 @@ namespace guideXOS.DefaultApps {
 
             WindowManager.Windows.RemoveAt(_selectedIndex);
             if (_selectedIndex >= WindowManager.Windows.Count) _selectedIndex = WindowManager.Windows.Count - 1;
+        }
+
+        private void SampleOwnerBytes() {
+            var snap = Allocator.GetOwnerListSnapshot();
+            var newDict = new Dictionary<int, ulong>();
+            for (int i = 0; i < snap.Length; i++) { newDict[snap[i].OwnerId] = snap[i].Bytes; }
+
+            var kbps = new Dictionary<int, int>();
+            // compute deltas (bytes per ~1s)
+            lock (_lastOwnerBytes) {
+                var newKeys = newDict.Keys;
+                for (int i = 0; i < newKeys.Count; i++) {
+                    int k = newKeys[i]; ulong prev = _lastOwnerBytes.ContainsKey(k) ? _lastOwnerBytes[k] : 0UL;
+                    long diff = (long)newDict[k] - (long)prev; // bytes per ~1s
+                    int kbs = (int)(diff / 1024L);
+                    kbps[k] = kbs;
+                }
+                // owners that disappeared -> negative freed rate
+                var oldKeys = _lastOwnerBytes.Keys;
+                for (int i = 0; i < oldKeys.Count; i++) {
+                    int k = oldKeys[i]; if (!newDict.ContainsKey(k)) kbps[k] = (int)(-((long)_lastOwnerBytes[k] / 1024L));
+                }
+                _lastOwnerBytes.Clear();
+                var nk = newDict.Keys;
+                for (int i = 0; i < nk.Count; i++) _lastOwnerBytes[nk[i]] = newDict[nk[i]];
+            }
+            _ownerKBps.Clear();
+            var kbKeys = kbps.Keys;
+            for (int i = 0; i < kbKeys.Count; i++) _ownerKBps[kbKeys[i]] = kbps[kbKeys[i]];
         }
     }
 }

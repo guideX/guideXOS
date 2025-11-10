@@ -202,7 +202,7 @@ unsafe class Program {
         // WindowManager.MoveToEnd(login);
         // login.Visible = true;
 
-        var welcome = new Welcome(500, 250);
+        //var welcome = new Welcome(500, 250);
 
         //Console.WriteLine("Draw Start");
         for (; ; ) {
@@ -220,13 +220,16 @@ unsafe class Program {
             if (Wallpaper != null)
                 Framebuffer.Graphics.DrawImage((Framebuffer.Width / 2) - (Wallpaper.Width / 2), (Framebuffer.Height / 2) - (Wallpaper.Height / 2), Wallpaper);
             //Inspects the system to see if the user has right clicked there is a small difference between these two functions
-            if (Control.MouseButtons.HasFlag(MouseButtons.Right) && !rightClicked) {
+            // Show desktop context menu only when right-click happened and no other window consumed the mouse.
+            if (Control.MouseButtons.HasFlag(MouseButtons.Right) && !rightClicked && !WindowManager.MouseHandled) {
                 rightClicked = true;
                 rightmenu.X = Control.MousePosition.X;
                 rightmenu.Y = Control.MousePosition.Y;
                 WindowManager.MoveToEnd(rightmenu);
                 rightmenu.Visible = true;
-            } else if (!Control.MouseButtons.HasFlag(MouseButtons.Right)) rightClicked = false;
+            } else if (!Control.MouseButtons.HasFlag(MouseButtons.Right)) {
+                rightClicked = false;
+            }
             Desktop.Update(Icons.DocumentIcon(32));
             //Desktop.Draw();
             WindowManager.DrawAll();

@@ -161,82 +161,101 @@ namespace guideXOS.DefaultApps {
             return false;
         }
 
+        private static string[] SplitArgs(string s) {
+            if (string.IsNullOrEmpty(s)) return Array.Empty<string>();
+            System.Collections.Generic.List<string> parts = new System.Collections.Generic.List<string>();
+            char[] buf = new char[s.Length]; int bLen = 0; bool inQuotes = false; char qChar='"';
+            for (int i = 0; i < s.Length; i++) {
+                char c = s[i];
+                if (c == '"' || c=='\'') {
+                    if (!inQuotes) { inQuotes = true; qChar = c; continue; }
+                    if (c == qChar) { inQuotes = false; continue; }
+                }
+                if (!inQuotes && c==' ') {
+                    if (bLen>0) { parts.Add(new string(buf,0,bLen)); bLen=0; }
+                    continue;
+                }
+                if (bLen < buf.Length) buf[bLen++] = c;
+            }
+            if (bLen>0) parts.Add(new string(buf,0,bLen));
+            return parts.ToArray();
+        }
+
         private void HandleCommand(string cmdLine) {
             if (string.IsNullOrEmpty(cmdLine)) return;
             string[] parts = SplitArgs(cmdLine);
+            if (parts.Length==0) return;
             string cmd = parts[0];
             switch (cmd) {
-                case "help": WriteLine("Commands: help, pwd, ls, ll, cd, goback, cdback, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
-                case "pwd": { string p = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; WriteLine(p); } break;
+                case "help": WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
+                case "exit": { this.Visible = false; return; }
+                case "clear": { Data = string.Empty; WritePrompt(); return; }
+                case "pwd": { string p = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; WriteLine(p); return; }
                 case "ls": {
                         string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
-                        if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + (parts.Length>1?parts[1]:target)); break; }
-                        var names = Posix.List(target);
-                        if (names.Length == 0) { WriteLine("(empty)"); break; }
-                        for (int i=0;i<names.Length;i++){ WriteLine(names[i]); }
-                    } break;
-                case "ll": { // verbose listing
+                        if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + (parts.Length>1?parts[1]:target)); return; }
+                        var names = Posix.List(target); if (names.Length == 0) { WriteLine("(empty)"); return; }
+                        for (int i=0;i<names.Length;i++){ WriteLine(names[i]); } return; }
+                case "ll": {
                         string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
-                        if (!Posix.DirectoryExists(target)) { WriteLine("ll: cannot access: " + (parts.Length>1?parts[1]:target)); break; }
+                        if (!Posix.DirectoryExists(target)) { WriteLine("ll: cannot access: " + (parts.Length>1?parts[1]:target)); return; }
                         string rel = target=="/"?"":target.Substring(1);
-                        var list = FS.File.GetFiles(rel);
-                        if (list==null||list.Count==0){ WriteLine("(empty)"); break; }
-                        for(int i=0;i<list.Count;i++){
-                            var fi = list[i];
-                            char type = fi.Attribute==guideXOS.FS.FileAttribute.Directory? 'd':'-';
-                            // Attempt lightweight size (fallback to 0 if not exposed)
-                            uint size = 0;
-                            // Print name padded
-                            WriteLine(type + " " + PadRight(fi.Name,24) + " " + size.ToString());
-                        }
-                    } break;
-                case "goback": case "cdback": case "cd" when parts.Length>1 && (parts[1]=="back"||parts[1]==".."):{
-                        if (string.IsNullOrEmpty(_cwd)){ WriteLine("Already at root"); break; }
+                        var list = FS.File.GetFiles(rel); if (list==null||list.Count==0){ WriteLine("(empty)"); return; }
+                        for(int i=0;i<list.Count;i++){ var fi = list[i]; char type = fi.Attribute==guideXOS.FS.FileAttribute.Directory? 'd':'-'; uint size = 0; WriteLine(type + " " + PadRight(fi.Name,24) + " " + size.ToString()); } return; }
+                case "cd" when parts.Length>1 && (parts[1]=="back"||parts[1]==".."):
+                case "goback": case "cdback": {
+                        if (string.IsNullOrEmpty(_cwd)){ WriteLine("Already at root"); return; }
                         string cur = "/"+_cwd; if(cur.EndsWith("/")) cur=cur.Substring(0,cur.Length-1); int last=cur.LastIndexOf('/'); if(last<=0){ _cwd=""; } else { _cwd= cur.Substring(1,last); if(_cwd.Length>0) _cwd+="/"; }
-                        Desktop.Dir=_cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Moved back"); break; }
+                        Desktop.Dir=_cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Moved back"); return; }
                 case "cd": {
-                        if (parts.Length < 2) { WriteLine("Usage: cd <path>"); break; }
-                        if (parts[1]=="back"||parts[1]=="..") { goto case "goback"; }
-                        string target = Posix.NormalizePath(_cwd, parts[1]);
-                        if (!Posix.DirectoryExists(target)) { WriteLine("cd: no such directory: " + parts[1]); break; }
-                        if (target == "/") { _cwd = ""; }
-                        else { if (!target.EndsWith("/")) target += "/"; _cwd = target.Substring(1); }
-                        Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory");
-                    } break;
+                        if (parts.Length < 2) { WriteLine("Usage: cd <path>"); return; }
+                        string rawTarget = parts[1]; string target = Posix.NormalizePath(_cwd, rawTarget);
+                        if (!Posix.DirectoryExists(target)) {
+                            string baseDir = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; var names = Posix.List(baseDir);
+                            string match=null; int matches=0;
+                            for(int i=0;i<names.Length;i++){
+                                if (EqualsIgnoreCase(names[i], rawTarget)) { match=names[i]; matches=1; break; }
+                                if (StartsWithIgnoreCase(names[i], rawTarget)) { match=names[i]; matches++; }
+                            }
+                            if (matches==1) target = Posix.NormalizePath(_cwd, match); else { WriteLine("cd: no such directory: " + rawTarget); return; }
+                        }
+                        if (target == "/") { _cwd = ""; } else { if (!target.EndsWith("/")) target += "/"; _cwd = target.Substring(1); }
+                        Desktop.Dir = _cwd; Desktop.InvalidateDirCache(); UpdateTitle(); WriteLine("Changed directory"); return; }
+            }
+            // fall-through to remaining original commands
+            switch (cmd) {
                 case "cat": {
-                        if (parts.Length < 2){ WriteLine("Usage: cat <file>"); break; }
-                        if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) { WriteLine(ferr); break; } path = ToAbs(parts[1]); }
+                        if (parts.Length < 2){ WriteLine("Usage: cat <file>"); return; }
+                        if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) { WriteLine(ferr); return; } path = ToAbs(parts[1]); }
                         byte[] data = FS.File.ReadAllBytes(path);
-                        if (data == null) { WriteLine("Unable to read file"); break; }
+                        if (data == null) { WriteLine("Unable to read file"); return; }
                         int len = data.Length; char[] buf = new char[len]; for(int i=0;i<len;i++){ byte b=data[i]; buf[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); }
-                        WriteLine(new string(buf)); data.Dispose();
-                    } break;
+                        WriteLine(new string(buf)); data.Dispose(); return; }
                 case "echo": {
-                        if (parts.Length < 2){ WriteLine(""); break; }
+                        if (parts.Length < 2){ WriteLine(""); return; }
                         int gtIndex = -1; for(int i=1;i<parts.Length;i++){ if(parts[i]==">") { gtIndex=i; break; } }
-                        if (gtIndex==-1){ string outText = JoinParts(parts,' ',1); WriteLine(outText); break; }
-                        if (gtIndex+1 >= parts.Length){ WriteLine("echo: missing filename after >"); break; }
+                        if (gtIndex==-1){ string outText = JoinParts(parts,' ',1); WriteLine(outText); return; }
+                        if (gtIndex+1 >= parts.Length){ WriteLine("echo: missing filename after >"); return; }
                         string fileName = Posix.NormalizePath(_cwd, parts[gtIndex+1]); string outText2=""; for(int i=1;i<gtIndex;i++){ if(i>1) outText2+=' '; outText2+=parts[i]; }
-                        byte[] d=new byte[outText2.Length]; for(int i=0;i<d.Length;i++) d[i]=(byte)(outText2[i]<128?outText2[i]:'?'); FS.File.WriteAllBytes(fileName,d); d.Dispose(); Desktop.InvalidateDirCache(); WriteLine("Written " + fileName);
-                    } break;
+                        byte[] d=new byte[outText2.Length]; for(int i=0;i<d.Length;i++) d[i]=(byte)(outText2[i]<128?outText2[i]:'?'); FS.File.WriteAllBytes(fileName,d); d.Dispose(); Desktop.InvalidateDirCache(); WriteLine("Written " + fileName); return; }
                 case "notepad": {
-                        if (parts.Length < 2){ WriteLine("Usage: notepad <file>"); break; }
+                        if (parts.Length < 2){ WriteLine("Usage: notepad <file>"); return; }
                         string fileToken = parts[1]; if(!ResolveFileToken(fileToken, out var path, out var ferr)){ if(ferr!=null) WriteLine(ferr); else path=fileToken; }
-                        if (Program.FConsole == null) Program.FConsole = this; var np = new Notepad(200,160); WindowManager.MoveToEnd(np); np.Visible=true; np.OpenFile(path); break; }
-                case "vi": { if (parts.Length < 2){ WriteLine("Usage: vi <file>"); break; } if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) WriteLine(ferr); else path=parts[1]; } EnterVi(path); break; }
+                        if (Program.FConsole == null) Program.FConsole = this; var np = new Notepad(200,160); WindowManager.MoveToEnd(np); np.Visible=true; np.OpenFile(path); return; }
+                case "vi": { if (parts.Length < 2){ WriteLine("Usage: vi <file>"); return; } if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) WriteLine(ferr); else path=parts[1]; } EnterVi(path); return; }
                 case "gxminfo": {
-                        if (parts.Length<2){ WriteLine("Usage: gxminfo <file.gxm>"); break; }
-                        string path = Posix.NormalizePath(_cwd, parts[1]); byte[] buf = FS.File.ReadAllBytes(path); if(buf==null){ WriteLine("Unable to read file"); break; }
+                        if (parts.Length<2){ WriteLine("Usage: gxminfo <file.gxm>"); return; }
+                        string path = Posix.NormalizePath(_cwd, parts[1]); byte[] buf = FS.File.ReadAllBytes(path); if(buf==null){ WriteLine("Unable to read file"); return; }
                         string sig = (buf.Length>=4)? ((char)buf[0]).ToString()+((char)buf[1])+((char)buf[2])+((char)buf[3]) : "(too small)"; WriteLine("Signature: "+sig);
                         if (buf.Length>=16){ uint ver = (uint)(buf[4] | buf[5]<<8 | buf[6]<<16 | buf[7]<<24); uint entry = (uint)(buf[8] | buf[9]<<8 | buf[10]<<16 | buf[11]<<24); uint size = (uint)(buf[12] | buf[13]<<8 | buf[14]<<16 | buf[15]<<24); WriteLine($"Version:{ver} EntryRVA:0x{entry:X8} DeclaredSize:{size}"); }
-                        buf.Dispose(); break; }
+                        buf.Dispose(); return; }
                 // legacy alias
                 case "mueinfo": {
-                        if (parts.Length<2){ WriteLine("Usage: mueinfo <file>"); break; }
-                        string path = Posix.NormalizePath(_cwd, parts[1]); byte[] buf = FS.File.ReadAllBytes(path); if(buf==null){ WriteLine("Unable to read file"); break; }
+                        if (parts.Length<2){ WriteLine("Usage: mueinfo <file>"); return; }
+                        string path = Posix.NormalizePath(_cwd, parts[1]); byte[] buf = FS.File.ReadAllBytes(path); if(buf==null){ WriteLine("Unable to read file"); return; }
                         string sig = (buf.Length>=4)? ((char)buf[0]).ToString()+((char)buf[1])+((char)buf[2])+((char)buf[3]) : "(too small)"; WriteLine("Signature: "+sig);
                         if (buf.Length>=16){ uint ver = (uint)(buf[4] | buf[5]<<8 | buf[6]<<16 | buf[7]<<24); uint entry = (uint)(buf[8] | buf[9]<<8 | buf[10]<<16 | buf[11]<<24); uint size = (uint)(buf[12] | buf[13]<<8 | buf[14]<<16 | buf[15]<<24); WriteLine($"Version:{ver} EntryRVA:0x{entry:X8} DeclaredSize:{size}"); }
-                        buf.Dispose(); break; }
+                        buf.Dispose(); return; }
                 case "shutdown": Power.Shutdown(); break;
                 case "reboot": Power.Reboot(); break;
                 case "cpu": break;
@@ -326,25 +345,29 @@ namespace guideXOS.DefaultApps {
                 case "fwadd": { if(parts.Length<2){ WriteLine("Usage: fwadd <program>"); break; } guideXOS.OS.Firewall.AddException(parts[1]); WriteLine("Added exception: "+parts[1]); break; }
                 case "fwui": { if(guideXOS.OS.Firewall.Window!=null){ WindowManager.MoveToEnd(guideXOS.OS.Firewall.Window); guideXOS.OS.Firewall.Window.Visible=true; } break; }
                 default:
-                    WriteLine("No such command: \"" + cmdLine + "\"");
+                    // fall through to original switch tail (keep other commands)
+                    switch (cmd) {
+                        case "cat": {
+                                if (parts.Length < 2){ WriteLine("Usage: cat <file>"); return; }
+                                if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) { WriteLine(ferr); return; } path = ToAbs(parts[1]); }
+                                byte[] data = FS.File.ReadAllBytes(path);
+                                if (data == null) { WriteLine("Unable to read file"); return; }
+                                int len = data.Length; char[] buf = new char[len]; for(int i=0;i<len;i++){ byte b=data[i]; buf[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); }
+                                WriteLine(new string(buf)); data.Dispose(); return; }
+                        // keep other existing cases by deferring to original logic (simplified for brevity)
+                        case "shutdown": Power.Shutdown(); break;
+                        case "reboot": Power.Reboot(); break;
+                        // If not matched above
+                        default: WriteLine("No such command: \"" + cmdLine + "\""); break;
+                    }
                     break;
             }
         }
 
-        private static string PadRight(string s, int w){ if (s==null) s=""; int len=s.Length; if (len>=w) return s; char[] arr = new char[w]; int i=0; for(; i<len; i++) arr[i]=s[i]; for(; i<w; i++) arr[i]=' '; string r = new string(arr,0,w); arr.Dispose(); return r; }
+        private static bool EqualsIgnoreCase(string a, string b){ if(a==null||b==null) return false; if(a.Length!=b.Length) return false; for(int i=0;i<a.Length;i++){ char ca=a[i]; char cb=b[i]; if(ca>='A'&&ca<='Z') ca=(char)(ca+32); if(cb>='A'&&cb<='Z') cb=(char)(cb+32); if(ca!=cb) return false; } return true; }
+        private static bool StartsWithIgnoreCase(string a, string b){ if(a==null||b==null) return false; if(b.Length>a.Length) return false; for(int i=0;i<b.Length;i++){ char ca=a[i]; char cb=b[i]; if(ca>='A'&&ca<='Z') ca=(char)(ca+32); if(cb>='A'&&cb<='Z') cb=(char)(cb+32); if(ca!=cb) return false; } return true; }
 
-        private static string[] SplitArgs(string s) {
-            // simple split by spaces
-            int n=0; for(int i=0;i<s.Length;i++){ if (s[i]==' ') n++; }
-            string[] arr = new string[n+1]; int idx=0; int start=0;
-            for (int i=0;i<=s.Length;i++){
-                if (i==s.Length || s[i]==' '){ int len=i-start; if (len>0) arr[idx++] = s.Substring(start,len); start=i+1; }
-            }
-            // compact nulls
-            int count=0; for(int i=0;i<arr.Length;i++) if (arr[i]!=null) count++;
-            string[] res = new string[count]; int j=0; for(int i=0;i<arr.Length;i++) if (arr[i]!=null) res[j++]=arr[i];
-            return res;
-        }
+        private static string PadRight(string s, int w){ if (s==null) s=""; int len=s.Length; if (len>=w) return s; char[] arr = new char[w]; int i=0; for(; i<len; i++) arr[i]=s[i]; for(; i<w; i++) arr[i]=' '; string r = new string(arr,0,w); arr.Dispose(); return r; }
 
         public override void OnDraw() { base.OnDraw(); DrawString(X, Y, Data, Height, Width); }
 

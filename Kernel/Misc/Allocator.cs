@@ -102,6 +102,7 @@ abstract unsafe class Allocator {
         }
     }
 
+    // Note: method name Reallocate (camel-case) is expected by other code (stdlib, API)
     public static IntPtr Reallocate(IntPtr intPtr, ulong size) {
         if (intPtr == IntPtr.Zero) return Allocate(size);
         if (size == 0) { Free(intPtr); return IntPtr.Zero; }
@@ -128,4 +129,24 @@ abstract unsafe class Allocator {
     internal static unsafe void MemoryCopy(IntPtr dst, IntPtr src, ulong size) { Native.Movsb((void*)dst, (void*)src, size); }
     public static ulong GetTagBytes(AllocTag tag) { return _Info.TagLivePages[(int)tag] * PageSize; }
     public static ulong GetOwnerBytes(int ownerId) { if (ownerId == 0 || _ownerLivePages == null) return 0UL; lock (_sync) { return _ownerLivePages.ContainsKey(ownerId) ? _ownerLivePages[ownerId] * PageSize : 0UL; } }
+
+    // Snapshot structure for owner accounting (avoids depending on generic KeyValuePair in low-level kernel code)
+    public struct OwnerSnapshot { public int OwnerId; public ulong Bytes; }
+
+    // Return a snapshot of current owner assignments and bytes. Used by diagnostic UI to find leaks.
+    public static OwnerSnapshot[] GetOwnerListSnapshot() {
+        lock (_sync) {
+            if (_ownerLivePages == null) return new OwnerSnapshot[0];
+            var arr = new OwnerSnapshot[_ownerLivePages.Count];
+            int idx = 0;
+            // iterate using explicit indexing via Keys to avoid relying on foreach semantics of dictionary implementation
+            var keys = _ownerLivePages.Keys;
+            for (int k = 0; k < keys.Count; k++) {
+                int owner = keys[k]; ulong pages = _ownerLivePages[owner];
+                arr[idx++].OwnerId = owner;
+                arr[idx - 1].Bytes = pages * PageSize;
+            }
+            return arr;
+        }
+    }
 }
