@@ -128,7 +128,21 @@ abstract unsafe class Allocator {
 
     internal static unsafe void MemoryCopy(IntPtr dst, IntPtr src, ulong size) { Native.Movsb((void*)dst, (void*)src, size); }
     public static ulong GetTagBytes(AllocTag tag) { return _Info.TagLivePages[(int)tag] * PageSize; }
-    public static ulong GetOwnerBytes(int ownerId) { if (ownerId == 0 || _ownerLivePages == null) return 0UL; lock (_sync) { return _ownerLivePages.ContainsKey(ownerId) ? _ownerLivePages[ownerId] * PageSize : 0UL; } }
+    public static ulong GetOwnerBytes(int ownerId) {
+        if (ownerId == 0) return 0UL;
+        lock (_sync) {
+            if (_ownerLivePages != null && _ownerLivePages.ContainsKey(ownerId)) return _ownerLivePages[ownerId] * PageSize;
+            // Fallback: if dictionary doesn't have entry (possible if bookkeeping missed), scan Owners array
+            ulong pages = 0UL;
+            for (int i = 0; i < NumPages; i++) {
+                if (_Info.Owners[i] == ownerId) pages += _Info.Pages[i] == PageSignature ? _Info.Pages[i] : _Info.Pages[i];
+                // Note: _Info.Pages[i] holds the run length at start index; for non-start indices it's PageSignature.
+                // To avoid double-counting, only count when Pages[i] != 0 and Owners[i] == ownerId and (Pages[i] != PageSignature)
+            }
+            if (pages == 0UL) return 0UL;
+            return pages * PageSize;
+        }
+    }
 
     // Snapshot structure for owner accounting (avoids depending on generic KeyValuePair in low-level kernel code)
     public struct OwnerSnapshot { public int OwnerId; public ulong Bytes; }

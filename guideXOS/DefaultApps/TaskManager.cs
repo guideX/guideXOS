@@ -581,31 +581,37 @@ namespace guideXOS.DefaultApps {
 
         private void SampleOwnerBytes() {
             var snap = Allocator.GetOwnerListSnapshot();
-            var newDict = new Dictionary<int, ulong>();
-            for (int i = 0; i < snap.Length; i++) { newDict[snap[i].OwnerId] = snap[i].Bytes; }
-
-            var kbps = new Dictionary<int, int>();
-            // compute deltas (bytes per ~1s)
+            // Build new snapshot values into local arrays to avoid allocating temporary dictionaries
+            // Compute deltas (bytes per ~1s) and update _ownerKBps and _lastOwnerBytes in-place
             lock (_lastOwnerBytes) {
-                var newKeys = newDict.Keys;
-                for (int i = 0; i < newKeys.Count; i++) {
-                    int k = newKeys[i]; ulong prev = _lastOwnerBytes.ContainsKey(k) ? _lastOwnerBytes[k] : 0UL;
-                    long diff = (long)newDict[k] - (long)prev; // bytes per ~1s
+                // Mark all owners in _lastOwnerBytes as unseen initially by setting a sentinel
+                // We'll build a new set from snap and compute diffs.
+                // Compute diffs for owners present in snap
+                _ownerKBps.Clear();
+                for (int i = 0; i < snap.Length; i++) {
+                    int owner = snap[i].OwnerId;
+                    ulong bytes = snap[i].Bytes;
+                    ulong prev = _lastOwnerBytes.ContainsKey(owner) ? _lastOwnerBytes[owner] : 0UL;
+                    long diff = (long)bytes - (long)prev; // bytes per ~1s
                     int kbs = (int)(diff / 1024L);
-                    kbps[k] = kbs;
+                    _ownerKBps[owner] = kbs;
                 }
-                // owners that disappeared -> negative freed rate
-                var oldKeys = _lastOwnerBytes.Keys;
-                for (int i = 0; i < oldKeys.Count; i++) {
-                    int k = oldKeys[i]; if (!newDict.ContainsKey(k)) kbps[k] = (int)(-((long)_lastOwnerBytes[k] / 1024L));
+                // Owners that disappeared -> negative freed rate
+                for (int i = 0; i < _lastOwnerBytes.Keys.Count; i++) {
+                    int owner = _lastOwnerBytes.Keys[i];
+                    bool found = false;
+                    for (int j = 0; j < snap.Length; j++) { if (snap[j].OwnerId == owner) { found = true; break; } }
+                    if (!found) {
+                        int freed = (int)(-((long)_lastOwnerBytes[owner] / 1024L));
+                        _ownerKBps[owner] = freed;
+                    }
                 }
+                // Replace _lastOwnerBytes with new snapshot
                 _lastOwnerBytes.Clear();
-                var nk = newDict.Keys;
-                for (int i = 0; i < nk.Count; i++) _lastOwnerBytes[nk[i]] = newDict[nk[i]];
+                for (int i = 0; i < snap.Length; i++) {
+                    _lastOwnerBytes[snap[i].OwnerId] = snap[i].Bytes;
+                }
             }
-            _ownerKBps.Clear();
-            var kbKeys = kbps.Keys;
-            for (int i = 0; i < kbKeys.Count; i++) _ownerKBps[kbKeys[i]] = kbps[kbKeys[i]];
         }
     }
 }

@@ -121,7 +121,7 @@ unsafe class Program {
         try { Cursor = new PNG(File.ReadAllBytes("Images/Cursor.png")); } catch { Cursor = new Image(16,16); }
         try { CursorMoving = new PNG(File.ReadAllBytes("Images/Grab.png")); } catch { CursorMoving = Cursor; }
         try { CursorBusy = new PNG(File.ReadAllBytes("Images/Busy.png")); } catch { CursorBusy = Cursor; }
-        try { Wallpaper = new PNG(File.ReadAllBytes("Images/tronporche.png")); } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
+        //try { Wallpaper = new PNG(File.ReadAllBytes("Images/tronporche.png")); } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
         BitFont.Initialize();
         string CustomCharset = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
         BitFont.RegisterBitFont(new BitFontDescriptor("Song", CustomCharset, File.ReadAllBytes("Fonts/Song.btf"), 16));
@@ -205,6 +205,11 @@ unsafe class Program {
         //var welcome = new Welcome(500, 250);
 
         //Console.WriteLine("Draw Start");
+        int lastMouseX = Control.MousePosition.X;
+        int lastMouseY = Control.MousePosition.Y;
+        ulong lastMoveTick = Timer.Ticks;
+        const ulong ActiveMoveMs = 100; // stay responsive for 100ms after a move
+
         for (; ; ) {
             // Per-frame input pass for all windows
             WindowManager.MouseHandled = false;
@@ -238,8 +243,16 @@ unsafe class Program {
             if (img != null) Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
             //refresh screen
             Framebuffer.Update();
-            // yield a bit to avoid tight spin
-            Thread.Sleep(1);
-        }
-    }
-}
+            // Mouse responsiveness throttling: if mouse moved recently, keep minimal sleep (0) for max responsiveness.
+            // When idle, yield a bit to lower CPU usage.
+            int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
+            if (mx != lastMouseX || my != lastMouseY) {
+                lastMouseX = mx; lastMouseY = my; lastMoveTick = Timer.Ticks;
+                Thread.Sleep(0);
+            } else {
+                ulong age = (Timer.Ticks >= lastMoveTick) ? (Timer.Ticks - lastMoveTick) : 0UL;
+                if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(2);
+            }
+         }
+     }
+ }
