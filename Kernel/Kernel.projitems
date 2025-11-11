@@ -34,7 +34,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\Power.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Controller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Keyboard.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2MouseOld.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\PS2Mouse.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\Ramdisk.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\RTC.cs" />

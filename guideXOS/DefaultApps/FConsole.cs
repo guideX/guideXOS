@@ -4,6 +4,7 @@ using System.Drawing;
 using guideXOS.OS;
 using guideXOS.GUI;
 using guideXOS.Compat;
+using guideXOS.Graph;
 
 namespace guideXOS.DefaultApps {
     internal class FConsole : Window {
@@ -187,10 +188,88 @@ namespace guideXOS.DefaultApps {
             if (parts.Length==0) return;
             string cmd = parts[0];
             switch (cmd) {
-                case "help": WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
+                case "help": WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, setbg <image>, netinit, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot"); break;
                 case "exit": { this.Visible = false; return; }
                 case "clear": { Data = string.Empty; WritePrompt(); return; }
                 case "pwd": { string p = string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd; WriteLine(p); return; }
+                case "setbg": {
+                        if (parts.Length < 2) { WriteLine("Usage: setbg <image>"); return; }
+                        string token = parts[1];
+                        string path;
+                        
+                        // Try exact match first
+                        if (!ResolveFileToken(token, out path, out var ferr)) {
+                            // If exact match fails and no extension, try fuzzy match
+                            if (token.IndexOf('.') < 0) {
+                                // Fuzzy match for extensionless files
+                                string cwdAbs = string.IsNullOrEmpty(_cwd) ? "/" : "/" + _cwd;
+                                var list = FS.File.GetFiles(string.IsNullOrEmpty(_cwd) ? "" : _cwd);
+                                if (list != null) {
+                                    string match = null;
+                                    int matches = 0;
+                                    for (int i = 0; i < list.Count; i++) {
+                                        var fi = list[i];
+                                        if (fi.Attribute != guideXOS.FS.FileAttribute.Directory) {
+                                            string nm = fi.Name;
+                                            // Check if starts with token and has extension
+                                            if (nm.Length > token.Length + 1 && StartsWithFast(nm, token) && nm[token.Length] == '.') {
+                                                // Check for image extensions
+                                                int len = nm.Length;
+                                                bool isPng = len >= 4 && nm[len - 1] == 'g' && nm[len - 2] == 'n' && nm[len - 3] == 'p' && nm[len - 4] == '.';
+                                                bool isJpg = len >= 4 && nm[len - 1] == 'g' && nm[len - 2] == 'p' && nm[len - 3] == 'j' && nm[len - 4] == '.';
+                                                bool isBmp = len >= 4 && nm[len - 1] == 'p' && nm[len - 2] == 'm' && nm[len - 3] == 'b' && nm[len - 4] == '.';
+                                                if (isPng || isJpg || isBmp) {
+                                                    matches++;
+                                                    match = nm;
+                                                }
+                                            }
+                                        }
+                                        fi.Dispose();
+                                    }
+                                    list.Dispose();
+                                    
+                                    if (matches == 0) {
+                                        WriteLine("setbg: no image file found matching '" + token + "'");
+                                        return;
+                                    } else if (matches > 1) {
+                                        WriteLine("setbg: ambiguous - multiple images match '" + token + "'");
+                                        return;
+                                    }
+                                    // Exactly one match - use it
+                                    path = Posix.NormalizePath(_cwd, match);
+                                } else {
+                                    WriteLine("setbg: cannot access directory");
+                                    return;
+                                }
+                            } else {
+                                // Has extension but file not found
+                                if (ferr != null) WriteLine(ferr);
+                                else WriteLine("setbg: file not found: " + token);
+                                return;
+                            }
+                        }
+                        
+                        // Try to load and set the wallpaper
+                        try {
+                            byte[] data = FS.File.ReadAllBytes(path);
+                            if (data == null) {
+                                WriteLine("setbg: unable to read file: " + path);
+                                return;
+                            }
+                            
+                            var img = new guideXOS.Misc.PNG(data);
+                            data.Dispose();
+                            
+                            if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
+                            Program.Wallpaper = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
+                            img.Dispose();
+                            
+                            WriteLine("Desktop background changed to: " + path);
+                        } catch {
+                            WriteLine("setbg: failed to load image (not a valid PNG?)");
+                        }
+                        return;
+                    }
                 case "ls": {
                         string target = parts.Length > 1 ? Posix.NormalizePath(_cwd, parts[1]) : (string.IsNullOrEmpty(_cwd)?"/":"/"+_cwd);
                         if (!Posix.DirectoryExists(target)) { WriteLine("ls: cannot access: " + (parts.Length>1?parts[1]:target)); return; }
@@ -346,26 +425,36 @@ namespace guideXOS.DefaultApps {
                 case "logout":
                     Session.LoginToken = string.Empty; Console.WriteLine("Logged out.");
                     break;
-                case "fwmode": { if(parts.Length<2){ WriteLine("Usage: fwmode <normal|blockall|disabled|autolearn>"); break; } string m=parts[1]; if(m=="normal") Firewall.Mode=guideXOS.OS.FirewallMode.Normal; else if(m=="blockall") Firewall.Mode=guideXOS.OS.FirewallMode.BlockAll; else if(m=="disabled") Firewall.Mode=guideXOS.OS.FirewallMode.Disabled; else if(m=="autolearn") Firewall.Mode=guideXOS.OS.FirewallMode.Autolearn; WriteLine("Firewall mode: "+Firewall.Mode.ToString()); break; }
-                case "fwlist": { var arr = guideXOS.OS.Firewall.Exceptions; for(int ii=0; ii<arr.Length; ii++) WriteLine(arr[ii]); break; }
-                case "fwadd": { if(parts.Length<2){ WriteLine("Usage: fwadd <program>"); break; } guideXOS.OS.Firewall.AddException(parts[1]); WriteLine("Added exception: "+parts[1]); break; }
-                case "fwui": { if(guideXOS.OS.Firewall.Window!=null){ WindowManager.MoveToEnd(guideXOS.OS.Firewall.Window); guideXOS.OS.Firewall.Window.Visible=true; } break; }
-                default:
-                    // fall through to original switch tail (keep other commands)
-                    switch (cmd) {
-                        case "cat": {
-                                if (parts.Length < 2){ WriteLine("Usage: cat <file>"); return; }
-                                if(!ResolveFileToken(parts[1], out var path, out var ferr)){ if(ferr!=null) { WriteLine(ferr); return; } path = ToAbs(parts[1]); }
-                                byte[] data = FS.File.ReadAllBytes(path);
-                                if (data == null) { WriteLine("Unable to read file"); return; }
-                                int len = data.Length; char[] buf = new char[len]; for(int i=0;i<len;i++){ byte b=data[i]; buf[i]= b>=32 && b<127? (char)b : (b==10?'\n':'.'); }
-                                WriteLine(new string(buf)); data.Dispose(); return; }
-                        // keep other existing cases by deferring to original logic (simplified for brevity)
-                        case "shutdown": Power.Shutdown(); break;
-                        case "reboot": Power.Reboot(); break;
-                        // If not matched above
-                        default: WriteLine("No such command: \"" + cmdLine + "\""); break;
+                case "fwmode": { 
+                        if(parts.Length<2){ WriteLine("Usage: fwmode <normal|blockall|disabled|autolearn>"); break; } 
+                        string m=parts[1]; 
+                        if(m=="normal") Firewall.Mode=guideXOS.OS.FirewallMode.Normal; 
+                        else if(m=="blockall") Firewall.Mode=guideXOS.OS.FirewallMode.BlockAll; 
+                        else if(m=="disabled") Firewall.Mode=guideXOS.OS.FirewallMode.Disabled; 
+                        else if(m=="autolearn") Firewall.Mode=guideXOS.OS.FirewallMode.Autolearn; 
+                        WriteLine("Firewall mode: "+Firewall.Mode.ToString()); 
+                        break; 
                     }
+                case "fwlist": { 
+                        var arr = guideXOS.OS.Firewall.Exceptions; 
+                        for(int ii=0; ii<arr.Length; ii++) WriteLine(arr[ii]); 
+                        break; 
+                    }
+                case "fwadd": { 
+                        if(parts.Length<2){ WriteLine("Usage: fwadd <program>"); break; } 
+                        guideXOS.OS.Firewall.AddException(parts[1]); 
+                        WriteLine("Added exception: "+parts[1]); 
+                        break; 
+                    }
+                case "fwui": { 
+                        if(guideXOS.OS.Firewall.Window!=null){ 
+                            WindowManager.MoveToEnd(guideXOS.OS.Firewall.Window); 
+                            guideXOS.OS.Firewall.Window.Visible=true; 
+                        } 
+                        break; 
+                    }
+                default:
+                    WriteLine("No such command: \"" + cmdLine + "\""); 
                     break;
             }
         }

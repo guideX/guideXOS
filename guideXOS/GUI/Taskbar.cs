@@ -241,7 +241,13 @@ namespace guideXOS.GUI {
                 }
                 // Workspace button click: just cycle to next workspace
                 if (mx2 >= tvX && mx2 <= tvX + tvSize && my2 >= tvY && my2 <= tvY + tvSize) {
-                    if (!_taskViewLatch) { WorkspaceManager.Next(); _taskViewLatch = true; }
+                    if (!_taskViewLatch) { 
+                        // Open workspace switcher overlay instead of calling Next() (which freezes)
+                        var switcher = new WorkspaceSwitcher();
+                        WindowManager.MoveToEnd(switcher);
+                        switcher.Visible = true;
+                        _taskViewLatch = true; 
+                    }
                 }
                 // Show Desktop click handling (right sliver)
                 if (mx2 >= sdX && mx2 <= sdX + sdW && my2 >= sdY && my2 <= sdY + sdH) {

@@ -12,6 +12,7 @@ namespace guideXOS.GUI {
         private static int _count = 1;
         public static int Current { get; private set; } = 0;
         public const int MaxWorkspaces = 8;
+        private static bool _switching = false; // prevent re-entry
 
         public static int Count => _count;
 
@@ -27,7 +28,7 @@ namespace guideXOS.GUI {
             for (int i = 0; i < wins.Count; i++) {
                 var w = wins[i];
                 if (w == null) continue;
-                if (!w.ShowInTaskbar) continue; // don't manage internal UI
+                if (!w.ShowInTaskbar) continue; // don't manage internal UI (including WorkspaceSwitcher)
                 if (IndexOf(w) == -1) { _keys.Add(w); _values.Add(Current); }
             }
         }
@@ -45,11 +46,18 @@ namespace guideXOS.GUI {
             if (!w.ShowInTaskbar) return false;
             int idx = IndexOf(w);
             if (idx < 0) { _keys.Add(w); _values.Add(workspaceIndex); } else { _values[idx] = workspaceIndex; }
-            // If moved away from current, hide/minimize it; if moved to current, show it.
+            // If moved away from current, hide it; if moved to current, show it.
             if (workspaceIndex != Current) {
-                if (w.Visible && !w.IsMinimized) { w.Minimize(); if (!ListContains(_minimizedBySwitch, w)) _minimizedBySwitch.Add(w); }
+                if (w.Visible && !w.IsMinimized) { 
+                    // Hide instead of minimize to avoid animation freeze
+                    w._visible = false;
+                    if (!ListContains(_minimizedBySwitch, w)) _minimizedBySwitch.Add(w); 
+                }
             } else {
-                if (w.IsMinimized && ListContains(_minimizedBySwitch, w)) { w.Restore(); ListRemove(_minimizedBySwitch, w); }
+                if (ListContains(_minimizedBySwitch, w)) { 
+                    if (w.IsMinimized) w.Restore();
+                    ListRemove(_minimizedBySwitch, w); 
+                }
                 w.Visible = true; WindowManager.MoveToEnd(w);
             }
             return true;
@@ -77,22 +85,51 @@ namespace guideXOS.GUI {
         }
 
         public static void SwitchTo(int idx) {
+            if (_switching) return; // prevent re-entry during animations
             if (idx < 0) idx = 0; if (idx >= _count) idx = _count - 1;
             if (idx == Current) return;
-            EnsureAllWindowsTracked();
-            // Minimize windows not in the target, restore those in the target (only those minimized by switch)
-            var wins = WindowManager.Windows;
-            for (int i = 0; i < wins.Count; i++) {
-                var w = wins[i]; if (w == null) continue; if (!w.ShowInTaskbar) continue;
-                int ws = GetWorkspace(w);
-                if (ws == idx) {
-                    if (w.IsMinimized && ListContains(_minimizedBySwitch, w)) { w.Restore(); ListRemove(_minimizedBySwitch, w); }
-                    w.Visible = true;
-                } else {
-                    if (w.Visible && !w.IsMinimized) { w.Minimize(); if (!ListContains(_minimizedBySwitch, w)) _minimizedBySwitch.Add(w); }
+            
+            _switching = true;
+            try {
+                EnsureAllWindowsTracked();
+                // Don't minimize/restore windows - just hide/show them to avoid animation issues
+                var wins = WindowManager.Windows;
+                if (wins == null) return;
+                
+                // Create a snapshot list to avoid collection modification issues
+                var winSnapshot = new List<Window>(wins.Count);
+                for (int i = 0; i < wins.Count; i++) {
+                    winSnapshot.Add(wins[i]);
                 }
+                
+                for (int i = 0; i < winSnapshot.Count; i++) {
+                    var w = winSnapshot[i]; 
+                    if (w == null) continue; 
+                    if (!w.ShowInTaskbar) continue;
+                    
+                    int ws = GetWorkspace(w);
+                    if (ws == idx) {
+                        // Window belongs to target workspace - show it
+                        // If it was minimized by switch, restore it
+                        if (ListContains(_minimizedBySwitch, w)) {
+                            if (w.IsMinimized) w.Restore();
+                            ListRemove(_minimizedBySwitch, w);
+                        }
+                        w.Visible = true;
+                    } else {
+                        // Window belongs to different workspace - hide it
+                        // Only minimize if visible and not already minimized
+                        if (w.Visible && !w.IsMinimized) {
+                            // Just hide instead of minimize to avoid animation freeze
+                            w._visible = false; // Direct access to avoid triggering animation
+                            if (!ListContains(_minimizedBySwitch, w)) _minimizedBySwitch.Add(w);
+                        }
+                    }
+                }
+                Current = idx;
+            } finally {
+                _switching = false;
             }
-            Current = idx;
         }
 
         public static void Next() { if (Current + 1 < _count) SwitchTo(Current + 1); }

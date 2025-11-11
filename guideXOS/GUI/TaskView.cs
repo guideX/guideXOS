@@ -94,11 +94,13 @@ namespace guideXOS.GUI {
 
         public override void OnDraw() {
             if (!Visible) return;
-            // Dim entire background slightly with blur
-            Framebuffer.Graphics.BlurRectangle(0, 0, Framebuffer.Width, Framebuffer.Height, 4);
-            Framebuffer.Graphics.AFillRectangle(0, 0, Framebuffer.Width, Framebuffer.Height, 0xAA0F0F12);
+            
+            // Don't blur the entire screen every frame - it's too expensive and causes memory leaks
+            // Just use a simple dark overlay instead
+            Framebuffer.Graphics.AFillRectangle(0, 0, Framebuffer.Width, Framebuffer.Height, 0xCC0F0F12);
 
-            WorkspaceManager.EnsureAllWindowsTracked();
+            // Don't call EnsureAllWindowsTracked during draw - it should only be called during workspace switches
+            // WorkspaceManager.EnsureAllWindowsTracked(); // REMOVED
             _tiles.Clear();
 
             // Sidebar: list of workspaces like GNOME on the right, but we'll place left for convenience

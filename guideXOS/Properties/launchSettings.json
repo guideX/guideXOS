@@ -29,6 +29,12 @@
       "executablePath": "cmd.exe",
       "commandLineArgs": "/c dotnet publish -p:vm=vmwareworkstation -r win-x64 -c debug guideXOS -p:EmitLegacyAssetsFileItems=true",
       "workingDirectory": "..\\"
+    },
+    "VirtualBox": {
+      "commandName": "Executable",
+      "executablePath": "cmd.exe",
+      "commandLineArgs": "/c dotnet publish -p:vm=virtualbox -r win-x64 -c debug guideXOS -p:EmitLegacyAssetsFileItems=true",
+      "workingDirectory": "..\\"
     }
   }
 }
