@@ -286,16 +286,11 @@ namespace guideXOS.GUI {
                 // Workspace button click: SET FLAG instead of creating directly
                 if (mx2 >= tvX && mx2 <= tvX + tvSize && my2 >= tvY && my2 <= tvY + tvSize) {
                     if (!_taskViewLatch) { 
-<<<<<<< HEAD
-                        // Just set flag - will be created at the start of next Draw()
-                        _needsWorkspaceSwitcher = true;
-=======
                         // Open workspace switcher overlay instead of calling Next() (which freezes)
-                        var switcher = new WorkspaceSwitcher();
-                        WindowManager.MoveToEnd(switcher);
-                        switcher.Visible = true;
->>>>>>> 22925cd52525686aecc7943cb94186b7502460fe
-                        _taskViewLatch = true; 
+                        //var switcher = new WorkspaceSwitcher();
+                        //WindowManager.MoveToEnd(switcher);
+                        //switcher.Visible = true;
+                        //_taskViewLatch = true; 
                     }
                 }
                 // Show Desktop click handling (right sliver)

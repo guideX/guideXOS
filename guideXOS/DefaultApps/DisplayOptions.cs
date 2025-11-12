@@ -39,11 +39,7 @@ namespace guideXOS.DefaultApps {
         private OpenDialog _openDlg;
         private ColorPicker _colorDlg;
 
-<<<<<<< HEAD
-        public DisplayOptions(int X, int Y, int W = 900, int H = 620) : base(X, Y, W, H) {
-=======
         public DisplayOptions(int X, int Y, int W = 840, int H = 620) : base(X, Y, W, H) {
->>>>>>> 22925cd52525686aecc7943cb94186b7502460fe
             IsResizable = false;
             ShowInTaskbar = true;
             ShowMaximize = false;
@@ -80,11 +76,6 @@ namespace guideXOS.DefaultApps {
             if (_thumbnailsLoaded) return;
             _thumbnailsLoaded = true;
 
-<<<<<<< HEAD
-            // Load images from /Backgrounds directory (with leading slash for root)
-=======
-            // Load images from /Backgrounds directory
->>>>>>> 22925cd52525686aecc7943cb94186b7502460fe
             var files = File.GetFiles("Backgrounds");
             if (files != null && files.Count > 0) {
                 for (int i = 0; i < files.Count; i++) {
