@@ -28,6 +28,10 @@ namespace guideXOS.DefaultApps {
         private int _selectedIndex = -1;
         private int _selectedTombIndex = -1;
 
+        // Performance tab navigation
+        private int _selectedPerfCategory = 0; // 0 = CPU, 1 = Memory, 2 = Disk, 3 = Network
+        private bool _perfNavClickLatch = false;
+
         // Performance charts
         class Chart {
             public Image image;
@@ -39,9 +43,23 @@ namespace guideXOS.DefaultApps {
             public Chart(int width, int height, string name) {
                 image = new Image(width, height);
                 graphics = Graphics.FromImage(image);
-                lastValue = 100;
+                // Initialize with background color
+                graphics.FillRectangle(0, 0, width, height, 0xFF222222);
+                lastValue = 0; // Start at 0 instead of 100
                 this.name = name;
                 writeX = 0;
+            }
+            
+            // Method to resize chart if needed
+            public void EnsureSize(int width, int height) {
+                if (image.Width != width || image.Height != height) {
+                    // Create new chart with new dimensions
+                    image = new Image(width, height);
+                    graphics = Graphics.FromImage(image);
+                    graphics.FillRectangle(0, 0, width, height, 0xFF222222);
+                    writeX = 0;
+                    lastValue = 0;
+                }
             }
         }
         private Chart _cpuChart;
@@ -81,7 +99,8 @@ namespace guideXOS.DefaultApps {
             ShowTombstone = true;
             IsResizable = true;
             Title = "Task Manager";
-            int chartW = 280, chartH = 120;
+            // Initial chart size - will be resized dynamically
+            int chartW = 480, chartH = 180;
             _cpuChart = new Chart(chartW, chartH, "CPU");
             _memChart = new Chart(chartW, chartH, "Memory");
             _diskChart = new Chart(chartW, chartH, "Disk");
@@ -156,6 +175,24 @@ namespace guideXOS.DefaultApps {
                     if (mx >= btnX && mx <= btnX + btnW && my >= btnY && my <= btnY + btnH) {
                         OnEndTask();
                     }
+                } else if (_currentTab == 1) {
+                    // Performance tab navigation
+                    if (!_perfNavClickLatch) {
+                        int navW = (int)(cw * 0.25f); // 25% for navigation pane
+                        int navX = cx;
+                        int navY = contentY;
+                        int itemH = 70; // height for each navigation item
+                        
+                        // Check if clicking on navigation items
+                        for (int i = 0; i < 4; i++) {
+                            int itemY = navY + i * itemH;
+                            if (mx >= navX && mx <= navX + navW && my >= itemY && my <= itemY + itemH) {
+                                _selectedPerfCategory = i;
+                                _perfNavClickLatch = true;
+                                break;
+                            }
+                        }
+                    }
                 } else if (_currentTab == 2) {
                     // Tombstoned tab
                     // Hit-test list area
@@ -189,6 +226,7 @@ namespace guideXOS.DefaultApps {
                 }
             } else if (Control.MouseButtons.HasFlag(MouseButtons.None)) {
                 _scrollDrag = false;
+                _perfNavClickLatch = false;
             }
 
             // Handle scroll dragging
@@ -455,10 +493,11 @@ namespace guideXOS.DefaultApps {
                 _cpuUtilPct = (int)ThreadPool.CPUUsage; if (_cpuUtilPct < 0) _cpuUtilPct = 0; if (_cpuUtilPct > 100) _cpuUtilPct = 100;
                 UpdateChart(_cpuChart, _cpuUtilPct, 0xFF5DADE2);
 
-                // Memory
+                // Memory - fix calculation
                 ulong totalMem = Allocator.MemorySize == 0 ? 1UL : Allocator.MemorySize;
                 ulong usedMem = Allocator.MemoryInUse;
                 _memUtilPct = (int)(usedMem * 100UL / totalMem);
+                if (_memUtilPct < 0) _memUtilPct = 0; if (_memUtilPct > 100) _memUtilPct = 100;
                 UpdateChart(_memChart, _memUtilPct, 0xFF58D68D);
 
                 // Disk (synthetic animation so chart isn't flat). If real stats are added later, replace here.
@@ -489,107 +528,348 @@ namespace guideXOS.DefaultApps {
                 }
             }
 
-            // Layout 2x2 grid
-            int gap = 16;
-            int cW = _cpuChart.graphics.Width;
-            int cH = _cpuChart.graphics.Height;
-            int gridW = (w - gap) / 2; // used for placement
-
-            DrawCpuPanel(x, y, _cpuChart, cW, cH);
-            DrawMemPanel(x + gridW + gap, y, _memChart, cW, cH);
-            DrawDiskPanel(x, y + cH + gap + 24, _diskChart, cW, cH);
-            DrawNetPanel(x + gridW + gap, y + cH + gap + 24, _netChart, cW, cH);
+            // Windows-style layout: left sidebar + right detail pane
+            int navW = (int)(w * 0.25f); // 25% for navigation
+            int detailW = w - navW - 12; // remaining width for detail pane, minus gap
+            int navX = x;
+            int detailX = x + navW + 12;
+            
+            // Dynamically size charts to fit available space
+            int chartW = Math.Min(detailW - 20, 600); // max 600px wide
+            int chartH = Math.Min((h - 200) / 1, 220); // leave room for title and details
+            if (chartW < 200) chartW = 200;
+            if (chartH < 120) chartH = 120;
+            
+            // Ensure charts are properly sized
+            _cpuChart.EnsureSize(chartW, chartH);
+            _memChart.EnsureSize(chartW, chartH);
+            _diskChart.EnsureSize(chartW, chartH);
+            _netChart.EnsureSize(chartW, chartH);
+            
+            // Draw navigation pane background
+            Framebuffer.Graphics.FillRectangle(navX, y, navW, h, 0xFF181818);
+            
+            // Draw navigation items
+            string[] navLabels = { "CPU", "Memory", "Disk", "Network" };
+            uint[] navColors = { 0xFF5DADE2, 0xFF58D68D, 0xFFE67E22, 0xFF9B59B6 };
+            int[] navValues = { _cpuUtilPct, _memUtilPct, _diskUtilPct, _netUtilPct };
+            
+            int itemH = Math.Min(70, h / 4); // Divide space evenly
+            int miniGraphW = 50;
+            int miniGraphH = 30;
+            
+            for (int i = 0; i < 4; i++) {
+                int itemY = y + i * itemH;
+                bool selected = i == _selectedPerfCategory;
+                
+                // Background for selected item
+                if (selected) {
+                    Framebuffer.Graphics.FillRectangle(navX, itemY, navW, itemH, 0xFF252525);
+                }
+                
+                // Separator line
+                if (i > 0) {
+                    Framebuffer.Graphics.DrawRectangle(navX + 4, itemY, navW - 8, 1, 0xFF333333, 1);
+                }
+                
+                // Draw mini graph (simplified line chart)
+                int graphX = navX + 8;
+                int graphY = itemY + 32;
+                Chart chart = GetChartForCategory(i);
+                DrawMiniGraph(graphX, graphY, miniGraphW, miniGraphH, chart, navColors[i]);
+                
+                // Label and percentage
+                int textX = graphX + miniGraphW + 8;
+                int labelY = itemY + 8;
+                WindowManager.font.DrawString(textX, labelY, navLabels[i]);
+                
+                string pctText = navValues[i].ToString() + "%";
+                int pctY = labelY + WindowManager.font.FontSize + 4;
+                WindowManager.font.DrawString(textX, pctY, pctText);
+                pctText.Dispose();
+            }
+            
+            // Draw separator between navigation and detail
+            Framebuffer.Graphics.FillRectangle(detailX - 6, y, 1, h, 0xFF333333);
+            
+            // Draw detail pane based on selected category
+            switch (_selectedPerfCategory) {
+                case 0: DrawCpuDetail(detailX, y, detailW, h); break;
+                case 1: DrawMemDetail(detailX, y, detailW, h); break;
+                case 2: DrawDiskDetail(detailX, y, detailW, h); break;
+                case 3: DrawNetDetail(detailX, y, detailW, h); break;
+            }
         }
-
-        private void DrawCpuPanel(int x, int y, Chart chart, int w, int h) {
+        
+        private Chart GetChartForCategory(int category) {
+            switch (category) {
+                case 0: return _cpuChart;
+                case 1: return _memChart;
+                case 2: return _diskChart;
+                case 3: return _netChart;
+                default: return _cpuChart;
+            }
+        }
+        
+        private void DrawMiniGraph(int x, int y, int w, int h, Chart chart, uint color) {
+            // Draw a simplified version of the chart for the navigation pane
+            Framebuffer.Graphics.FillRectangle(x, y, w, h, 0xFF222222);
+            
+            // Sample every Nth point to fit in the mini graph
+            int chartW = chart.graphics.Width;
+            int sampleInterval = Math.Max(1, chartW / w);
+            
+            for (int i = 0; i < w; i++) {
+                int srcX = (chart.writeX + i * sampleInterval) % chartW;
+                
+                // Read pixel value from chart to determine height
+                uint pixel = chart.image.GetPixel(srcX, h / 2);
+                if (pixel != 0xFF222222 && pixel != 0) { // not background
+                    // Find the colored pixel in this column
+                    for (int sy = 0; sy < chart.graphics.Height; sy++) {
+                        uint p = chart.image.GetPixel(srcX, sy);
+                        if (p == color) {
+                            // Map to mini graph coordinates
+                            int miniY = y + sy * h / chart.graphics.Height;
+                            Framebuffer.Graphics.FillRectangle(x + i, miniY, 1, 1, color);
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            Framebuffer.Graphics.DrawRectangle(x, y, w, h, 0xFF444444, 1);
+        }
+        
+        private void DrawCpuDetail(int x, int y, int w, int h) {
+            // Title
             string title = "CPU";
             WindowManager.font.DrawString(x, y, title);
-            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, false);
-            Framebuffer.Graphics.DrawRectangle(x, y + 24, chart.graphics.Width, chart.graphics.Height, 0xFF333333);
-            int infoY = y + 24 + chart.graphics.Height + 6;
-            // Labels
-            WindowManager.font.DrawString(x, infoY, "Utilization: " + _cpuUtilPct.ToString() + "%"); infoY += WindowManager.font.FontSize + 2;
-            // SMBIOS speed not wired; show N/A
-            WindowManager.font.DrawString(x, infoY, "Speed: N/A"); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Processes: " + _procCount.ToString()); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Threads: " + _threadCount.ToString()); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Machine time: " + FormatUptime(Timer.Ticks));
+            
+            // Large graph
+            int graphY = y + WindowManager.font.FontSize + 12;
+            int graphH = Math.Min(_cpuChart.graphics.Height, h - WindowManager.font.FontSize - 120);
+            Framebuffer.Graphics.DrawImage(x, graphY, _cpuChart.image, true);
+            Framebuffer.Graphics.DrawRectangle(x, graphY, _cpuChart.graphics.Width, _cpuChart.graphics.Height, 0xFF333333, 1);
+            
+            // Utilization percentage on graph
+            string pct = _cpuUtilPct.ToString() + "%";
+            int pctX = x + _cpuChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
+            WindowManager.font.DrawString(pctX, graphY + 8, pct);
+            pct.Dispose();
+            
+            // Details below graph
+            int detailY = graphY + _cpuChart.graphics.Height + 16;
+            int col1X = x;
+            int col2X = x + w / 2;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Utilization:"); 
+            WindowManager.font.DrawString(col2X, detailY, _cpuUtilPct.ToString() + "%");
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Speed:");
+            WindowManager.font.DrawString(col2X, detailY, "N/A");
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Processes:");
+            WindowManager.font.DrawString(col2X, detailY, _procCount.ToString());
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Threads:");
+            WindowManager.font.DrawString(col2X, detailY, _threadCount.ToString());
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Machine time:");
+            WindowManager.font.DrawString(col2X, detailY, FormatUptime(Timer.Ticks));
         }
-
-        private void DrawMemPanel(int x, int y, Chart chart, int w, int h) {
+        
+        private void DrawMemDetail(int x, int y, int w, int h) {
+            // Title
             string title = "Memory";
             WindowManager.font.DrawString(x, y, title);
-            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, false);
-            Framebuffer.Graphics.DrawRectangle(x, y + 24, chart.graphics.Width, chart.graphics.Height, 0xFF333333);
-            int infoY = y + 24 + chart.graphics.Height + 6;
-
+            
+            // Large graph
+            int graphY = y + WindowManager.font.FontSize + 12;
+            Framebuffer.Graphics.DrawImage(x, graphY, _memChart.image, true);
+            Framebuffer.Graphics.DrawRectangle(x, graphY, _memChart.graphics.Width, _memChart.graphics.Height, 0xFF333333, 1);
+            
+            // Utilization percentage on graph
+            string pct = _memUtilPct.ToString() + "%";
+            int pctX = x + _memChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
+            WindowManager.font.DrawString(pctX, graphY + 8, pct);
+            pct.Dispose();
+            
+            // Details below graph
+            int detailY = graphY + _memChart.graphics.Height + 16;
+            int col1X = x;
+            int col2X = x + w / 2;
+            
             ulong total = Allocator.MemorySize;
             ulong used = Allocator.MemoryInUse;
             ulong avail = total > used ? total - used : 0UL;
-            WindowManager.font.DrawString(x, infoY, "In use: " + ToMBString(used) + " (" + _memUtilPct.ToString() + "%)"); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Available: " + ToMBString(avail)); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Total: " + ToMBString(total)); infoY += WindowManager.font.FontSize + 2;
-            // show top growing owner and top tag
-            int topOwner = 0; int topKbps = 0;
-            var ownerKeys = _ownerKBps.Keys;
-            for (int _i = 0; _i < ownerKeys.Count; _i++) {
-                int ok = ownerKeys[_i]; int val = _ownerKBps[ok]; if (Math.Abs(val) > Math.Abs(topKbps)) { topKbps = val; topOwner = ok; }
+            
+            WindowManager.font.DrawString(col1X, detailY, "In use:");
+            string usedStr = ToMBString(used) + " (" + _memUtilPct.ToString() + "%)";
+            WindowManager.font.DrawString(col2X, detailY, usedStr);
+            usedStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Available:");
+            string availStr = ToMBString(avail);
+            WindowManager.font.DrawString(col2X, detailY, availStr);
+            availStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Total:");
+            string totalStr = ToMBString(total);
+            WindowManager.font.DrawString(col2X, detailY, totalStr);
+            totalStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            int topOwner = 0; int topKbps = 0; var ownerKeys = _ownerKBps.Keys;
+            for (int _i = 0; _i < ownerKeys.Count; _i++) { int ok = ownerKeys[_i]; int val = _ownerKBps[ok]; if (Math.Abs(val) > Math.Abs(topKbps)) { topKbps = val; topOwner = ok; } }
+            WindowManager.font.DrawString(col1X, detailY, "Top owner:");
+            if (topOwner != 0) { 
+                string ownerStr = "#" + topOwner + " " + (topKbps > 0 ? "+" : "") + topKbps.ToString() + " KB/s";
+                WindowManager.font.DrawString(col2X, detailY, ownerStr); 
+                ownerStr.Dispose();
+            } else { 
+                WindowManager.font.DrawString(col2X, detailY, "N/A"); 
             }
-            if (topOwner != 0) {
-                WindowManager.font.DrawString(x, infoY, "Top owner: #" + topOwner + " " + (topKbps > 0 ? "+" : "") + topKbps.ToString() + " KB/s"); infoY += WindowManager.font.FontSize + 2;
-            } else {
-                WindowManager.font.DrawString(x, infoY, "Top owner: N/A"); infoY += WindowManager.font.FontSize + 2;
-            }
-            // top tag
+            detailY += WindowManager.font.FontSize + 6;
+            
             int topTag = -1; ulong topTagBytes = 0;
-            for (int t = 0; t < (int)Allocator.AllocTag.Count; t++) {
-                ulong tb = Allocator.GetTagBytes((Allocator.AllocTag)t);
-                if (tb > topTagBytes) { topTagBytes = tb; topTag = t; }
-            }
-            if (topTag >= 0) {
-                WindowManager.font.DrawString(x, infoY, "Top tag: " + ((Allocator.AllocTag)topTag).ToString() + " " + ToMBString(topTagBytes));
-            } else {
-                WindowManager.font.DrawString(x, infoY, "Top tag: N/A");
+            for (int t = 0; t < (int)Allocator.AllocTag.Count; t++) { ulong tb = Allocator.GetTagBytes((Allocator.AllocTag)t); if (tb > topTagBytes) { topTagBytes = tb; topTag = t; } }
+            WindowManager.font.DrawString(col1X, detailY, "Top tag:");
+            if (topTag >= 0) { 
+                string tagStr = ((Allocator.AllocTag)topTag).ToString() + " " + ToMBString(topTagBytes);
+                WindowManager.font.DrawString(col2X, detailY, tagStr); 
+                tagStr.Dispose();
+            } else { 
+                WindowManager.font.DrawString(col2X, detailY, "N/A"); 
             }
         }
-
-        private void DrawDiskPanel(int x, int y, Chart chart, int w, int h) {
+        
+        private void DrawDiskDetail(int x, int y, int w, int h) {
+            // Title
             string title = "Disk";
             WindowManager.font.DrawString(x, y, title);
-            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, false);
-            Framebuffer.Graphics.DrawRectangle(x, y + 24, chart.graphics.Width, chart.graphics.Height, 0xFF333333);
-            int infoY = y + 24 + chart.graphics.Height + 6;
-            WindowManager.font.DrawString(x, infoY, "Active time: " + _diskActivePct.ToString() + "%"); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Avg response time: " + _diskRespMs.ToString() + " ms"); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Read speed: " + ToKBpsString(_diskReadKBps)); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Write speed: " + ToKBpsString(_diskWriteKBps));
+            
+            // Large graph
+            int graphY = y + WindowManager.font.FontSize + 12;
+            Framebuffer.Graphics.DrawImage(x, graphY, _diskChart.image, true);
+            Framebuffer.Graphics.DrawRectangle(x, graphY, _diskChart.graphics.Width, _diskChart.graphics.Height, 0xFF333333, 1);
+            
+            // Utilization percentage on graph
+            string pct = _diskUtilPct.ToString() + "%";
+            int pctX = x + _diskChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
+            WindowManager.font.DrawString(pctX, graphY + 8, pct);
+            pct.Dispose();
+            
+            // Details below graph
+            int detailY = graphY + _diskChart.graphics.Height + 16;
+            int col1X = x;
+            int col2X = x + w / 2;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Active time:");
+            WindowManager.font.DrawString(col2X, detailY, _diskActivePct.ToString() + "%");
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Avg response time:");
+            WindowManager.font.DrawString(col2X, detailY, _diskRespMs.ToString() + " ms");
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Read speed:");
+            string readStr = ToKBpsString(_diskReadKBps);
+            WindowManager.font.DrawString(col2X, detailY, readStr);
+            readStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Write speed:");
+            string writeStr = ToKBpsString(_diskWriteKBps);
+            WindowManager.font.DrawString(col2X, detailY, writeStr);
+            writeStr.Dispose();
         }
-
-        private void DrawNetPanel(int x, int y, Chart chart, int w, int h) {
+        
+        private void DrawNetDetail(int x, int y, int w, int h) {
+            // Title
             string title = "Network";
             WindowManager.font.DrawString(x, y, title);
-            Framebuffer.Graphics.DrawImage(x, y + 24, chart.image, false);
-            Framebuffer.Graphics.DrawRectangle(x, y + 24, chart.graphics.Width, chart.graphics.Height, 0xFF333333);
-            int infoY = y + 24 + chart.graphics.Height + 6;
-            WindowManager.font.DrawString(x, infoY, "Send: " + ToKBpsString(_netSendKBps)); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Receive: " + ToKBpsString(_netRecvKBps)); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Sent bytes: " + _bytesSent.ToString()); infoY += WindowManager.font.FontSize + 2;
-            WindowManager.font.DrawString(x, infoY, "Received bytes: " + _bytesRecv.ToString());
+            
+            // Large graph
+            int graphY = y + WindowManager.font.FontSize + 12;
+            Framebuffer.Graphics.DrawImage(x, graphY, _netChart.image, true);
+            Framebuffer.Graphics.DrawRectangle(x, graphY, _netChart.graphics.Width, _netChart.graphics.Height, 0xFF333333, 1);
+            
+            // Utilization percentage on graph
+            string pct = _netUtilPct.ToString() + "%";
+            int pctX = x + _netChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
+            WindowManager.font.DrawString(pctX, graphY + 8, pct);
+            pct.Dispose();
+            
+            // Details below graph
+            int detailY = graphY + _netChart.graphics.Height + 16;
+            int col1X = x;
+            int col2X = x + w / 2;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Send:");
+            string sendStr = ToKBpsString(_netSendKBps);
+            WindowManager.font.DrawString(col2X, detailY, sendStr);
+            sendStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Receive:");
+            string recvStr = ToKBpsString(_netRecvKBps);
+            WindowManager.font.DrawString(col2X, detailY, recvStr);
+            recvStr.Dispose();
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Sent bytes:");
+            WindowManager.font.DrawString(col2X, detailY, _bytesSent.ToString());
+            detailY += WindowManager.font.FontSize + 6;
+            
+            WindowManager.font.DrawString(col1X, detailY, "Received bytes:");
+            WindowManager.font.DrawString(col2X, detailY, _bytesRecv.ToString());
         }
 
         private void UpdateChart(Chart chart, int valuePct, uint color) {
             if (valuePct < 0) valuePct = 0; if (valuePct > 100) valuePct = 100;
             int h = chart.graphics.Height; int w = chart.graphics.Width;
+            
             // Clear current column
             chart.graphics.FillRectangle(chart.writeX, 0, ChartLineWidth, h, 0xFF222222);
+            
             // Compute y positions (invert for top origin)
-            int newY = h - h * valuePct / 100 - 1; if (newY < 0) newY = 0;
-            int prevY = h - h * (100 - chart.lastValue) / 100 - 1; if (prevY < 0) prevY = 0; // adjust previous basis
-            // Draw vertical segment from previous to new
-            chart.graphics.DrawLine(chart.writeX, prevY, chart.writeX, newY, color);
-            chart.lastValue = 100 - valuePct; // store inverted again for legacy usage
+            int newY = h - (h * valuePct / 100);
+            if (newY < 0) newY = 0;
+            if (newY >= h) newY = h - 1;
+            
+            int prevY = h - (h * chart.lastValue / 100);
+            if (prevY < 0) prevY = 0;
+            if (prevY >= h) prevY = h - 1;
+            
+            // Draw vertical line from previous to new value
+            if (prevY < newY) {
+                // Line going down (value decreasing)
+                for (int dy = prevY; dy <= newY; dy++) {
+                    chart.graphics.FillRectangle(chart.writeX, dy, ChartLineWidth, 1, color);
+                }
+            } else {
+                // Line going up (value increasing)
+                for (int dy = newY; dy <= prevY; dy++) {
+                    chart.graphics.FillRectangle(chart.writeX, dy, ChartLineWidth, 1, color);
+                }
+            }
+            
+            // Store current value for next iteration
+            chart.lastValue = valuePct;
+            
+            // Move write position
             chart.writeX += ChartLineWidth;
-            if (chart.writeX >= w) { chart.writeX = 0; chart.graphics.FillRectangle(0, 0, w, h, 0xFF222222); }
+            if (chart.writeX >= w) {
+                chart.writeX = 0;
+                chart.graphics.FillRectangle(0, 0, w, h, 0xFF222222);
+            }
         }
 
         private void OnEndTask() {
