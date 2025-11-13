@@ -39,8 +39,19 @@ namespace guideXOS.GUI {
                     this.Visible = false;
                     return;
                 }
-                // Item 1: Up One Level (only when not root)
-                if (Hit(1, mx, my, itemH) && Desktop.Dir.Length > 0) {
+                // Item 1: Performance Widget toggle
+                if (Hit(1, mx, my, itemH)) {
+                    if (Program.perfWidget != null) {
+                        Program.perfWidget.Visible = !Program.perfWidget.Visible;
+                        if (Program.perfWidget.Visible) {
+                            WindowManager.MoveToEnd(Program.perfWidget);
+                        }
+                    }
+                    this.Visible = false;
+                    return;
+                }
+                // Item 2: Up One Level (only when not root)
+                if (Hit(2, mx, my, itemH) && Desktop.Dir.Length > 0) {
                     Desktop.Dir.Length--;
 
                     if (Desktop.Dir.IndexOf('/') != -1) {
@@ -53,10 +64,10 @@ namespace guideXOS.GUI {
                     this.Visible = false;
                     return;
                 }
-                // Item 2..6: Icon Size options
+                // Item 3..7: Icon Size options
                 int[] sizes = new[] { 16, 24, 32, 48, 128 };
                 for (int i = 0; i < sizes.Length; i++) {
-                    if (Hit(2 + i, mx, my, itemH)) {
+                    if (Hit(3 + i, mx, my, itemH)) {
                         Desktop.SetIconSize(sizes[i]);
                         this.Visible = false;
                         return;
@@ -76,7 +87,7 @@ namespace guideXOS.GUI {
         /// </summary>
         public override void OnDraw() {
             int itemH = 28;
-            int extra = 1 + (Desktop.Dir.Length > 0 ? 1 : 0);
+            int extra = 2 + (Desktop.Dir.Length > 0 ? 1 : 0); // +1 for Display Options, +1 for Performance Widget
             int iconItems = 5;
             Height = itemH * (extra + iconItems + 1);
             // Background
@@ -84,7 +95,20 @@ namespace guideXOS.GUI {
 
             int y = Y;
             WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Display Options"); y += itemH;
-            if (Desktop.Dir.Length > 0) { WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Up one level"); y += itemH; }
+            
+            // Performance Widget toggle
+            string perfLabel = "Performance Widget";
+            if (Program.perfWidget != null && Program.perfWidget.Visible) {
+                perfLabel += " ?";
+            }
+            WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), perfLabel); 
+            perfLabel.Dispose();
+            y += itemH;
+            
+            if (Desktop.Dir.Length > 0) { 
+                WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Up one level"); 
+                y += itemH; 
+            }
             WindowManager.font.DrawString(X + 8, y + (itemH / 2) - (WindowManager.font.FontSize / 2), "Icon Size:"); y += itemH;
             int[] sizes = new[] { 16, 24, 32, 48, 128 };
             for (int i = 0; i < sizes.Length; i++) {

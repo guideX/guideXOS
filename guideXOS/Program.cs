@@ -174,6 +174,7 @@ unsafe class Program {
     public static bool rightClicked;
     public static FConsole FConsole;
     public static RightMenu rightmenu;
+    public static PerformanceWidget perfWidget;
 
     public static void SMain() {
         Framebuffer.TripleBuffered = true;
@@ -184,9 +185,21 @@ unsafe class Program {
                 Wallpaper = wall.ResizeImage(Framebuffer.Width, Framebuffer.Height);
                 wall.Dispose();
             } else {
+                // Create default wallpaper with dark slate gray background
                 Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height);
+                uint darkSlateGray = unchecked((uint)0xFF2F4F4F); // RGB(47, 79, 79) - Dark Slate Gray
+                for (int i = 0; i < Wallpaper.RawData.Length; i++) {
+                    Wallpaper.RawData[i] = (int)darkSlateGray;
+                }
             }
-        } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
+        } catch { 
+            // Fallback: create wallpaper with dark slate gray
+            Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height);
+            uint darkSlateGray = unchecked((uint)0xFF2F4F4F);
+            for (int i = 0; i < Wallpaper.RawData.Length; i++) {
+                Wallpaper.RawData[i] = (int)darkSlateGray;
+            }
+        }
 
         //Lockscreen.Run();
         FConsole = null;
@@ -196,6 +209,16 @@ unsafe class Program {
             rightmenu = new RightMenu();
             rightmenu.Visible = false;
         }
+
+        // Create performance widget (initially visible)
+        perfWidget = new PerformanceWidget();
+        perfWidget.Visible = true;
+        WindowManager.MoveToEnd(perfWidget);
+
+        // Automatically show console on startup
+        FConsole = new FConsole(160, 120);
+        FConsole.Visible = true;
+        WindowManager.MoveToEnd(FConsole);
 
         // Show login screen immediately after unlocking
         // var login = new guideXOS.GUI.LoginDialog();
@@ -255,4 +278,4 @@ unsafe class Program {
             }
          }
      }
- }
+ } 
