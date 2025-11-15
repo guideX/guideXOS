@@ -91,6 +91,15 @@ namespace guideXOS.OS {
             _apps.Add(new App("nexIRC", Icons.ChatIcon(32)));
             _apps.Add(new App("IRCNetworks", Icons.NetworkIcon(32)));
             _apps.Add(new App("GUISamples", Icons.ApplicationsIcon(32)));
+            _apps.Add(new App("ComputerFiles", Icons.FolderIcon(32)));
+            _apps.Add(new App("DiskManager", Icons.DocumentIcon(32)));
+            _apps.Add(new App("DisplayOptions", Icons.ConfigureIcon(32)));
+            _apps.Add(new App("FirewallWindow", Icons.ConfigureIcon(32)));
+            _apps.Add(new App("ImageViewer", Icons.ImageIcon(32)));
+            _apps.Add(new App("OnScreenKeyboard", Icons.EditIcon(32)));
+            _apps.Add(new App("WAVPlayer", Icons.AudioIcon(32)));
+            _apps.Add(new App("WebBrowser", Icons.NetworkIcon(32)));
+            _apps.Add(new App("Welcome", Icons.ApplicationsIcon(32)));
         }
         /// <summary>
         /// Load
@@ -116,6 +125,29 @@ namespace guideXOS.OS {
                         case "nexIRC": _apps[i].AppObject = new nexIRC(260, 220); b = true; break;
                         case "IRCNetworks": _apps[i].AppObject = new IRCNetworks(300, 240); b = true; break;
                         case "GUISamples": _apps[i].AppObject = new GUISamples(220, 260); b = true; break;
+                        case "ComputerFiles": _apps[i].AppObject = new ComputerFiles(300, 200); b = true; break;
+                        case "DiskManager": _apps[i].AppObject = new DiskManager(400, 300); b = true; break;
+                        case "DisplayOptions": _apps[i].AppObject = new DisplayOptions(200, 150); b = true; break;
+                        case "FirewallWindow": _apps[i].AppObject = new FirewallWindow(300, 200); b = true; break;
+                        case "ImageViewer": 
+                            if (Desktop.imageViewer != null) {
+                                Desktop.imageViewer.Visible = true;
+                                WindowManager.MoveToEnd(Desktop.imageViewer);
+                                _apps[i].AppObject = Desktop.imageViewer;
+                                b = true;
+                            }
+                            break;
+                        case "OnScreenKeyboard": _apps[i].AppObject = new OnScreenKeyboard(300, 100); b = true; break;
+                        case "WAVPlayer": 
+                            if (Desktop.wavplayer != null) {
+                                Desktop.wavplayer.Visible = true;
+                                WindowManager.MoveToEnd(Desktop.wavplayer);
+                                _apps[i].AppObject = Desktop.wavplayer;
+                                b = true;
+                            }
+                            break;
+                        case "WebBrowser": _apps[i].AppObject = new WebBrowser(200, 150); b = true; break;
+                        case "Welcome": _apps[i].AppObject = new Welcome(300, 200); b = true; break;
                     }
                     if (b) {
                         // record recents

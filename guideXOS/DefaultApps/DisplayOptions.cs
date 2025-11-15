@@ -76,7 +76,7 @@ namespace guideXOS.DefaultApps {
             if (_thumbnailsLoaded) return;
             _thumbnailsLoaded = true;
 
-            var files = File.GetFiles("Backgrounds");
+            var files = File.GetFiles(@"Backgrounds\");
             if (files != null && files.Count > 0) {
                 for (int i = 0; i < files.Count; i++) {
                     var fi = files[i];

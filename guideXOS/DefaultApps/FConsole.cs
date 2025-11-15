@@ -67,7 +67,7 @@ namespace guideXOS.DefaultApps {
         }
 
         private static char MapFromKey(ConsoleKeyInfo key) {
-            // First try to use KeyChar if it's set (from PS2 keyboard driver)
+            // First try to use KeyChar if it'sset (from PS2 keyboard driver)
             if (key.KeyChar != '\0') return key.KeyChar;
 
             // Fallback: manually map from ConsoleKey
@@ -1076,8 +1076,14 @@ namespace guideXOS.DefaultApps {
                     hpx += 16;
                     goto handle_wrap;
                 }
-                ASC16.DrawChar(ch, X + wpx, Y + hpx, 0xFFFFFFFF);
-                wpx += 8;
+                // Skip control characters (except newline which is handled above)
+                // Only draw printable ASCII characters (32-126) plus extended ASCII
+                if (ch >= 32 && ch < 127) {
+                    ASC16.DrawChar(ch, X + wpx, Y + hpx, 0xFFFFFFFF);
+                    wpx += 8;
+                }
+                // For characters outside printable range, just skip them (don't draw or advance)
+                
                 if (LineLimit != -1 && wpx + 8 > LineLimit) {
                     wpx = 0;
                     hpx += 16;
