@@ -21,7 +21,7 @@ namespace guideXOS.DefaultApps {
         // Tabs
         private int _tabH = 40;
         private int _tabGap = 10;
-        private int _currentTab = 0; // 0 = Desktop Background, 1 = Screen Resolution
+        private int _currentTab = 0; // 0 = Desktop Background, 1 = Screen Resolution, 2 = Gradients
 
         // Background thumbnails
         private List<string> _backgroundPaths;
@@ -38,6 +38,11 @@ namespace guideXOS.DefaultApps {
         private int _btnH = 38;
         private OpenDialog _openDlg;
         private ColorPicker _colorDlg;
+        
+        // Gradients scroll
+        private int _gradientScroll = 0;
+        private bool _gradientScrollDrag = false;
+        private int _gradientScrollStartY, _gradientScrollStartScroll;
 
         public DisplayOptions(int X, int Y, int W = 800, int H = 600) : base(X, Y, W, H) {
             IsResizable = false;
@@ -76,7 +81,7 @@ namespace guideXOS.DefaultApps {
             if (_thumbnailsLoaded) return;
             _thumbnailsLoaded = true;
 
-            var files = File.GetFiles(@"Backgrounds\");
+            var files = File.GetFiles(@"Backgrounds/");
             if (files != null && files.Count > 0) {
                 for (int i = 0; i < files.Count; i++) {
                     var fi = files[i];
@@ -151,9 +156,10 @@ namespace guideXOS.DefaultApps {
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
-                int tabW = (cw - _tabGap) / 2;
+                int tabW = (cw - _tabGap * 2) / 3; // 3 tabs now
                 int tabX0 = cx; 
                 int tabX1 = cx + tabW + _tabGap; 
+                int tabX2 = cx + (tabW + _tabGap) * 2;
                 int tabY = cy;
                 if (mx >= tabX0 && mx <= tabX0 + tabW && my >= tabY && my <= tabY + _tabH) { 
                     _currentTab = 0; 
@@ -161,6 +167,10 @@ namespace guideXOS.DefaultApps {
                 }
                 if (mx >= tabX1 && mx <= tabX1 + tabW && my >= tabY && my <= tabY + _tabH) { 
                     _currentTab = 1; 
+                    return; 
+                }
+                if (mx >= tabX2 && mx <= tabX2 + tabW && my >= tabY && my <= tabY + _tabH) { 
+                    _currentTab = 2; 
                     return; 
                 }
 
@@ -253,6 +263,48 @@ namespace guideXOS.DefaultApps {
                         return;
                     }
                 }
+                
+                // Gradients tab
+                if (_currentTab == 2) {
+                    // Gallery area
+                    int galleryY = contentY + WindowManager.font.FontSize + 16;
+                    int galleryH = contentH - WindowManager.font.FontSize - 16;
+                    int galleryW = cw - 14; // Account for scrollbar
+                    
+                    // Calculate grid
+                    int thumbPad = 10;
+                    int cellSize = _thumbSize + thumbPad * 2;
+                    int cols = galleryW / cellSize;
+                    if (cols < 1) cols = 1;
+
+                    // Gradient clicks (12 preset gradients)
+                    int gradientCount = 12;
+                    for (int i = 0; i < gradientCount; i++) {
+                        int col = i % cols;
+                        int row = i / cols;
+                        int tx = cx + col * cellSize + thumbPad;
+                        int ty = galleryY + row * cellSize + thumbPad - _gradientScroll;
+                        
+                        if (ty + _thumbSize < galleryY || ty > galleryY + galleryH) continue;
+                        
+                        if (mx >= tx && mx <= tx + _thumbSize && my >= ty && my <= ty + _thumbSize) {
+                            // Apply gradient and close window
+                            ApplyGradient(i);
+                            this.Visible = false;
+                            return;
+                        }
+                    }
+
+                    // Scrollbar for gallery
+                    int sbW = 12;
+                    int sbX = cx + cw - sbW;
+                    if (mx >= sbX && mx <= sbX + sbW && my >= galleryY && my <= galleryY + galleryH) {
+                        _gradientScrollDrag = true;
+                        _gradientScrollStartY = my;
+                        _gradientScrollStartScroll = _gradientScroll;
+                        return;
+                    }
+                }
 
                 // Screen Resolution tab
                 if (_currentTab == 1) {
@@ -317,6 +369,7 @@ namespace guideXOS.DefaultApps {
                 }
             } else {
                 _bgScrollDrag = false;
+                _gradientScrollDrag = false;
             }
 
             // Background gallery scrolling
@@ -335,6 +388,25 @@ namespace guideXOS.DefaultApps {
                 _bgScroll = _bgScrollStartScroll + dy;
                 if (_bgScroll < 0) _bgScroll = 0;
                 if (_bgScroll > maxScroll) _bgScroll = maxScroll;
+            }
+            
+            // Gradient gallery scrolling
+            if (_gradientScrollDrag && _currentTab == 2) {
+                int galleryY = contentY + WindowManager.font.FontSize + 16;
+                int galleryH = Height - _padding * 2 - _tabH - _tabGap - WindowManager.font.FontSize - 16;
+                int thumbPad = 10;
+                int cellSize = _thumbSize + thumbPad * 2;
+                int cols = (Width - _padding * 2 - 14) / cellSize;
+                if (cols < 1) cols = 1;
+                int gradientCount = 12; // We'll show 12 preset gradients
+                int rows = (gradientCount + cols - 1) / cols;
+                int totalH = rows * cellSize;
+                int maxScroll = totalH > galleryH ? totalH - galleryH : 0;
+                
+                int dy = my - _gradientScrollStartY;
+                _gradientScroll = _gradientScrollStartScroll + dy;
+                if (_gradientScroll < 0) _gradientScroll = 0;
+                if (_gradientScroll > maxScroll) _gradientScroll = maxScroll;
             }
         }
 
@@ -358,6 +430,95 @@ namespace guideXOS.DefaultApps {
                 } 
             } 
         }
+        
+        private void ApplyGradient(int index) {
+            var img = new Image(Framebuffer.Width, Framebuffer.Height);
+            
+            // Define 12 different gradient presets
+            switch (index) {
+                case 0: // Blue to Purple
+                    CreateGradient(img, 0xFF1E3A8A, 0xFF7C3AED, true);
+                    break;
+                case 1: // Green to Teal
+                    CreateGradient(img, 0xFF065F46, 0xFF0891B2, true);
+                    break;
+                case 2: // Orange to Pink
+                    CreateGradient(img, 0xFFEA580C, 0xFFEC4899, true);
+                    break;
+                case 3: // Purple to Pink
+                    CreateGradient(img, 0xFF6B21A8, 0xFFDB2777, true);
+                    break;
+                case 4: // Dark Blue to Cyan
+                    CreateGradient(img, 0xFF1E40AF, 0xFF06B6D4, true);
+                    break;
+                case 5: // Red to Orange
+                    CreateGradient(img, 0xFFB91C1C, 0xFFEA580C, true);
+                    break;
+                case 6: // Teal to Green
+                    CreateGradient(img, 0xFF115E59, 0xFF16A34A, false);
+                    break;
+                case 7: // Pink to Yellow
+                    CreateGradient(img, 0xFFDB2777, 0xFFF59E0B, false);
+                    break;
+                case 8: // Deep Purple to Blue
+                    CreateGradient(img, 0xFF4C1D95, 0xFF1D4ED8, true);
+                    break;
+                case 9: // Indigo to Purple
+                    CreateGradient(img, 0xFF3730A3, 0xFF7E22CE, true);
+                    break;
+                case 10: // Dark Gray to Light Gray
+                    CreateGradient(img, 0xFF1F2937, 0xFF6B7280, true);
+                    break;
+                case 11: // Navy to Sky Blue
+                    CreateGradient(img, 0xFF1E3A8A, 0xFF0EA5E9, false);
+                    break;
+            }
+            
+            if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
+            Program.Wallpaper = img;
+        }
+        
+        private void CreateGradient(Image img, uint startColor, uint endColor, bool vertical) {
+            byte startA = (byte)(startColor >> 24);
+            byte startR = (byte)(startColor >> 16);
+            byte startG = (byte)(startColor >> 8);
+            byte startB = (byte)(startColor);
+            
+            byte endA = (byte)(endColor >> 24);
+            byte endR = (byte)(endColor >> 16);
+            byte endG = (byte)(endColor >> 8);
+            byte endB = (byte)(endColor);
+            
+            if (vertical) {
+                // Top to bottom gradient
+                for (int y = 0; y < img.Height; y++) {
+                    float t = (float)y / img.Height;
+                    byte a = (byte)(startA + (endA - startA) * t);
+                    byte r = (byte)(startR + (endR - startR) * t);
+                    byte g = (byte)(startG + (endG - startG) * t);
+                    byte b = (byte)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    for (int x = 0; x < img.Width; x++) {
+                        img.RawData[y * img.Width + x] = (int)color;
+                    }
+                }
+            } else {
+                // Left to right gradient
+                for (int x = 0; x < img.Width; x++) {
+                    float t = (float)x / img.Width;
+                    byte a = (byte)(startA + (endA - startA) * t);
+                    byte r = (byte)(startR + (endR - startR) * t);
+                    byte g = (byte)(startG + (endG - startG) * t);
+                    byte b = (byte)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    for (int y = 0; y < img.Height; y++) {
+                        img.RawData[y * img.Width + x] = (int)color;
+                    }
+                }
+            }
+        }
 
         public override void OnDraw() {
             base.OnDraw(); 
@@ -370,9 +531,10 @@ namespace guideXOS.DefaultApps {
             int contentH = Height - _padding * 2 - _tabH - _tabGap;
 
             // Draw tabs
-            int tabW = (cw - _tabGap) / 2; 
+            int tabW = (cw - _tabGap * 2) / 3; // 3 tabs
             int tabX0 = cx; 
             int tabX1 = cx + tabW + _tabGap; 
+            int tabX2 = cx + (tabW + _tabGap) * 2;
             int tabY = cy;
             uint tabBg = 0xFF252525; 
             uint tabBgSel = 0xFF3A3A3A; 
@@ -380,12 +542,15 @@ namespace guideXOS.DefaultApps {
             
             Framebuffer.Graphics.FillRectangle(tabX0, tabY, tabW, _tabH, _currentTab == 0 ? tabBgSel : tabBg);
             Framebuffer.Graphics.FillRectangle(tabX1, tabY, tabW, _tabH, _currentTab == 1 ? tabBgSel : tabBg);
+            Framebuffer.Graphics.FillRectangle(tabX2, tabY, tabW, _tabH, _currentTab == 2 ? tabBgSel : tabBg);
             Framebuffer.Graphics.DrawRectangle(tabX0, tabY, tabW, _tabH, border, 1); 
             Framebuffer.Graphics.DrawRectangle(tabX1, tabY, tabW, _tabH, border, 1);
+            Framebuffer.Graphics.DrawRectangle(tabX2, tabY, tabW, _tabH, border, 1);
             
             int textY = tabY + (_tabH / 2 - WindowManager.font.FontSize / 2);
-            WindowManager.font.DrawString(tabX0 + 20, textY, "Desktop Background");
-            WindowManager.font.DrawString(tabX1 + 20, textY, "Screen Resolution");
+            WindowManager.font.DrawString(tabX0 + 10, textY, "Backgrounds");
+            WindowManager.font.DrawString(tabX1 + 10, textY, "Resolution");
+            WindowManager.font.DrawString(tabX2 + 10, textY, "Gradients");
 
             // Draw content based on tab
             if (_currentTab == 0) {
@@ -525,6 +690,124 @@ namespace guideXOS.DefaultApps {
                     Framebuffer.Graphics.FillRectangle(yesX, btnY, confirmBtnW, confirmBtnH, 0xFF2E7F3F); 
                     Framebuffer.Graphics.DrawRectangle(yesX, btnY, confirmBtnW, confirmBtnH, 0xFF3F3F3F, 1); 
                     WindowManager.font.DrawString(yesX + 38, btnY + confirmBtnH / 2 - WindowManager.font.FontSize / 2, "Keep"); 
+                }
+            } else if (_currentTab == 2) {
+                // Gradients tab
+                WindowManager.font.DrawString(cx, contentY, "Select a gradient:");
+                
+                // Gallery area
+                int galleryY = contentY + WindowManager.font.FontSize + 16;
+                int galleryH = contentH - WindowManager.font.FontSize - 16;
+                int galleryW = cw - 14; // Account for scrollbar
+                
+                Framebuffer.Graphics.FillRectangle(cx, galleryY, galleryW + 14, galleryH, 0xFF1A1A1A);
+                
+                // Draw gradients in grid
+                int thumbPad = 10;
+                int cellSize = _thumbSize + thumbPad * 2;
+                int cols = galleryW / cellSize;
+                if (cols < 1) cols = 1;
+                
+                int mx = Control.MousePosition.X;
+                int my = Control.MousePosition.Y;
+                
+                int gradientCount = 12;
+                for (int i = 0; i < gradientCount; i++) {
+                    int col = i % cols;
+                    int row = i / cols;
+                    int tx = cx + col * cellSize + thumbPad;
+                    int ty = galleryY + row * cellSize + thumbPad - _gradientScroll;
+                    
+                    if (ty + _thumbSize < galleryY || ty > galleryY + galleryH) continue;
+                    
+                    // Draw cell background
+                    Framebuffer.Graphics.FillRectangle(tx - 2, ty - 2, _thumbSize + 4, _thumbSize + 4, 0xFF2A2A2A);
+                    
+                    // Highlight on hover
+                    bool hover = mx >= tx - 2 && mx <= tx + _thumbSize + 2 && my >= ty - 2 && my <= ty + _thumbSize + 2;
+                    if (hover) {
+                        Framebuffer.Graphics.FillRectangle(tx - 3, ty - 3, _thumbSize + 6, _thumbSize + 6, 0xFF4A7FBF);
+                    }
+                    
+                    // Draw gradient preview
+                    DrawGradientPreview(i, tx, ty, _thumbSize, _thumbSize);
+                    
+                    // Draw border around thumbnail
+                    Framebuffer.Graphics.DrawRectangle(tx, ty, _thumbSize, _thumbSize, 0xFF555555, 1);
+                }
+                
+                // Scrollbar
+                int sbW = 12;
+                int sbX = cx + cw - sbW;
+                int rows = (gradientCount + cols - 1) / cols;
+                if (rows < 1) rows = 1;
+                int totalH = rows * cellSize;
+                int maxScroll = totalH > galleryH ? totalH - galleryH : 0;
+                
+                Framebuffer.Graphics.FillRectangle(sbX, galleryY, sbW, galleryH, 0xFF0F0F0F);
+                if (maxScroll > 0 && totalH > 0) {
+                    int thumbH = galleryH * galleryH / totalH;
+                    if (thumbH < 24) thumbH = 24;
+                    if (thumbH > galleryH) thumbH = galleryH;
+                    int thumbY = galleryH * _gradientScroll / totalH;
+                    if (thumbY + thumbH > galleryH) thumbY = galleryH - thumbH;
+                    Framebuffer.Graphics.FillRectangle(sbX + 1, galleryY + thumbY, sbW - 2, thumbH, 0xFF3F3F3F);
+                }
+            }
+        }
+        
+        private void DrawGradientPreview(int index, int x, int y, int w, int h) {
+            // Define gradient colors matching ApplyGradient
+            uint startColor = 0xFF000000;
+            uint endColor = 0xFF000000;
+            bool vertical = true;
+            
+            switch (index) {
+                case 0: startColor = 0xFF1E3A8A; endColor = 0xFF7C3AED; vertical = true; break;
+                case 1: startColor = 0xFF065F46; endColor = 0xFF0891B2; vertical = true; break;
+                case 2: startColor = 0xFFEA580C; endColor = 0xFFEC4899; vertical = true; break;
+                case 3: startColor = 0xFF6B21A8; endColor = 0xFFDB2777; vertical = true; break;
+                case 4: startColor = 0xFF1E40AF; endColor = 0xFF06B6D4; vertical = true; break;
+                case 5: startColor = 0xFFB91C1C; endColor = 0xFFEA580C; vertical = true; break;
+                case 6: startColor = 0xFF115E59; endColor = 0xFF16A34A; vertical = false; break;
+                case 7: startColor = 0xFFDB2777; endColor = 0xFFF59E0B; vertical = false; break;
+                case 8: startColor = 0xFF4C1D95; endColor = 0xFF1D4ED8; vertical = true; break;
+                case 9: startColor = 0xFF3730A3; endColor = 0xFF7E22CE; vertical = true; break;
+                case 10: startColor = 0xFF1F2937; endColor = 0xFF6B7280; vertical = true; break;
+                case 11: startColor = 0xFF1E3A8A; endColor = 0xFF0EA5E9; vertical = false; break;
+            }
+            
+            byte startA = (byte)(startColor >> 24);
+            byte startR = (byte)(startColor >> 16);
+            byte startG = (byte)(startColor >> 8);
+            byte startB = (byte)(startColor);
+            
+            byte endA = (byte)(endColor >> 24);
+            byte endR = (byte)(endColor >> 16);
+            byte endG = (byte)(endColor >> 8);
+            byte endB = (byte)(endColor);
+            
+            if (vertical) {
+                for (int py = 0; py < h; py++) {
+                    float t = (float)py / h;
+                    byte a = (byte)(startA + (endA - startA) * t);
+                    byte r = (byte)(startR + (endR - startR) * t);
+                    byte g = (byte)(startG + (endG - startG) * t);
+                    byte b = (byte)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    Framebuffer.Graphics.FillRectangle(x, y + py, w, 1, color);
+                }
+            } else {
+                for (int px = 0; px < w; px++) {
+                    float t = (float)px / w;
+                    byte a = (byte)(startA + (endA - startA) * t);
+                    byte r = (byte)(startR + (endR - startR) * t);
+                    byte g = (byte)(startG + (endG - startG) * t);
+                    byte b = (byte)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    Framebuffer.Graphics.FillRectangle(x + px, y, 1, h, color);
                 }
             }
         }

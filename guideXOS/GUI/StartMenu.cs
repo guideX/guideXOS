@@ -203,8 +203,8 @@ namespace guideXOS.GUI {
             int allBtnX = X + Padding;
             int allBtnY = bottomY; // align with shutdown row
 
-            // Scrollbar hit
-            int sbW = 8;
+            // Scrollbar hit - now wider (20px instead of 8px)
+            int sbW = 20;
             int sbX = listX + listW - sbW;
             if (clickEdge) {
                 // Power menu items (if visible) first so they capture clicks on overlay region
@@ -374,8 +374,22 @@ namespace guideXOS.GUI {
                 int total = (_showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count) * Spacing;
                 int maxScroll = total - listH; if (maxScroll < 0) maxScroll = 0;
                 int dy = my - _scrollStartY;
-                int newScroll = _scrollStartScroll + dy;
-                if (newScroll < 0) newScroll = 0; if (newScroll > maxScroll) newScroll = maxScroll;
+                
+                // Convert pixel delta to scroll value based on thumb position
+                int thumbH = listH;
+                if (total > listH) {
+                    thumbH = (listH * listH) / total;
+                    if (thumbH < 16) thumbH = 16;
+                    if (thumbH > listH) thumbH = listH;
+                }
+                
+                // Calculate scroll based on thumb movement
+                int scrollRange = listH - thumbH;
+                int newScroll = scrollRange > 0 ? (dy * maxScroll) / scrollRange : 0;
+                newScroll = _scrollStartScroll + newScroll;
+                
+                if (newScroll < 0) newScroll = 0; 
+                if (newScroll > maxScroll) newScroll = maxScroll;
                 if (newScroll != _scroll) { _scroll = newScroll; _frameDirty = true; }
             }
             _leftDownPrev = leftDown;
@@ -465,14 +479,20 @@ namespace guideXOS.GUI {
             }
 
             // Scrollbar for list
-            int sbW = 8;
+            int sbW = 20; // Wider scrollbar (was 8)
             int sbX = listX + listW - sbW;
             Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF1A1A1A);
             int total = count * Spacing;
             if (total > listH) {
                 int thumbH = (listH * listH) / total; if (thumbH < 16) thumbH = 16; if (thumbH > listH) thumbH = listH;
                 int thumbY = (listH * _scroll) / total; if (thumbY + thumbH > listH) thumbY = listH - thumbH;
-                Framebuffer.Graphics.FillRectangle(sbX + 1, listY + thumbY, sbW - 2, thumbH, 0xFF2F2F2F);
+                
+                // Highlight scrollbar thumb on hover
+                bool hoverThumb = (mouseX >= sbX && mouseX <= sbX + sbW && 
+                                  mouseY >= listY + thumbY && mouseY <= listY + thumbY + thumbH);
+                uint thumbColor = hoverThumb ? 0xFF4F4F4F : 0xFF2F2F2F;
+                
+                Framebuffer.Graphics.FillRectangle(sbX + 2, listY + thumbY, sbW - 4, thumbH, thumbColor);
             }
 
             // Right column content (with padding and truncation) + hover rows

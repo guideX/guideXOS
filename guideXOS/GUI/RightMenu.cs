@@ -35,7 +35,7 @@ namespace guideXOS.GUI {
             if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
                 // Item 0: Display Options
                 if (Hit(0, mx, my, itemH)) {
-                    WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 360, 420);
+                    WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 800, 600);
                     this.Visible = false;
                     return;
                 }

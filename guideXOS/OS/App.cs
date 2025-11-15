@@ -127,7 +127,7 @@ namespace guideXOS.OS {
                         case "GUISamples": _apps[i].AppObject = new GUISamples(220, 260); b = true; break;
                         case "ComputerFiles": _apps[i].AppObject = new ComputerFiles(300, 200); b = true; break;
                         case "DiskManager": _apps[i].AppObject = new DiskManager(400, 300); b = true; break;
-                        case "DisplayOptions": _apps[i].AppObject = new DisplayOptions(200, 150); b = true; break;
+                        case "DisplayOptions": _apps[i].AppObject = new DisplayOptions(200, 150, 800, 600); b = true; break;
                         case "FirewallWindow": _apps[i].AppObject = new FirewallWindow(300, 200); b = true; break;
                         case "ImageViewer": 
                             if (Desktop.imageViewer != null) {
