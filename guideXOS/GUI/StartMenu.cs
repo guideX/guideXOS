@@ -436,6 +436,10 @@ namespace guideXOS.GUI {
             // Recent programs or All Programs
             int count = _showAllPrograms ? Desktop.Apps.Length : RecentManager.Programs.Count;
             int y = listY - _scroll;
+            
+            // Scrollbar width to account for in hover area
+            int sbW = 20;
+            
             if (_showAllPrograms) {
                 for (int i = 0; i < count; i++) {
                     int ai = _allProgramsOrder != null && i < _allProgramsOrder.Count ? _allProgramsOrder[i] : i;
@@ -450,13 +454,14 @@ namespace guideXOS.GUI {
                         continue;
                     }
                     
-                    // Hover effect backdrop (constrain to list region, avoid separator overlap)
-                    if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih && 
+                    // Hover effect backdrop (constrain to list region, avoid scrollbar overlap)
+                    if (mouseX >= listX && mouseX <= listX + listW - sbW && mouseY >= y && mouseY <= y + ih && 
                         y >= listY && y + ih <= listY + listH) {
                         int hx = listX; // do not extend left
                         int hy = y - 2; // slightly tighter padding
-                        int hw = listW - 4; // reserve gap so it doesn't cross separator
-                        if (hw < 0) hw = listW; int hh = ih + 4;
+                        int hw = listW - sbW - 4; // reserve space for scrollbar plus gap
+                        if (hw < 0) hw = listW - sbW; 
+                        int hh = ih + 4;
                         UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
                         UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
                         // Accent bar aligned left inside highlight
@@ -482,9 +487,13 @@ namespace guideXOS.GUI {
                         continue;
                     }
                     
-                    if (mouseX >= listX && mouseX <= listX + listW && mouseY >= y && mouseY <= y + ih &&
+                    if (mouseX >= listX && mouseX <= listX + listW - sbW && mouseY >= y && mouseY <= y + ih &&
                         y >= listY && y + ih <= listY + listH) {
-                        int hx = listX; int hy = y - 2; int hw = listW - 4; if (hw < 0) hw = listW; int hh = ih + 4;
+                        int hx = listX; 
+                        int hy = y - 2; 
+                        int hw = listW - sbW - 4; // reserve space for scrollbar plus gap
+                        if (hw < 0) hw = listW - sbW; 
+                        int hh = ih + 4;
                         UIPrimitives.AFillRoundedRect(hx, hy, hw, hh, 0x333F7FBF, 6);
                         UIPrimitives.DrawRoundedRect(hx, hy, hw, hh, 0xFF3F7FBF, 1, 6);
                         Framebuffer.Graphics.FillRectangle(hx, hy, 3, hh, 0x883F7FBF);
@@ -496,7 +505,7 @@ namespace guideXOS.GUI {
             }
 
             // Scrollbar for list
-            int sbW = 20; // Wider scrollbar (was 8)
+            // int sbW = 20; // Already declared above - Wider scrollbar (was 8)
             int sbX = listX + listW - sbW;
             Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF1A1A1A);
             int total = count * Spacing;

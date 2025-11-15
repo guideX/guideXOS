@@ -390,7 +390,7 @@ namespace guideXOS.GUI {
             ComputeButtonRects();
             int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
             _hoverBtn = HitTestButtons(mx, my);
-            bool left = Control.MouseButtons == MouseButtons.Left;
+            bool left = Control.MouseButtons.HasFlag(MouseButtons.Left);
 
             // Title buttons interaction
             if (left) {
@@ -406,7 +406,7 @@ namespace guideXOS.GUI {
             if (IsTombstoned) return;
 
             // Drag title bar
-            if (Control.MouseButtons == MouseButtons.Left) {
+            if (left) {
                 if (!WindowManager.HasWindowMoving && !Move && mx > X && mx < X + Width && my > Y - BarHeight && my < Y) {
                     WindowManager.MoveToEnd(this);
                     Move = true; WindowManager.HasWindowMoving = true; OffsetX = mx - X; OffsetY = my - Y;
@@ -423,7 +423,7 @@ namespace guideXOS.GUI {
             if (IsResizable) {
                 int gripX = X + Width - _resizeGripSize; int gripY = Y + Height - _resizeGripSize;
                 bool over = mx >= gripX && mx <= gripX + _resizeGripSize && my >= gripY && my <= gripY + _resizeGripSize;
-                if (Control.MouseButtons == MouseButtons.Left) {
+                if (left) {
                     if (!_resizing && over) {
                         _resizing = true; _resizeStartMouseX = mx; _resizeStartMouseY = my; _resizeStartW = Width; _resizeStartH = Height;
                         return;

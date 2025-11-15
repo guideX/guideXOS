@@ -32,7 +32,9 @@ namespace guideXOS.GUI {
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
 
-            if (Control.MouseButtons.HasFlag(MouseButtons.Left)) {
+            bool leftClick = Control.MouseButtons.HasFlag(MouseButtons.Left);
+
+            if (leftClick) {
                 // Item 0: Display Options
                 if (Hit(0, mx, my, itemH)) {
                     WindowManager.EnqueueDisplayOptions(Control.MousePosition.X, Control.MousePosition.Y, 800, 600);
