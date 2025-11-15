@@ -17,6 +17,8 @@ namespace guideXOS.DefaultApps {
         private bool _clickLatch;
         private int _btnW = 180;
         private int _btnH = 32;
+        private bool _samplesBuilt = false;
+        private int _framesSinceVisible = 0;
         
         public GUISamples(int x, int y) : base(x, y, 640, 480) {
             Title = "GXM GUI Samples";
@@ -26,10 +28,13 @@ namespace guideXOS.DefaultApps {
             ShowTombstone = true;
             ShowRestore = true;
             IsResizable = true;
-            BuildSamples();
+            // Don't build samples in constructor - wait for a few frames after becoming visible
         }
         
         private void BuildSamples() {
+            if (_samplesBuilt) return;
+            _samplesBuilt = true;
+            
             // Sample 1: Basic buttons + click callbacks
             _demo1 = new GXMScriptWindow("Button Demo", 280, 220);
             _demo1.AddLabel("Click the buttons below:", 12, 12);
@@ -170,6 +175,15 @@ namespace guideXOS.DefaultApps {
         public override void OnDraw() {
             base.OnDraw();
             
+            // Build samples after a few frames when window is visible
+            // This ensures the parent window is fully registered and drawn at least once
+            if (!_samplesBuilt && Visible) {
+                _framesSinceVisible++;
+                if (_framesSinceVisible >= 3) {
+                    BuildSamples();
+                }
+            }
+            
             int pad = 12;
             int y = Y + pad;
             
@@ -248,8 +262,9 @@ namespace guideXOS.DefaultApps {
             if (_demo3 != null) _demo3.Visible = false;
             if (_demo4 != null) _demo4.Visible = false;
             
-            // Rebuild
-            BuildSamples();
+            // Reset flag and rebuild
+            _samplesBuilt = false;
+            _framesSinceVisible = 0;
         }
         
         private void HideAllDemos() {
