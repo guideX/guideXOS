@@ -39,7 +39,7 @@ namespace guideXOS.DefaultApps {
         private OpenDialog _openDlg;
         private ColorPicker _colorDlg;
 
-        public DisplayOptions(int X, int Y, int W = 840, int H = 620) : base(X, Y, W, H) {
+        public DisplayOptions(int X, int Y, int W = 1000, int H = 620) : base(X, Y, W, H) {
             IsResizable = false;
             ShowInTaskbar = true;
             ShowMaximize = false;
