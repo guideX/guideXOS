@@ -121,7 +121,10 @@ namespace guideXOS.GUI {
             }
             return _dirCache;
         }
-
+        /// <summary>
+        /// Is Mouse Over any Visible Window
+        /// </summary>
+        /// <returns></returns>
         static bool IsMouseOverAnyVisibleWindow() {
             for (int d = 0; d < WindowManager.Windows.Count; d++) {
                 if (WindowManager.Windows[d].Visible && WindowManager.Windows[d].IsUnderMouse())

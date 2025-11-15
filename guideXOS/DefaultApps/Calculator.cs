@@ -179,10 +179,10 @@ namespace guideXOS.DefaultApps {
                 ValueToDisplay = 0;
             } else if (btn.Name == "=") {
                 if (opreation == Opreation.Plus) {
-                    NotificationManager.Add(new Nofity("Add " + Num1 + " to " + Num2, NotificationLevel.None));
+                    NotificationManager.Add(new Notify("Add " + Num1 + " to " + Num2, NotificationLevel.None));
                     Num1 += Num2;
                 } else if (opreation == Opreation.Minus) {
-                    NotificationManager.Add(new Nofity("Subtract " + Num1 + " from " + Num2, NotificationLevel.None));
+                    NotificationManager.Add(new Notify("Subtract " + Num1 + " from " + Num2, NotificationLevel.None));
                     if (Num1 >= Num2)
                         Num1 -= Num2;
                     else {
@@ -192,7 +192,7 @@ namespace guideXOS.DefaultApps {
                 } else if (opreation == Opreation.Star) {
                     //Num1 = Num1 * Num2;
                     Num1 *= Num2;
-                    NotificationManager.Add(new Nofity("Multiply " + Num1 + " by " + Num2, NotificationLevel.None));
+                    NotificationManager.Add(new Notify("Multiply " + Num1 + " by " + Num2, NotificationLevel.None));
                 } else if (opreation == Opreation.None) {
                     Num2 = 0;
                 }

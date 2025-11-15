@@ -7,7 +7,7 @@ namespace guideXOS.GUI {
         Error
     }
 
-    public class Nofity {
+    public class Notify {
         public int X, Y;
         public readonly string Message;
         public NotificationLevel NotificationLevel;
@@ -17,7 +17,7 @@ namespace guideXOS.GUI {
         public ulong DisposeUntil;
         public Animation ani;
 
-        public Nofity(string msg, NotificationLevel level = NotificationLevel.None) {
+        public Notify(string msg, NotificationLevel level = NotificationLevel.None) {
             DisposeUntil = 0;
             Message = msg;
             X = 0; Y = 0;
@@ -41,20 +41,20 @@ namespace guideXOS.GUI {
     }
 
     public static class NotificationManager {
-        static List<Nofity> Notifications;
+        static List<Notify> Notifications;
 
         public static unsafe void Initialize() {
             Notifications = new();
 
-            Add(new Nofity("Welcome to guideX os"));
+            Add(new Notify("Welcome to guideX os"));
             //Add(new Nofity(Audio.HasAudioDevice ? "Info: Audio controller available" : "Warn: No audio controller found on this PC", Audio.HasAudioDevice ? NotificationLevel.None : NotificationLevel.Error));
-            Add(new Nofity(HID.Mouse ? "Info: USB mouse available" : "Warn: No USB mouse found on this PC", HID.Mouse ? NotificationLevel.None : NotificationLevel.Error));
-            Add(new Nofity(HID.Keyboard ? "Info: USB keyboard available" : "Warn: No USB keyboard found on this PC", HID.Keyboard ? NotificationLevel.None : NotificationLevel.Error));
+            Add(new Notify(HID.Mouse ? "Info: USB mouse available" : "Warn: No USB mouse found on this PC", HID.Mouse ? NotificationLevel.None : NotificationLevel.Error));
+            Add(new Notify(HID.Keyboard ? "Info: USB keyboard available" : "Warn: No USB keyboard found on this PC", HID.Keyboard ? NotificationLevel.None : NotificationLevel.Error));
             //if (VMwareTools.Available)
             //Add(new Nofity("VMware Tools is working", NotificationLevel.None));
         }
 
-        public static void Add(Nofity nofity) {
+        public static void Add(Notify nofity) {
             if (Notifications != null) {
                 Notifications.Add(nofity);
             }

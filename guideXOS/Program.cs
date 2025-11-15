@@ -227,6 +227,9 @@ unsafe class Program {
 
         //var welcome = new Welcome(500, 250);
 
+        //It freezes here too
+        //WindowManager.EnablePerfTracking();
+
         //Console.WriteLine("Draw Start");
         int lastMouseX = Control.MousePosition.X;
         int lastMouseY = Control.MousePosition.Y;
@@ -278,4 +281,4 @@ unsafe class Program {
             }
          }
      }
- } 
+ }

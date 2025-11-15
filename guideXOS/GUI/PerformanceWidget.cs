@@ -18,6 +18,10 @@ namespace guideXOS.GUI {
         private ulong _lastUpdateTick = 0;
         private const ulong UpdateIntervalMs = 500; // Update every 500ms
         
+        // Cached strings to prevent memory leak
+        private string _cpuText = "0%";
+        private string _memText = "0%";
+        
         private bool _closeHover = false;
         private bool _dragging = false;
         private int _dragOffsetX, _dragOffsetY;
@@ -104,24 +108,23 @@ namespace guideXOS.GUI {
             int contentWidth = Width - Padding * 2;
             
             // CPU Section
-            DrawMetric(cx, cy, contentWidth, "CPU", _cpuPct, 0xFF5DADE2);
+            DrawMetric(cx, cy, contentWidth, "CPU", _cpuPct, 0xFF5DADE2, _cpuText);
             cy += 30;
             
             // Memory Section
-            DrawMetric(cx, cy, contentWidth, "RAM", _memPct, 0xFF58D68D);
+            DrawMetric(cx, cy, contentWidth, "RAM", _memPct, 0xFF58D68D, _memText);
             
             // Draw close button
             DrawCloseButton();
         }
         
-        private void DrawMetric(int x, int y, int width, string label, int percent, uint barColor) {
+        private void DrawMetric(int x, int y, int width, string label, int percent, uint barColor, string cachedText) {
             // Label and percentage
             WindowManager.font.DrawString(x, y, label);
             
-            string pctText = percent.ToString() + "%";
-            int pctWidth = WindowManager.font.MeasureString(pctText);
-            WindowManager.font.DrawString(x + width - pctWidth, y, pctText);
-            pctText.Dispose();
+            // Use cached text instead of creating new string
+            int pctWidth = WindowManager.font.MeasureString(cachedText);
+            WindowManager.font.DrawString(x + width - pctWidth, y, cachedText);
             
             // Progress bar
             int barY = y + WindowManager.font.FontSize + 3;
@@ -171,17 +174,31 @@ namespace guideXOS.GUI {
         
         private void UpdateMetrics() {
             // Get CPU usage
+            int oldCpu = _cpuPct;
             _cpuPct = (int)ThreadPool.CPUUsage;
             if (_cpuPct < 0) _cpuPct = 0;
             if (_cpuPct > 100) _cpuPct = 100;
             
+            // Only update cached string if value changed
+            if (_cpuPct != oldCpu) {
+                if (_cpuText != null) _cpuText.Dispose();
+                _cpuText = _cpuPct.ToString() + "%";
+            }
+            
             // Get memory usage
+            int oldMem = _memPct;
             ulong totalMem = Allocator.MemorySize;
             if (totalMem == 0) totalMem = 1; // Avoid division by zero
             ulong usedMem = Allocator.MemoryInUse;
             _memPct = (int)(usedMem * 100UL / totalMem);
             if (_memPct < 0) _memPct = 0;
             if (_memPct > 100) _memPct = 100;
+            
+            // Only update cached string if value changed
+            if (_memPct != oldMem) {
+                if (_memText != null) _memText.Dispose();
+                _memText = _memPct.ToString() + "%";
+            }
         }
     }
 }

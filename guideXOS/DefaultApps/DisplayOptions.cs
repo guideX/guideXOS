@@ -199,7 +199,7 @@ namespace guideXOS.DefaultApps {
                                     this.Visible = false;
                                 }
                             } catch {
-                                NotificationManager.Add(new Nofity("Failed to load background", NotificationLevel.Error));
+                                NotificationManager.Add(new Notify("Failed to load background", NotificationLevel.Error));
                             }
                             return;
                         }
@@ -231,7 +231,7 @@ namespace guideXOS.DefaultApps {
                                 Program.Wallpaper = img.ResizeImage(Framebuffer.Width, Framebuffer.Height); 
                                 img.Dispose(); 
                             }
-                            catch { NotificationManager.Add(new Nofity("Failed to load image", NotificationLevel.Error)); }
+                            catch { NotificationManager.Add(new Notify("Failed to load image", NotificationLevel.Error)); }
                         });
                         WindowManager.MoveToEnd(_openDlg); 
                         _openDlg.Visible = true; 
@@ -290,7 +290,7 @@ namespace guideXOS.DefaultApps {
                                         _countdown = 15; 
                                         _lastCountdownTick = 0; 
                                     } else { 
-                                        NotificationManager.Add(new Nofity("Resolution change not supported", NotificationLevel.Error)); 
+                                        NotificationManager.Add(new Notify("Resolution change not supported", NotificationLevel.Error)); 
                                     }
                                 }
                                 return;
@@ -346,7 +346,7 @@ namespace guideXOS.DefaultApps {
         private void RevertResolution() { 
             _confirmVisible = false; 
             if (!DisplayManager.TrySetResolution(_previous.Width, _previous.Height)) { 
-                NotificationManager.Add(new Nofity("Failed to revert resolution", NotificationLevel.Error)); 
+                NotificationManager.Add(new Notify("Failed to revert resolution", NotificationLevel.Error)); 
             } else { 
                 var list = DisplayManager.AvailableResolutions; 
                 if (list != null) { 

@@ -97,7 +97,7 @@ namespace guideXOS.OS {
         /// <param name="name"></param>
         public bool Load(string name) {
             var b = false;
-            guideXOS.GUI.NotificationManager.Add(new Nofity("Loading App: " + name));
+            guideXOS.GUI.NotificationManager.Add(new Notify("Loading App: " + name));
             for (int i = 0; i < _apps.Count; i++) {
                 if (_apps[i].Name == name) {
                     switch (name) {
@@ -108,7 +108,9 @@ namespace guideXOS.OS {
                         case "Clock": _apps[i].AppObject = new Clock(650, 500); b = true; break;
                         case "Paint": _apps[i].AppObject = new Paint(500, 200); b = true; break;
                         case "Notepad": _apps[i].AppObject = new Notepad(360, 200); b = true; break;
-                        case "Console": if (Program.FConsole == null) Program.FConsole = new FConsole(160, 120); _apps[i].AppObject = Program.FConsole; b = true; break;
+                        case "Console": 
+                            if (Program.FConsole == null) Program.FConsole = new FConsole(160, 120); 
+                            _apps[i].AppObject = Program.FConsole; b = true; break;
                         case "TaskManager": _apps[i].AppObject = new TaskManager(500, 500); b = true; break;
                         case "nexIRC": _apps[i].AppObject = new nexIRC(260, 220); b = true; break;
                         case "IRCNetworks": _apps[i].AppObject = new IRCNetworks(300, 240); b = true; break;
