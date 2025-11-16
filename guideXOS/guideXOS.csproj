@@ -11,7 +11,7 @@
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 		<ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
 
-		<DefineConstants>Kernel;UseAPIC</DefineConstants>
+		<DefineConstants>Kernel;UseAPIC;NETWORK</DefineConstants>
 
 		<IlcSystemModule>guideXOS</IlcSystemModule>
 		<EntryPointSymbol>Entry</EntryPointSymbol>

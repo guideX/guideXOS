@@ -232,7 +232,7 @@ namespace guideXOS.GUI {
 
             bool connected = false;
 #if NETWORK
-            connected = NETv4.Initialized; // if networking compiled in
+            connected = (NETv4.IP.P1 != 0 || NETv4.IP.P2 != 0 || NETv4.IP.P3 != 0 || NETv4.IP.P4 != 0); // Check if IP is configured
 #else
             connected = false;
 #endif
