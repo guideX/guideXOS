@@ -19,6 +19,7 @@ namespace guideXOS.DefaultApps {
         private int _btnH = 32;
         private bool _samplesBuilt = false;
         private int _framesSinceVisible = 0;
+        private int _framesAfterBuild = 0; // Track frames after building to gradually show windows
         
         public GUISamples(int x, int y) : base(x, y, 640, 480) {
             Title = "GXM GUI Samples";
@@ -35,20 +36,22 @@ namespace guideXOS.DefaultApps {
             if (_samplesBuilt) return;
             _samplesBuilt = true;
             
+            // TEMPORARY: Only create ONE demo window to test if it's a multi-window issue
+            // If this works, the problem is with creating multiple windows
+            // If this still freezes, the problem is in GXMScriptWindow itself
+            
             // Sample 1: Basic buttons + click callbacks
             _demo1 = new GXMScriptWindow("Button Demo", 280, 220);
             _demo1.AddLabel("Click the buttons below:", 12, 12);
             _demo1.AddButton(1, "Show Message", 12, 50, 120, 28);
-            _demo1.AddButton(2, "Open Notepad", 12, 88, 140, 28);
-            _demo1.AddButton(3, "Open Calculator", 12, 126, 140, 28);
-            _demo1.AddButton(4, "Close Window", 12, 164, 120, 28);
+            _demo1.AddButton(4, "Close Window", 12, 88, 120, 28);
             _demo1.AddOnClick(1, "MSG", "Hello from GXM scripting!");
-            _demo1.AddOnClick(2, "OPENAPP", "Notepad");
-            _demo1.AddOnClick(3, "OPENAPP", "Calculator");
             _demo1.AddOnClick(4, "CLOSE", "");
             _demo1.X = this.X + 12;
             _demo1.Y = this.Y + 60;
             
+            // COMMENT OUT OTHER WINDOWS FOR NOW - testing with just one
+            /*
             // Sample 2: List view + change events
             _demo2 = new GXMScriptWindow("ListView Demo", 300, 280);
             _demo2.AddLabel("Select an item from the list:", 12, 12);
@@ -107,16 +110,13 @@ namespace guideXOS.DefaultApps {
             
             _demo4.X = this.X + 12;
             _demo4.Y = this.Y + this.Height - _demo4.Height - 20;
+            */
             
-            // Make all demo windows visible
-            WindowManager.MoveToEnd(_demo1);
-            _demo1.Visible = true;
-            WindowManager.MoveToEnd(_demo2);
-            _demo2.Visible = true;
-            WindowManager.MoveToEnd(_demo3);
-            _demo3.Visible = true;
-            WindowManager.MoveToEnd(_demo4);
-            _demo4.Visible = true;
+            // Show only first window immediately
+            if (_demo1 != null) {
+                WindowManager.MoveToEnd(_demo1);
+                _demo1.Visible = true;
+            }
         }
         
         public override void OnInput() {
@@ -181,6 +181,25 @@ namespace guideXOS.DefaultApps {
                 _framesSinceVisible++;
                 if (_framesSinceVisible >= 3) {
                     BuildSamples();
+                }
+            }
+            
+            // Gradually show demo windows to avoid overwhelming WindowManager
+            if (_samplesBuilt && _framesAfterBuild < 10) {
+                _framesAfterBuild++;
+                
+                // Show windows one at a time across multiple frames
+                if (_framesAfterBuild == 2 && _demo2 != null && !_demo2.Visible) {
+                    WindowManager.MoveToEnd(_demo2);
+                    _demo2.Visible = true;
+                }
+                if (_framesAfterBuild == 4 && _demo3 != null && !_demo3.Visible) {
+                    WindowManager.MoveToEnd(_demo3);
+                    _demo3.Visible = true;
+                }
+                if (_framesAfterBuild == 6 && _demo4 != null && !_demo4.Visible) {
+                    WindowManager.MoveToEnd(_demo4);
+                    _demo4.Visible = true;
                 }
             }
             
@@ -262,9 +281,10 @@ namespace guideXOS.DefaultApps {
             if (_demo3 != null) _demo3.Visible = false;
             if (_demo4 != null) _demo4.Visible = false;
             
-            // Reset flag and rebuild
+            // Reset flags and rebuild
             _samplesBuilt = false;
             _framesSinceVisible = 0;
+            _framesAfterBuild = 0;
         }
         
         private void HideAllDemos() {

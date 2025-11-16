@@ -22,6 +22,13 @@ namespace guideXOS.DefaultApps {
         private bool _viInsert;
         private int _viCursor;
 
+        // Ping state tracking
+        private bool _pingInProgress = false;
+        private ulong _pingStartTime = 0;
+        private int _pingTimeout = 1000;
+        private NETv4.IPAddress _pingTarget;
+        private string _pingHostname = "";
+
         public FConsole(int X, int Y) : base(X, Y, 640, 320) {
             ShowInTaskbar = true;
             ShowMaximize = true;
@@ -178,7 +185,12 @@ namespace guideXOS.DefaultApps {
                 AppendRaw("\n");
                 HandleCommand(TrimSpaces(Cmd));
                 Cmd = string.Empty;
-                WritePrompt();
+                
+                // Don't write prompt immediately if ping is in progress
+                // (OnInput will write it when ping completes)
+                if (!_pingInProgress) {
+                    WritePrompt();
+                }
                 return;
             }
             char ch = MapFromKey(key);
@@ -214,7 +226,7 @@ namespace guideXOS.DefaultApps {
             return r;
         }
 
-        private static bool TryParseIp(string s, out NETv4.IPAddress ip) {
+        private static bool TryParseIp(String s, out NETv4.IPAddress ip) {
             ip =
               default;
             int b1 = -1, b2 = -1, b3 = -1, b4 = -1;
@@ -466,7 +478,7 @@ namespace guideXOS.DefaultApps {
                                                 if (isPng || isJpg || isBmp) {
                                                     matches++;
                                                     match = nm;
-                                                }
+                                                  }
                                             }
                                         }
                                         fi.Dispose();
@@ -880,7 +892,9 @@ namespace guideXOS.DefaultApps {
                     break;
                 case "ping":
                     if (parts.Length < 2) {
-                        WriteLine("Usage: ping <hostOrIp>");
+                        WriteLine("Usage: ping <ip_address>");
+                        WriteLine("Example: ping 8.8.8.8");
+                        WriteLine("Note: Use 'dns <hostname>' to resolve hostnames first");
                         break;
                     }
                     
@@ -892,23 +906,25 @@ namespace guideXOS.DefaultApps {
                         }
                     }
                     
+                    // Check if ping already in progress
+                    if (_pingInProgress) {
+                        WriteLine("Ping already in progress, please wait...");
+                        break;
+                    }
+                    
+                    // ONLY accept IP addresses to avoid DNS blocking the GUI thread
                     NETv4.IPAddress dip;
                     if (!TryParseIp(parts[1], out dip)) {
-                        WriteLine($"Resolving {parts[1]}...");
-                        try {
-                            dip = NETv4.DNSQuery(parts[1]);
-                            if (dip.P1 == 0 && dip.P2 == 0 && dip.P3 == 0 && dip.P4 == 0) {
-                                WriteLine("DNS resolution failed");
-                                break;
-                            }
-                        } catch {
-                            WriteLine("DNS error");
-                            break;
-                        }
+                        WriteLine("Error: Please provide an IP address (not a hostname)");
+                        WriteLine("Example: ping 8.8.8.8");
+                        WriteLine("");
+                        WriteLine("To ping a hostname:");
+                        WriteLine("  1. Run: dns <hostname>   (e.g., dns google.com)");
+                        WriteLine("  2. Then: ping <ip>       (use the resolved IP)");
+                        break;
                     }
                     
                     WriteLine($"Pinging {dip.P1}.{dip.P2}.{dip.P3}.{dip.P4} with {NETv4.ICMPPingBytes} bytes of data:");
-                    WriteLine("(Note: ICMP ping may not work in QEMU user-mode networking)");
                     
                     // Reset ICMP state
                     NETv4.IsICMPRespond = false;
@@ -918,27 +934,13 @@ namespace guideXOS.DefaultApps {
                     try {
                         NETv4.ICMPPing(dip);
                         
-                        // Wait for response with timeout - use spin-wait to avoid blocking GUI thread
-                        ulong start = Timer.Ticks;
-                        int timeout = 1000; // 1 second timeout
-                        ulong checkInterval = 10; // Check time every 10ms worth of iterations
-                        ulong nextCheck = start + checkInterval;
+                        // Set ping state - response will be checked in OnInput()
+                        _pingInProgress = true;
+                        _pingStartTime = Timer.Ticks;
+                        _pingTarget = dip;
+                        _pingHostname = parts[1];
                         
-                        while (!NETv4.IsICMPRespond) {
-                            ulong now = Timer.Ticks;
-                            // Only check timeout periodically to reduce overhead
-                            if (now >= nextCheck) {
-                                if ((long)(now - start) > timeout) break;
-                                nextCheck = now + checkInterval;
-                            }
-                        }
-                        
-                        if (NETv4.IsICMPRespond) {
-                            ulong elapsed = Timer.Ticks - start;
-                            WriteLine($"Reply from {dip.P1}.{dip.P2}.{dip.P3}.{dip.P4}: bytes={NETv4.ICMPReplyBytes} ttl={NETv4.ICMPReplyTTL} time={elapsed}ms");
-                        } else {
-                            WriteLine("Request timed out.");
-                        }
+                        // DON'T wait here - return immediately to keep UI responsive
                     } catch {
                         WriteLine("Ping failed (network error)");
                     }
@@ -1145,6 +1147,29 @@ namespace guideXOS.DefaultApps {
             string r = new string(arr, 0, w);
             arr.Dispose();
             return r;
+        }
+
+        public override void OnInput() {
+            base.OnInput();
+            
+            // ALWAYS check ping status, even if window not focused
+            // This ensures ping completes even if user clicks away
+            if (_pingInProgress) {
+                ulong now = Timer.Ticks;
+                
+                if (NETv4.IsICMPRespond) {
+                    // Got response!
+                    ulong elapsed = now - _pingStartTime;
+                    WriteLine($"Reply from {_pingTarget.P1}.{_pingTarget.P2}.{_pingTarget.P3}.{_pingTarget.P4}: bytes={NETv4.ICMPReplyBytes} ttl={NETv4.ICMPReplyTTL} time={elapsed}ms");
+                    _pingInProgress = false;
+                    WritePrompt();
+                } else if ((long)(now - _pingStartTime) > _pingTimeout) {
+                    // Timeout
+                    WriteLine("Request timed out.");
+                    _pingInProgress = false;
+                    WritePrompt();
+                }
+            }
         }
 
         public override void OnDraw() {

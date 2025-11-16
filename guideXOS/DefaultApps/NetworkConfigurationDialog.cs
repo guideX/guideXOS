@@ -40,9 +40,9 @@ namespace guideXOS.DefaultApps {
 
         public NetworkConfigurationDialog() : base(
             (Framebuffer.Width - 580) / 2,
-            (Framebuffer.Height - 620) / 2,
+            (Framebuffer.Height - 680) / 2,
             580,
-            620
+            680
         ) {
             Title = "Internet Protocol Version 4 (TCP/IPv4) Properties";
             IsResizable = false;
