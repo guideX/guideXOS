@@ -133,60 +133,102 @@ public static class IDT {
             }
 
             Console.WriteLine("================== EXCEPTION ==================");
-            Console.WriteLine($"Vector: 0x{((uint)irq).ToString("x2")}  CPU: {SMP.ThisCPU}");
+            Console.WriteLine($"Vector: 0x{((uint)irq).ToString("x2")}  CPU: {SMP.ThisCPU}  Ticks: {Timer.Ticks}");
 
-            // Print using correctly computed frame
-            Console.WriteLine($"RIP: 0x{irs->rip.ToString("x2")}  CS: 0x{irs->cs.ToString("x2")}  CPL: {((int)(irs->cs & 3))}");
-            Console.WriteLine($"RFLAGS: 0x{irs->rflags.ToString("x2")}  RSP: 0x{irs->rsp.ToString("x2")}  SS: 0x{irs->ss.ToString("x2")} ");
-            if (hasErrorCode) Console.WriteLine($"ERROR CODE: 0x{stack->errorCode.ToString("x2")}");
-
-            // Registers
-            Console.WriteLine($"RAX={stack->rs.rax.ToString("x2")} RBX={stack->rs.rbx.ToString("x2")} RCX={stack->rs.rcx.ToString("x2")} RDX={stack->rs.rdx.ToString("x2")} ");
-            Console.WriteLine($"RSI={stack->rs.rsi.ToString("x2")} RDI={stack->rs.rdi.ToString("x2")} R8 ={stack->rs.r8.ToString("x2")} R9 ={stack->rs.r9.ToString("x2")} ");
-            Console.WriteLine($"R10={stack->rs.r10.ToString("x2")} R11={stack->rs.r11.ToString("x2")} R12={stack->rs.r12.ToString("x2")} R13={stack->rs.r13.ToString("x2")} ");
-            Console.WriteLine($"R14={stack->rs.r14.ToString("x2")} R15={stack->rs.r15.ToString("x2")} ");
-
-            // Control and tables
-            ulong cr2 = Native.ReadCR2();
-            Console.WriteLine($"CR2: 0x{cr2.ToString("x2")}  IDTR: base=0x{((ulong)idtr.Base).ToString("x2")} limit=0x{((uint)idtr.Limit).ToString("x2")}  GDTR: base=0x{GDT.gdtr.Base.ToString("x2")} limit=0x{GDT.gdtr.Limit.ToString("x2")} ");
-
-            // Decode exception type
+            // Decode exception type FIRST (more prominent)
             switch (irq) {
-                case 0: Console.WriteLine("DIVIDE BY ZERO"); break;
-                case 1: Console.WriteLine("SINGLE STEP"); break;
-                case 2: Console.WriteLine("NMI"); break;
-                case 3: Console.WriteLine("BREAKPOINT"); break;
-                case 4: Console.WriteLine("OVERFLOW"); break;
-                case 5: Console.WriteLine("BOUNDS CHECK"); break;
-                case 6: Console.WriteLine("INVALID OPCODE"); break;
-                case 7: Console.WriteLine("COPR UNAVAILABLE"); break;
-                case 8: Console.WriteLine("DOUBLE FAULT"); break;
-                case 9: Console.WriteLine("COPR SEGMENT OVERRUN"); break;
-                case 10: Console.WriteLine("INVALID TSS"); break;
-                case 11: Console.WriteLine("SEGMENT NOT FOUND"); break;
-                case 12: Console.WriteLine("STACK EXCEPTION"); break;
+                case 0: Console.WriteLine("TYPE: DIVIDE BY ZERO"); break;
+                case 1: Console.WriteLine("TYPE: SINGLE STEP"); break;
+                case 2: Console.WriteLine("TYPE: NMI"); break;
+                case 3: Console.WriteLine("TYPE: BREAKPOINT"); break;
+                case 4: Console.WriteLine("TYPE: OVERFLOW"); break;
+                case 5: Console.WriteLine("TYPE: BOUNDS CHECK"); break;
+                case 6: Console.WriteLine("TYPE: INVALID OPCODE"); break;
+                case 7: Console.WriteLine("TYPE: COPROCESSOR UNAVAILABLE"); break;
+                case 8: Console.WriteLine("TYPE: DOUBLE FAULT"); break;
+                case 9: Console.WriteLine("TYPE: COPROCESSOR SEGMENT OVERRUN"); break;
+                case 10: Console.WriteLine("TYPE: INVALID TSS"); break;
+                case 11: Console.WriteLine("TYPE: SEGMENT NOT FOUND"); break;
+                case 12: Console.WriteLine("TYPE: STACK EXCEPTION"); break;
                 case 13:
-                    Console.WriteLine("GENERAL PROTECTION");
-                    if (hasErrorCode) Console.WriteLine($"GP ERROR CODE: 0x{stack->errorCode.ToString("x2")} ");
+                    Console.WriteLine("TYPE: GENERAL PROTECTION FAULT");
+                    if (hasErrorCode) Console.WriteLine($"  GP ERROR CODE: 0x{stack->errorCode.ToString("x16")}");
                     break;
                 case 14: {
-                        if (cr2 < 0x1000) {
-                            Console.WriteLine("NULL POINTER");
+                        ulong pageFaultAddr = Native.ReadCR2();
+                        if (pageFaultAddr < 0x1000) {
+                            Console.WriteLine("TYPE: NULL POINTER DEREFERENCE");
                         } else {
-                            Console.WriteLine("PAGE FAULT");
+                            Console.WriteLine("TYPE: PAGE FAULT");
                         }
                         if (hasErrorCode) {
                             ulong ec = stack->errorCode;
                             // PF EC bits: P(0) W/R(1) U/S(2) RSVD(3) I/D(4) PK(5)
-                            Console.WriteLine($"PF EC: P={(ec & 1UL)!=0} WR={((ec>>1)&1UL)!=0} US={((ec>>2)&1UL)!=0} RSVD={((ec>>3)&1UL)!=0} ID={((ec>>4)&1UL)!=0} PK={((ec>>5)&1UL)!=0}");
+                            Console.WriteLine($"  PF Flags: P={(ec & 1UL)!=0} WR={((ec>>1)&1UL)!=0} US={((ec>>2)&1UL)!=0} RSVD={((ec>>3)&1UL)!=0} ID={((ec>>4)&1UL)!=0} PK={((ec>>5)&1UL)!=0}");
                         }
-                        Console.WriteLine($"Fault VA: 0x{cr2.ToString("x2")} (CPL {((int)(irs->cs & 3))})");
+                        Console.WriteLine($"  Fault Address: 0x{pageFaultAddr.ToString("x16")}");
                         break;
                     }
-                case 16: Console.WriteLine("COPR ERROR"); break;
-                default: Console.WriteLine("UNKNOWN EXCEPTION"); break;
+                case 16: Console.WriteLine("TYPE: COPROCESSOR ERROR"); break;
+                case 17: Console.WriteLine("TYPE: ALIGNMENT CHECK"); break;
+                case 18: Console.WriteLine("TYPE: MACHINE CHECK"); break;
+                case 19: Console.WriteLine("TYPE: SIMD FLOATING POINT"); break;
+                case 20: Console.WriteLine("TYPE: VIRTUALIZATION"); break;
+                default: Console.WriteLine($"TYPE: UNKNOWN EXCEPTION (Vector 0x{((uint)irq).ToString("x2")})"); break;
             }
+            
+            Console.WriteLine("");
+            Console.WriteLine("--- INSTRUCTION POINTER ---");
+            Console.WriteLine($"RIP: 0x{irs->rip.ToString("x16")}  CS: 0x{irs->cs.ToString("x4")}  CPL: {((int)(irs->cs & 3))}");
+            Console.WriteLine($"RFLAGS: 0x{irs->rflags.ToString("x16")}");
+            Console.WriteLine($"RSP: 0x{irs->rsp.ToString("x16")}  SS: 0x{irs->ss.ToString("x4")}");
+            if (hasErrorCode) Console.WriteLine($"ERROR CODE: 0x{stack->errorCode.ToString("x16")}");
+
+            Console.WriteLine("");
+            Console.WriteLine("--- GENERAL PURPOSE REGISTERS ---");
+            Console.WriteLine($"RAX: 0x{stack->rs.rax.ToString("x16")}  RBX: 0x{stack->rs.rbx.ToString("x16")}");
+            Console.WriteLine($"RCX: 0x{stack->rs.rcx.ToString("x16")}  RDX: 0x{stack->rs.rdx.ToString("x16")}");
+            Console.WriteLine($"RSI: 0x{stack->rs.rsi.ToString("x16")}  RDI: 0x{stack->rs.rdi.ToString("x16")}");
+            Console.WriteLine($"R8 : 0x{stack->rs.r8.ToString("x16")}  R9 : 0x{stack->rs.r9.ToString("x16")}");
+            Console.WriteLine($"R10: 0x{stack->rs.r10.ToString("x16")}  R11: 0x{stack->rs.r11.ToString("x16")}");
+            Console.WriteLine($"R12: 0x{stack->rs.r12.ToString("x16")}  R13: 0x{stack->rs.r13.ToString("x16")}");
+            Console.WriteLine($"R14: 0x{stack->rs.r14.ToString("x16")}  R15: 0x{stack->rs.r15.ToString("x16")}");
+
+            Console.WriteLine("");
+            Console.WriteLine("--- CONTROL REGISTERS ---");
+            ulong cr2 = Native.ReadCR2();
+            Console.WriteLine($"CR2 (Page Fault): 0x{cr2.ToString("x16")}");
+            
+            Console.WriteLine("");
+            Console.WriteLine("--- DESCRIPTOR TABLES ---");
+            Console.WriteLine($"IDTR: Base=0x{((ulong)idtr.Base).ToString("x16")} Limit=0x{((uint)idtr.Limit).ToString("x4")}");
+            Console.WriteLine($"GDTR: Base=0x{GDT.gdtr.Base.ToString("x16")} Limit=0x{GDT.gdtr.Limit.ToString("x4")}");
+
+            Console.WriteLine("");
+            Console.WriteLine("--- RFLAGS BREAKDOWN ---");
+            ulong flags = irs->rflags;
+            Console.WriteLine($"CF={((flags>>0)&1)} PF={((flags>>2)&1)} AF={((flags>>4)&1)} ZF={((flags>>6)&1)} SF={((flags>>7)&1)} TF={((flags>>8)&1)} IF={((flags>>9)&1)} DF={((flags>>10)&1)} OF={((flags>>11)&1)} IOPL={((flags>>12)&3)} NT={((flags>>14)&1)} RF={((flags>>16)&1)} VM={((flags>>17)&1)} AC={((flags>>18)&1)} VIF={((flags>>19)&1)} VIP={((flags>>20)&1)} ID={((flags>>21)&1)}");
+            
+            Console.WriteLine("");
+            Console.WriteLine("--- STACK TRACE (Approximate) ---");
+            // Try to read a few values from the stack
+            ulong* stackPtr = (ulong*)irs->rsp;
+            for (int i = 0; i < 8; i++) {
+                try {
+                    ulong val = stackPtr[i];
+                    uint offset = (uint)(i * 8);
+                    Console.Write($"[RSP+{offset.ToString("x2")}]: 0x{val.ToString("x16")}");
+                    Console.WriteLine("");
+                } catch {
+                    uint offset = (uint)(i * 8);
+                    Console.Write($"[RSP+{offset.ToString("x2")}]: <invalid>");
+                    Console.WriteLine("");
+                    break;
+                }
+            }
+            
             Console.WriteLine("===============================================");
+            Console.WriteLine("System halted. Please reset.");
             Framebuffer.Update();
             for (; ; ) ;
         }

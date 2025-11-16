@@ -140,6 +140,31 @@ namespace guideXOS {
                 case 0x0800: IPOnData(ptr); break;
             }
         }
+        // Overload that accepts packet size for bounds checking
+        public static void OnData(byte* ptr, int packetSize) {
+            if (packetSize < sizeof(EthernetHeader)) return;
+
+            EthernetHeader* eth_hdr = (EthernetHeader*)ptr;
+            ptr += sizeof(EthernetHeader);
+            packetSize -= sizeof(EthernetHeader);
+
+            SwapLeftRight(ref eth_hdr->EthernetType);
+            switch (eth_hdr->EthernetType) {
+                case 0x0806:
+                    if (packetSize >= sizeof(ARPHeader)) {
+                        ARPOnData((ARPHeader*)ptr);
+                    }
+                    break;
+                case 0x0800:
+                    if (packetSize >= sizeof(IPv4Header)) {
+                        IPOnData(ptr, packetSize);
+                    }
+                    break;
+            }
+        }
+
+        // Add this method in the UDP region after the existing UDPOnData method (around line 627)
+
 
         #region DNS
         public struct DNSHeader {
@@ -525,7 +550,53 @@ namespace guideXOS {
                 for (int i = 0; i < length; i++) buf[i] = buffer[i];
                 client.DataReceived.Enqueue(buf);
             }
+        }        // Overload that uses actual available buffer size for bounds checking  
+        public static void UDPOnData(IPv4Header* ipv4_hdr, byte* buffer, int availableSize) {
+            if (availableSize < sizeof(UDPHeader)) return;
+
+            UDPHeader* udp_hdr = (UDPHeader*)buffer;
+            buffer += sizeof(UDPHeader);
+            availableSize -= sizeof(UDPHeader);
+
+            SwapLeftRight(ref udp_hdr->SrcPort);
+            SwapLeftRight(ref udp_hdr->DestPort);
+            SwapLeftRight(ref udp_hdr->Length);
+
+            UDPClient client = null;
+            for (int i = 0; i < UDPClients.Count; i++) {
+                if (udp_hdr->DestPort == UDPClients[i].LocalPort) {
+                    client = UDPClients[i];
+                    break;
+                }
+            }
+
+            if (client != null) {
+                // Start with available size
+                int length = availableSize;
+
+                // Cross-validate with UDP Length field
+                ushort udpLen = udp_hdr->Length;
+                if (udpLen >= sizeof(UDPHeader) && udpLen <= 1480) {
+                    int payloadLength = udpLen - sizeof(UDPHeader);
+                    if (payloadLength >= 0 && payloadLength < length) {
+                        length = payloadLength;
+                    }
+                }
+
+                // CRITICAL: Never exceed actual buffer size
+                if (length < 0) length = 0;
+                if (length > availableSize) length = availableSize;
+
+                if (length > 0) {
+                    byte[] buf = new byte[length];
+                    for (int i = 0; i < length; i++) {
+                        buf[i] = buffer[i];
+                    }
+                    client.DataReceived.Enqueue(buf);
+                }
+            }
         }
+
         #endregion
 
         #region TCP
@@ -976,6 +1047,38 @@ namespace guideXOS {
         #endregion
 
         #region IP
+
+        // Add this method in the IP region after the existing IPOnData method (around line 1173)
+
+        // Overload that uses actual packet size for bounds checking
+        public static void IPOnData(byte* buffer, int packetSize) {
+            if (packetSize < sizeof(IPv4Header)) return;
+
+            IPv4Header* hdr = (IPv4Header*)buffer;
+            buffer += sizeof(IPv4Header);
+            SwapLeftRight(ref hdr->TotalLength);
+
+            // Use smaller of TotalLength or actual packet size
+            ushort totalLen = hdr->TotalLength;
+            if (totalLen > packetSize + sizeof(IPv4Header)) {
+                totalLen = (ushort)(packetSize + sizeof(IPv4Header));
+            }
+
+            int remainingSize = totalLen - sizeof(IPv4Header);
+            if (remainingSize < 0 || remainingSize > packetSize) return;
+
+            if (hdr->DestIP == NETv4.IP) {
+                switch (hdr->Protocol) {
+                    case 17: UDPOnData(hdr, buffer, remainingSize); break;
+                    case 6: TCPOnData(hdr, buffer); break;
+                    case 1: ICMPOnData(hdr, buffer); break;
+                }
+            } else if (NETv4.IP == default && hdr->Protocol == 17) {
+                UDPOnData(hdr, buffer, remainingSize);
+            }
+        }
+
+
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public unsafe struct IPv4Header {
             public byte VersionAndIHL;

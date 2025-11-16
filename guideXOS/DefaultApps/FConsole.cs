@@ -775,25 +775,63 @@ namespace guideXOS.DefaultApps {
                     }
                     break;
                 case "netinit":
+                    // Check if network is already initialized by checking if MAC is set
+                    unsafe {
+                        if (NETv4.Sender != null) {
+                            Console.WriteLine("[NET] Network already initialized");
+                            Console.WriteLine($"[NET] IP: {NETv4.IP.P1}.{NETv4.IP.P2}.{NETv4.IP.P3}.{NETv4.IP.P4}");
+                            break;
+                        }
+                    }
+                    
                     Console.WriteLine("[NET] Initializing stack");
-                    NETv4.Initialize();
-                    Console.WriteLine("[NET] Initializing NICs");
-                    bool nic = false;
+                    try {
+                        NETv4.Initialize();
+                    } catch {
+                        Console.WriteLine("[NET] Stack initialization failed");
+                        break;
+                    }
+                    
+                    Console.WriteLine("[NET] Scanning for NICs");
+                    bool nicFound = false;
                     try {
                         Intel825xx.Initialize();
-                        Console.WriteLine("[NET] Intel825xx initialized");
-                        nic = true;
+                        unsafe {
+                            if (NETv4.Sender != null) {
+                                Console.WriteLine("[NET] Intel825xx found");
+                                nicFound = true;
+                            }
+                        }
                     } catch { }
+                    
                     try {
                         RTL8111.Initialize();
-                        Console.WriteLine("[NET] RTL8111 initialized");
-                        nic = true;
+                        unsafe {
+                            // Fixed: Check only if Sender was set, regardless of nicFound flag
+                            if (NETv4.Sender != null && !nicFound) {
+                                Console.WriteLine("[NET] RTL8111 found");
+                                nicFound = true;
+                            }
+                        }
                     } catch { }
-                    if (!nic) Console.WriteLine("[NET] No supported NIC found");
-                    Console.WriteLine("[NET] DHCP discover...");
-                    bool dhcp = NETv4.DHCPDiscover();
-                    if (!dhcp) Console.WriteLine("[NET] DHCP failed");
-                    else Console.WriteLine("[NET] DHCP OK");
+                    
+                    if (!nicFound) {
+                        Console.WriteLine("[NET] No supported NIC found");
+                        break;
+                    }
+                    
+                    Console.WriteLine("[NET] Attempting DHCP (this may take a few seconds)...");
+                    try {
+                        bool dhcp = NETv4.DHCPDiscover();
+                        if (dhcp) {
+                            Console.WriteLine("[NET] DHCP successful");
+                            Console.WriteLine($"[NET] IP: {NETv4.IP.P1}.{NETv4.IP.P2}.{NETv4.IP.P3}.{NETv4.IP.P4}");
+                        } else {
+                            Console.WriteLine("[NET] DHCP failed");
+                        }
+                    } catch {
+                        Console.WriteLine("[NET] DHCP error");
+                    }
                     break;
                 case "ifconfig":
                     Console.WriteLine($"IP: {NETv4.IP.P1}.{NETv4.IP.P2}.{NETv4.IP.P3}.{NETv4.IP.P4}");
@@ -823,39 +861,86 @@ namespace guideXOS.DefaultApps {
                         Console.WriteLine("Usage: dns <host>");
                         break;
                     }
-                    var ip = NETv4.DNSQuery(parts[1]);
-                    if (ip.P1 == 0 && ip.P2 == 0 && ip.P3 == 0 && ip.P4 == 0) Console.WriteLine("DNS failed");
-                    else Console.WriteLine($"Resolved: {ip.P1}.{ip.P2}.{ip.P3}.{ip.P4}");
+                    
+                    // Check if network is initialized
+                    unsafe {
+                        if (NETv4.Sender == null) {
+                            Console.WriteLine("Network not initialized. Run 'netinit' first.");
+                            break;
+                        }
+                    }
+                    
+                    try {
+                        var ip = NETv4.DNSQuery(parts[1]);
+                        if (ip.P1 == 0 && ip.P2 == 0 && ip.P3 == 0 && ip.P4 == 0) {
+                            Console.WriteLine("DNS failed");
+                        } else {
+                            Console.WriteLine($"Resolved: {ip.P1}.{ip.P2}.{ip.P3}.{ip.P4}");
+                        }
+                    } catch {
+                        Console.WriteLine("DNS error");
+                    }
                     break;
                 case "ping":
                     if (parts.Length < 2) {
                         Console.WriteLine("Usage: ping <hostOrIp>");
                         break;
                     }
-                    NETv4.IPAddress dip;
-                    if (!TryParseIp(parts[1], out dip)) {
-                        dip = NETv4.DNSQuery(parts[1]);
-                        if (dip.P1 == 0 && dip.P2 == 0 && dip.P3 == 0 && dip.P4 == 0) {
-                            Console.WriteLine("Unable to resolve host");
+                    
+                    // Check if network is initialized
+                    unsafe {
+                        if (NETv4.Sender == null) {
+                            Console.WriteLine("Network not initialized. Run 'netinit' first.");
                             break;
                         }
                     }
+                    
+                    NETv4.IPAddress dip;
+                    if (!TryParseIp(parts[1], out dip)) {
+                        Console.WriteLine($"Resolving {parts[1]}...");
+                        try {
+                            dip = NETv4.DNSQuery(parts[1]);
+                            if (dip.P1 == 0 && dip.P2 == 0 && dip.P3 == 0 && dip.P4 == 0) {
+                                Console.WriteLine("DNS resolution failed");
+                                break;
+                            }
+                        } catch {
+                            Console.WriteLine("DNS error");
+                            break;
+                        }
+                    }
+                    
                     Console.WriteLine($"Pinging {dip.P1}.{dip.P2}.{dip.P3}.{dip.P4} with {NETv4.ICMPPingBytes} bytes of data:");
+                    Console.WriteLine("(Note: ICMP ping may not work in QEMU user-mode networking)");
+                    
+                    // Reset ICMP state
                     NETv4.IsICMPRespond = false;
                     NETv4.ICMPReplyTTL = 0;
                     NETv4.ICMPReplyBytes = 0;
-                    NETv4.ICMPPing(dip); {
+                    
+                    try {
+                        NETv4.ICMPPing(dip);
+                        
+                        // Wait for response with shorter timeout and check every 50ms
                         ulong start = Timer.Ticks;
-                        int timeout = 2000;
-                        while (!NETv4.IsICMPRespond) {
+                        int timeout = 1000; // 1 second timeout
+                        int checks = 0;
+                        int maxChecks = 20; // Check 20 times max (1 second / 50ms)
+                        
+                        while (!NETv4.IsICMPRespond && checks < maxChecks) {
                             if ((long)(Timer.Ticks - start) > timeout) break;
-                            ACPITimer.Sleep(10);
+                            ACPITimer.Sleep(50); // Sleep for shorter periods
+                            checks++;
                         }
+                        
                         if (NETv4.IsICMPRespond) {
-                            Console.WriteLine($"Reply from {dip.P1}.{dip.P2}.{dip.P3}.{dip.P4}: bytes={NETv4.ICMPReplyBytes} ttl={NETv4.ICMPReplyTTL}");
+                            ulong elapsed = Timer.Ticks - start;
+                            Console.WriteLine($"Reply from {dip.P1}.{dip.P2}.{dip.P3}.{dip.P4}: bytes={NETv4.ICMPReplyBytes} ttl={NETv4.ICMPReplyTTL} time={elapsed}ms");
                         } else {
                             Console.WriteLine("Request timed out.");
                         }
+                    } catch {
+                        Console.WriteLine("Ping failed (network error)");
                     }
                     break;
                 case "authurl":

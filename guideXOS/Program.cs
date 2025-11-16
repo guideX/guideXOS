@@ -134,18 +134,24 @@ unsafe class Program {
         if (AC97.DeviceLocated) Console.WriteLine("Device Located: " + AC97.DeviceName);
         ES1371.Initialize();
 #if NETWORK
-        NETv4.Initialize();
-        Intel825xx.Initialize();
-        RTL8111.Initialize();
-#if true
-        //Console.Write("Trying to get ip config from DHCP server...\n");
-        bool ares = NETv4.DHCPDiscover();
-        if (!ares)
-        {
-            Console.Write("DHCP discovery failed\n");
-            for (; ; ) Native.Hlt();
+        Console.WriteLine("[NET] Initializing network subsystem...");
+        try {
+            NETv4.Initialize();
+            Intel825xx.Initialize();
+            RTL8111.Initialize();
+        } catch {
+            Console.WriteLine("[NET] Network driver initialization error");
         }
-#endif
+        
+        // Only try DHCP if a network driver was found
+        if (NETv4.Sender != null) {
+            Console.WriteLine("[NET] Network driver found");
+            Console.WriteLine("[NET] Skipping automatic DHCP (use 'netinit' command in console)");
+            // Skip DHCP during boot to prevent hanging
+            // User can run 'netinit' command in FConsole to configure network manually
+        } else {
+            Console.WriteLine("[NET] No network hardware detected");
+        }
 #endif
 
         // Apply saved display mode before wallpaper resize
