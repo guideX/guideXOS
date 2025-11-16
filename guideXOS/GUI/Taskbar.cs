@@ -54,6 +54,11 @@ namespace guideXOS.GUI {
         // On-Screen Keyboard button latch
         private bool _oskClickLatch = false;
 
+        /// <summary>
+        /// Public accessor for WorkspaceSwitcher (needed by WorkspaceManager for screenshots)
+        /// </summary>
+        public WorkspaceSwitcher WorkspaceSwitcher => _workspaceSwitcher;
+
         public Taskbar(int barHeight, Image startIcon) { 
             _barHeight = barHeight; 
             _startIcon = startIcon; 
@@ -74,6 +79,7 @@ namespace guideXOS.GUI {
         /// Show the workspace switcher overlay
         /// </summary>
         public void ShowWorkspaceSwitcher() {
+            // Just set the flag - capture will happen in Draw() after switcher is created
             _needsWorkspaceSwitcher = true;
         }
 
@@ -99,6 +105,9 @@ namespace guideXOS.GUI {
                 if (_workspaceSwitcher == null) {
                     _workspaceSwitcher = new WorkspaceSwitcher();
                 }
+                
+                // CAPTURE CURRENT WORKSPACE BEFORE SHOWING (after switcher is created)
+                _workspaceSwitcher.CaptureCurrentWorkspace();
                 
                 // Build the cache BEFORE showing
                 _workspaceSwitcher.RefreshWindowCache();

@@ -75,11 +75,39 @@ namespace guideXOS.DefaultApps {
         /// On Key
         /// </summary>
         private void OnKey(object s, System.ConsoleKeyInfo key) {
-            if (!_typingUrl || !Visible)
+            if (!Visible)
                 return;
             if (key.KeyState != System.ConsoleKeyState.Pressed)
                 return;
 
+            // If not in typing mode, check for shortcuts only
+            if (!_typingUrl) {
+                // Ctrl+T for new tab
+                if (key.Key == System.ConsoleKey.T && Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Control)) {
+                    AddNewTab();
+                    return;
+                }
+
+                // Ctrl+W to close tab
+                if (key.Key == System.ConsoleKey.W && Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Control)) {
+                    CloseCurrentTab();
+                    return;
+                }
+                
+                // Ctrl+L or F6 to focus URL bar
+                if ((key.Key == System.ConsoleKey.L && Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Control)) ||
+                    key.Key == System.ConsoleKey.F6) {
+                    if (_currentTab >= 0 && _currentTab < _tabs.Count) {
+                        _typingUrl = true;
+                        _urlEdit = _tabs[_currentTab].Url;
+                    }
+                    return;
+                }
+                
+                return; // Don't process other keys when not typing
+            }
+
+            // Typing mode active - handle text input
             if (key.Key == System.ConsoleKey.Enter) {
                 if (_currentTab >= 0 && _currentTab < _tabs.Count) {
                     _tabs[_currentTab].Url = _urlEdit;
@@ -98,13 +126,13 @@ namespace guideXOS.DefaultApps {
                 return;
             }
 
-            // Ctrl+T for new tab
+            // Ctrl+T for new tab (also works in typing mode)
             if (key.Key == System.ConsoleKey.T && Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Control)) {
                 AddNewTab();
                 return;
             }
 
-            // Ctrl+W to close tab
+            // Ctrl+W to close tab (also works in typing mode)
             if (key.Key == System.ConsoleKey.W && Keyboard.KeyInfo.Modifiers.HasFlag(System.ConsoleModifiers.Control)) {
                 CloseCurrentTab();
                 return;
