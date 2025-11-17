@@ -36,9 +36,8 @@ namespace guideXOS.DefaultApps {
             if (_samplesBuilt) return;
             _samplesBuilt = true;
             
-            // TEMPORARY: Only create ONE demo window to test if it's a multi-window issue
-            // If this works, the problem is with creating multiple windows
-            // If this still freezes, the problem is in GXMScriptWindow itself
+            // Create the demo window but DON'T show it yet
+            // We'll show it in OnDraw() after a few more frames
             
             // Sample 1: Basic buttons + click callbacks
             _demo1 = new GXMScriptWindow("Button Demo", 280, 220);
@@ -49,6 +48,11 @@ namespace guideXOS.DefaultApps {
             _demo1.AddOnClick(4, "CLOSE", "");
             _demo1.X = this.X + 12;
             _demo1.Y = this.Y + 60;
+            
+            // DON'T SET VISIBLE YET - will be done in OnDraw
+            // This allows WindowManager to properly register the window first
+            WindowManager.MoveToEnd(_demo1);
+            // _demo1.Visible = true;  // REMOVED - will be set later
             
             // COMMENT OUT OTHER WINDOWS FOR NOW - testing with just one
             /*
@@ -184,23 +188,16 @@ namespace guideXOS.DefaultApps {
                 }
             }
             
-            // Gradually show demo windows to avoid overwhelming WindowManager
-            if (_samplesBuilt && _framesAfterBuild < 10) {
+            // Show demo windows after they've been registered for a few frames
+            if (_samplesBuilt && _framesAfterBuild < 20) {
                 _framesAfterBuild++;
                 
-                // Show windows one at a time across multiple frames
-                if (_framesAfterBuild == 2 && _demo2 != null && !_demo2.Visible) {
-                    WindowManager.MoveToEnd(_demo2);
-                    _demo2.Visible = true;
+                // Show demo1 after 3 frames from building
+                if (_framesAfterBuild == 3 && _demo1 != null && !_demo1.Visible) {
+                    _demo1.Visible = true;
                 }
-                if (_framesAfterBuild == 4 && _demo3 != null && !_demo3.Visible) {
-                    WindowManager.MoveToEnd(_demo3);
-                    _demo3.Visible = true;
-                }
-                if (_framesAfterBuild == 6 && _demo4 != null && !_demo4.Visible) {
-                    WindowManager.MoveToEnd(_demo4);
-                    _demo4.Visible = true;
-                }
+                
+                // Future: show demo2, demo3, demo4 at frames 8, 13, 18
             }
             
             int pad = 12;
@@ -214,6 +211,16 @@ namespace guideXOS.DefaultApps {
             string desc = "This window demonstrates GXM GUI scripting capabilities.";
             WindowManager.font.DrawString(X + pad, y, desc, Width - pad * 2, WindowManager.font.FontSize * 2);
             y += WindowManager.font.FontSize * 2 + 12;
+            
+            // Add test message
+            y += 20;
+            WindowManager.font.DrawString(X + pad, y, "[TEST MODE: Only showing 1 demo window]");
+            y += WindowManager.font.FontSize + 4;
+            WindowManager.font.DrawString(X + pad, y, "Window will appear after 3 frames from creation.");
+            y += WindowManager.font.FontSize + 4;
+            if (_framesAfterBuild > 0) {
+                WindowManager.font.DrawString(X + pad, y, $"Frames after build: {_framesAfterBuild}");
+            }
             
             // Control buttons
             int btnX = X + pad;

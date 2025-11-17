@@ -27,6 +27,14 @@ namespace guideXOS.GUI {
         /// </summary>
         public Image TaskbarIcon;
         /// <summary>
+        /// Taskbar Icon
+        /// </summary>
+        public Image TaskbarIconDown;
+        /// <summary>
+        /// Taskbar Icon
+        /// </summary>
+        public Image TaskbarIconOver;
+        /// <summary>
         /// Start Icon
         /// </summary>
         public Image StartIcon;
@@ -88,7 +96,9 @@ namespace guideXOS.GUI {
             AudioIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/music.png"));
             ImageIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/image.png"));
             FolderIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/folder.png"));
-            TaskbarIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/up.png"));
+            TaskbarIcon = new PNG(File.ReadAllBytes($"Images/startmenubutton.png"));
+            TaskbarIconOver = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
+            TaskbarIconDown = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
             StartIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
             AudioPauseIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/pause.png"));
             AudioPlayIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
@@ -430,6 +440,48 @@ namespace guideXOS.GUI {
                     return _iconsPrivate128.TaskbarIcon;
                 default:
                     return _iconsPrivate32.TaskbarIcon;
+            }
+        }
+        /// <summary>
+        /// Taskbar Icon
+        /// </summary>
+        /// <param name="size"></param>
+        /// <returns></returns>
+        public static Image TaskbarIconOver(int size) {
+            switch (size) {
+                case 16:
+                    return _iconsPrivate16.TaskbarIconOver;
+                case 24:
+                    return _iconsPrivate24.TaskbarIconOver;
+                case 32:
+                    return _iconsPrivate32.TaskbarIconOver;
+                case 48:
+                    return _iconsPrivate48.TaskbarIconOver;
+                case 128:
+                    return _iconsPrivate128.TaskbarIconOver;
+                default:
+                    return _iconsPrivate32.TaskbarIconOver;
+            }
+        }
+        /// <summary>
+        /// Taskbar Icon
+        /// </summary>
+        /// <param name="size"></param>
+        /// <returns></returns>
+        public static Image TaskbarIconDown(int size) {
+            switch (size) {
+                case 16:
+                    return _iconsPrivate16.TaskbarIconDown;
+                case 24:
+                    return _iconsPrivate24.TaskbarIconDown;
+                case 32:
+                    return _iconsPrivate32.TaskbarIconDown;
+                case 48:
+                    return _iconsPrivate48.TaskbarIconDown;
+                case 128:
+                    return _iconsPrivate128.TaskbarIconDown;
+                default:
+                    return _iconsPrivate32.TaskbarIconDown;
             }
         }
         /// <summary>

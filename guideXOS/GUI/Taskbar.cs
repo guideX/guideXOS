@@ -117,10 +117,27 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.BlurRectangle(0, yTop, Framebuffer.Width, _barHeight, 3);
             Framebuffer.Graphics.AFillRectangle(0, yTop, Framebuffer.Width, _barHeight, 0x66111111);
 
+            // Get mouse coordinates early for start icon state detection
+            int mx = Control.MousePosition.X; 
+            int my = Control.MousePosition.Y;
+            bool left = Control.MouseButtons.HasFlag(MouseButtons.Left);
+
             int startX = 12; int startY = Framebuffer.Height - _barHeight + 4;
-            // Start icon
+            // Start icon - determine which icon to show based on mouse state
             if (_startIcon != null) {
-                Framebuffer.Graphics.DrawImage(startX, startY, _startIcon);
+                int sW = _startIcon.Width; int sH = _startIcon.Height;
+                bool overStart = (mx >= startX && mx <= startX + sW && my >= startY && my <= startY + sH);
+                
+                Image iconToShow = Icons.TaskbarIcon(32);
+                if (overStart && left) {
+                    // Mouse is down over start button - show pressed state
+                    iconToShow = Icons.TaskbarIconDown(32);
+                } else if (overStart) {
+                    // Mouse is hovering over start button - show hover state
+                    iconToShow = Icons.TaskbarIconOver(32);
+                }
+                
+                Framebuffer.Graphics.DrawImage(startX, startY, iconToShow);
             }
 
             // Quicklaunch pinned row
@@ -154,8 +171,6 @@ namespace guideXOS.GUI {
             int btnW = 140; // fixed width
             int gap = 8;
 
-            int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
-            bool left = Control.MouseButtons.HasFlag(MouseButtons.Left);
             bool right = Control.MouseButtons.HasFlag(MouseButtons.Right);
 
             // Handle right click -> show menu and mark mouse as handled
