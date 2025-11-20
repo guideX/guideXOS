@@ -41,6 +41,18 @@ namespace guideXOS.GUI {
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
             bool leftDown = Control.MouseButtons.HasFlag(MouseButtons.Left);
+            bool rightClick = Control.MouseButtons.HasFlag(MouseButtons.Right);
+            
+            // Handle right-click for context menu (only when standalone)
+            if (rightClick && !_dragging && DockedContainer == null) {
+                if (mx >= X && mx <= X + Width && my >= Y && my <= Y + Height) {
+                    // Show context menu for standalone widget
+                    if (Program.widgetContextMenu != null) {
+                        Program.widgetContextMenu.ShowForStandaloneWidget(this, mx, my);
+                    }
+                    return;
+                }
+            }
             
             if (leftDown) {
                 // Start dragging if clicked anywhere in the widget (except close button)
@@ -73,6 +85,13 @@ namespace guideXOS.GUI {
                 }
                 _dragging = false;
             }
+        }
+        
+        /// <summary>
+        /// Try to dock to a nearby widget or container (used by context menu)
+        /// </summary>
+        public void TryDockToNearby() {
+            CheckForDocking();
         }
         
         private void CheckForDocking() {

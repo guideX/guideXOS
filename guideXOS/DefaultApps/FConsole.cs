@@ -428,7 +428,7 @@ namespace guideXOS.DefaultApps {
             string cmd = parts[0];
             switch (cmd) {
                 case "help":
-                    WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, setbg <image>, apps, launch <app>, netinit, ipconfig, ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot, osk, workspaces");
+                    WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, setbg <image>, apps, launch <app>, netinit, ipconfig [/release | /renew], ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot, osk, workspaces");
                     break;
                 case "exit": {
                         this.Visible = false;
@@ -850,6 +850,60 @@ namespace guideXOS.DefaultApps {
                     WriteLine($"MAC: {NETv4.MAC.P1:x2}:{NETv4.MAC.P2:x2}:{NETv4.MAC.P3:x2}:{NETv4.MAC.P4:x2}:{NETv4.MAC.P5:x2}:{NETv4.MAC.P6:x2}");
                     break;
                 case "ipconfig":
+                    // Check for /release or /renew parameters
+                    if (parts.Length > 1) {
+                        string param = parts[1];
+                        // Manual case-insensitive comparison
+                        bool isRelease = param.Length == 8 && 
+                            (param[0] == '/' || param[0] == '-') &&
+                            (param[1] == 'r' || param[1] == 'R') &&
+                            (param[2] == 'e' || param[2] == 'E') &&
+                            (param[3] == 'l' || param[3] == 'L') &&
+                            (param[4] == 'e' || param[4] == 'E') &&
+                            (param[5] == 'a' || param[5] == 'A') &&
+                            (param[6] == 's' || param[6] == 'S') &&
+                            (param[7] == 'e' || param[7] == 'E');
+                        
+                        bool isRenew = param.Length == 6 && 
+                            (param[0] == '/' || param[0] == '-') &&
+                            (param[1] == 'r' || param[1] == 'R') &&
+                            (param[2] == 'e' || param[2] == 'E') &&
+                            (param[3] == 'n' || param[3] == 'N') &&
+                            (param[4] == 'e' || param[4] == 'E') &&
+                            (param[5] == 'w' || param[5] == 'W');
+                        
+                        if (isRelease) {
+                            // Release DHCP lease - clear IP configuration
+                            WriteLine("Releasing IP configuration...");
+                            NETv4.IP = default;
+                            NETv4.Mask = default;
+                            NETv4.GatewayIP = default;
+                            WriteLine("IP address has been released");
+                            break;
+                        } else if (isRenew) {
+                            // Renew DHCP lease - redirect to netinit
+                            unsafe {
+                                if (NETv4.Sender == null) {
+                                    WriteLine("Network not initialized. Run 'netinit' first.");
+                                    break;
+                                }
+                            }
+                            
+                            WriteLine("WARNING: DHCP renewal may take several seconds and will freeze the OS.");
+                            WriteLine("To renew your IP address, use the 'netinit' command instead.");
+                            WriteLine("");
+                            WriteLine("Steps to renew:");
+                            WriteLine("  1. ipconfig /release   - Release current IP");
+                            WriteLine("  2. netinit             - Re-acquire IP via DHCP");
+                            break;
+                        } else {
+                            WriteLine("Unknown parameter: " + parts[1]);
+                            WriteLine("Usage: ipconfig [/release | /renew]");
+                            break;
+                        }
+                    }
+                    
+                    // No parameters - show current configuration
                     WriteLine($"IP: {NETv4.IP.P1}.{NETv4.IP.P2}.{NETv4.IP.P3}.{NETv4.IP.P4}");
                     WriteLine($"Mask: {NETv4.Mask.P1}.{NETv4.Mask.P2}.{NETv4.Mask.P3}.{NETv4.Mask.P4}");
                     WriteLine($"Gateway: {NETv4.GatewayIP.P1}.{NETv4.GatewayIP.P2}.{NETv4.GatewayIP.P3}.{NETv4.GatewayIP.P4}");

@@ -170,7 +170,7 @@ namespace guideXOS.Kernel.Drivers {
                 
                 // Top row (numbers and symbols)
                 case 0x0E: return 0x29; // ` (backtick)
-                case 0x16: return 0x02; // 1
+                case 0x16: return 0x03; // 1
                 case 0x1E: return 0x03; // 2
                 case 0x26: return 0x04; // 3
                 case 0x25: return 0x05; // 4
@@ -466,7 +466,8 @@ namespace guideXOS.Kernel.Drivers {
                 // Number keys 1-0
                 if (!shift) {
                     // Unshifted: 1234567890
-                    return (char)('1' + (makeCode - 0x02));
+                    char[] unshiftedNumbers = new char[] { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
+                    return unshiftedNumbers[makeCode - 0x02];
                 } else {
                     // Shifted: !@#$%^&*()
                     char[] shiftedNumbers = new char[] { '!', '@', '#', '$', '%', '^', '&', '*', '(', ')' };

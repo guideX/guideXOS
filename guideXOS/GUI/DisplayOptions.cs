@@ -182,8 +182,12 @@ namespace guideXOS.GUI {
             base.OnInput(); 
             if (!Visible) return;
             
-            // Modal dialogs take precedence
-            if (_openDlg != null && _openDlg.Visible || _colorDlg != null && _colorDlg.Visible) return;
+            // Modal dialogs take precedence - don't process any input if dialogs are visible
+            if (_openDlg != null && _openDlg.Visible) return;
+            if (_colorDlg != null && _colorDlg.Visible) return;
+            
+            // Only process input if mouse is within the window bounds
+            if (!IsUnderMouse()) return;
 
             int cx = X + _padding; 
             int cy = Y + _padding; 
@@ -268,6 +272,7 @@ namespace guideXOS.GUI {
                     int btnY = Y + Height - _padding - _btnH - 10;
                     int btnSelectX = cx;
                     int btnColorX = btnSelectX + _btnW + 16;
+                    int btnEffectsX = btnColorX + _btnW + 16;
 
                     if (mx >= btnSelectX && mx <= btnSelectX + _btnW && my >= btnY && my <= btnY + _btnH) {
                         // Open file dialog
@@ -301,23 +306,30 @@ namespace guideXOS.GUI {
                         _colorDlg.Visible = true; 
                         return;
                     }
+                    
+                    if (mx >= btnEffectsX && mx <= btnEffectsX + _btnW && my >= btnY && my <= btnY + _btnH) {
+                        // Open Visual Effects settings
+                        var effectsWindow = new VisualEffectsSettings(X + 60, Y + 40);
+                        WindowManager.MoveToEnd(effectsWindow);
+                        effectsWindow.Visible = true;
+                        return;
+                    }
                 }
                 
                 // Gradients tab
                 if (_currentTab == 2) {
-                    // Gallery area
                     int galleryY = contentY + WindowManager.font.FontSize + 16;
                     int galleryH = contentH - WindowManager.font.FontSize - 16;
-                    int galleryW = cw - 14; // Account for scrollbar
+                    int galleryW = cw - 14;
                     
-                    // Calculate grid
                     int thumbPad = 10;
                     int cellSize = _thumbSize + thumbPad * 2;
                     int cols = galleryW / cellSize;
                     if (cols < 1) cols = 1;
-
-                    // Gradient clicks (12 preset gradients)
+                    
                     int gradientCount = 12;
+                    
+                    // Gradient thumbnail clicks
                     for (int i = 0; i < gradientCount; i++) {
                         int col = i % cols;
                         int row = i / cols;
@@ -327,14 +339,13 @@ namespace guideXOS.GUI {
                         if (ty + _thumbSize < galleryY || ty > galleryY + galleryH) continue;
                         
                         if (mx >= tx && mx <= tx + _thumbSize && my >= ty && my <= ty + _thumbSize) {
-                            // Apply gradient and close window
                             ApplyGradient(i);
                             this.Visible = false;
                             return;
                         }
                     }
-
-                    // Scrollbar for gallery
+                    
+                    // Scrollbar for gradients
                     int sbW = 12;
                     int sbX = cx + cw - sbW;
                     if (mx >= sbX && mx <= sbX + sbW && my >= galleryY && my <= galleryY + galleryH) {
@@ -344,65 +355,50 @@ namespace guideXOS.GUI {
                         return;
                     }
                 }
-
+                
                 // Screen Resolution tab
                 if (_currentTab == 1) {
-                    var list = DisplayManager.AvailableResolutions; 
-                    if (list == null) return;
-
-                    // Countdown tick
-                    if (_confirmVisible) {
-                        if (_lastCountdownTick == 0) _lastCountdownTick = RTC.Second;
-                        if (_lastCountdownTick != RTC.Second) { 
-                            _lastCountdownTick = RTC.Second; 
-                            if (_countdown > 0) _countdown--; 
-                            if (_countdown == 0) { RevertResolution(); } 
-                        }
-                    }
-
-                    int listX = cx; 
-                    int listY = contentY + WindowManager.font.FontSize + 16; 
-                    int listW = cw;
-                    int itemHeight = 42; // Increased from 36 to 42
-                    int count = list.Length;
-                    
-                    // Resolution list clicks
-                    if (!_confirmVisible) {
-                        for (int i = 0; i < count; i++) {
+                    var list = DisplayManager.AvailableResolutions;
+                    if (list != null && list.Length > 0) {
+                        int listX = cx;
+                        int listY = contentY + WindowManager.font.FontSize + 16;
+                        int listW = cw;
+                        int itemHeight = 42;
+                        
+                        for (int i = 0; i < list.Length; i++) {
                             int rowY = listY + i * itemHeight;
-                            if (my >= rowY && my <= rowY + itemHeight && mx >= listX && mx <= listX + listW) {
+                            if (mx >= listX && mx <= listX + listW && my >= rowY && my <= rowY + itemHeight - 2) {
                                 if (i != _selectedResIndex) {
-                                    _previous = DisplayManager.Current; 
-                                    var chosen = list[i];
-                                    if (DisplayManager.TrySetResolution(chosen.Width, chosen.Height)) { 
-                                        _pending = chosen; 
-                                        _selectedResIndex = i; 
-                                        _confirmVisible = true; 
-                                        _countdown = 15; 
-                                        _lastCountdownTick = 0; 
-                                    } else { 
-                                        NotificationManager.Add(new Notify("Resolution change not supported", NotificationLevel.Error)); 
+                                    _selectedResIndex = i;
+                                    _previous = DisplayManager.Current;
+                                    if (DisplayManager.TrySetResolution(list[i].Width, list[i].Height)) {
+                                        _pending = list[i];
+                                        _confirmVisible = true;
+                                        _countdown = 15;
+                                        _lastCountdownTick = Timer.Ticks;
+                                    } else {
+                                        NotificationManager.Add(new Notify("Failed to set resolution", NotificationLevel.Error));
                                     }
                                 }
                                 return;
                             }
                         }
                     }
-
-                    // Confirm buttons
+                    
+                    // Confirmation buttons
                     if (_confirmVisible) {
-                        int confirmBtnW = 110, confirmBtnH = 38, gap = 14; 
-                        int btnY = Y + Height - _padding - confirmBtnH - 10; 
-                        int yesX = X + Width - _padding - confirmBtnW; 
+                        int confirmBtnW = 110, confirmBtnH = 38, gap = 14;
+                        int btnY = Y + Height - _padding - confirmBtnH - 10;
+                        int yesX = X + Width - _padding - confirmBtnW;
                         int noX = yesX - gap - confirmBtnW;
                         
-                        if (mx >= yesX && mx <= yesX + confirmBtnW && my >= btnY && my <= btnY + confirmBtnH) { 
-                            KeepResolution(); 
-                            return; 
+                        if (mx >= noX && mx <= noX + confirmBtnW && my >= btnY && my <= btnY + confirmBtnH) {
+                            RevertResolution();
+                            return;
                         }
-                        if (mx >= noX && mx <= noX + confirmBtnW && my >= btnY && my <= btnY + confirmBtnH) { 
-                            RevertResolution(); 
-                            return; 
+                        if (mx >= yesX && mx <= yesX + confirmBtnW && my >= btnY && my <= btnY + confirmBtnH) {
+                            KeepResolution();
+                            return;
                         }
                     }
                 }
@@ -447,8 +443,20 @@ namespace guideXOS.GUI {
                 if (_gradientScroll < 0) _gradientScroll = 0;
                 if (_gradientScroll > maxScroll) _gradientScroll = maxScroll;
             }
+            
+            // Handle resolution confirmation countdown
+            if (_confirmVisible && _currentTab == 1) {
+                ulong elapsed = Timer.Ticks - _lastCountdownTick;
+                if (elapsed >= 1000) {
+                    _countdown--;
+                    _lastCountdownTick = Timer.Ticks;
+                    if (_countdown <= 0) {
+                        RevertResolution();
+                    }
+                }
+            }
         }
-
+        
         private void KeepResolution() { 
             _confirmVisible = false; 
             DisplayManager.SaveResolution(_pending); 
@@ -673,6 +681,7 @@ namespace guideXOS.GUI {
                 int btnY = Y + Height - _padding - _btnH - 10;
                 int btnSelectX = cx;
                 int btnColorX = btnSelectX + _btnW + 16;
+                int btnEffectsX = btnColorX + _btnW + 16;
                 
                 Framebuffer.Graphics.FillRectangle(btnSelectX, btnY, _btnW, _btnH, 0xFF2A2A2A);
                 Framebuffer.Graphics.DrawRectangle(btnSelectX, btnY, _btnW, _btnH, border, 1);
@@ -682,6 +691,10 @@ namespace guideXOS.GUI {
                 Framebuffer.Graphics.DrawRectangle(btnColorX, btnY, _btnW, _btnH, border, 1);
                 WindowManager.font.DrawString(btnColorX + 24, btnY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Choose Color");
                 
+                Framebuffer.Graphics.FillRectangle(btnEffectsX, btnY, _btnW, _btnH, 0xFF2A2A2A);
+                Framebuffer.Graphics.DrawRectangle(btnEffectsX, btnY, _btnW, _btnH, border, 1);
+                WindowManager.font.DrawString(btnEffectsX + 18, btnY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Visual Effects");
+
             } else if (_currentTab == 1) {
                 // Screen Resolution tab
                 WindowManager.font.DrawString(cx, contentY, "Available resolutions:");
@@ -880,6 +893,11 @@ namespace guideXOS.GUI {
         
         public override void OnInput() {
             base.OnInput(); 
+            if (!Visible) return;
+            
+            // Only process input if mouse is within the window bounds
+            if (!IsUnderMouse()) return;
+            
             bool left = Control.MouseButtons.HasFlag(MouseButtons.Left); 
             int mx = Control.MousePosition.X; 
             int my = Control.MousePosition.Y; 

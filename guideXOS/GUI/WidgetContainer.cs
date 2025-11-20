@@ -68,6 +68,27 @@ namespace guideXOS.GUI {
             }
         }
         
+        /// <summary>
+        /// Undock a widget and position it at the specified location (used by context menu)
+        /// </summary>
+        public void UndockWidgetToPosition(DockableWidget widget, int mouseX, int mouseY) {
+            // Remove from container
+            RemoveWidget(widget);
+            
+            // Make widget visible and position at mouse
+            widget.Visible = true;
+            widget.X = mouseX - widget.Width / 2;
+            widget.Y = mouseY - 10;
+            
+            // Clamp to screen
+            if (widget.X < 0) widget.X = 0;
+            if (widget.Y < 0) widget.Y = 0;
+            if (widget.X + widget.Width > Framebuffer.Width) widget.X = Framebuffer.Width - widget.Width;
+            if (widget.Y + widget.Height > Framebuffer.Height) widget.Y = Framebuffer.Height - widget.Height;
+            
+            WindowManager.MoveToEnd(widget);
+        }
+        
         private void UpdateLayout() {
             if (_widgets.Count == 0) {
                 return;
@@ -99,6 +120,7 @@ namespace guideXOS.GUI {
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
             bool leftDown = Control.MouseButtons.HasFlag(MouseButtons.Left);
+            bool rightClick = Control.MouseButtons.HasFlag(MouseButtons.Right);
             
             // Close button hit test
             int closeX = X + Width - Padding - CloseBtnSize;
@@ -118,6 +140,29 @@ namespace guideXOS.GUI {
                         my >= currentY && my <= currentY + widgetHeight) {
                         _hoverWidgetIndex = i;
                         break;
+                    }
+                    
+                    currentY += widgetHeight;
+                    if (i < _widgets.Count - 1) {
+                        currentY += WidgetGap;
+                    }
+                }
+            }
+            
+            // Handle right-click for context menu on widgets
+            if (rightClick && !_dragging) {
+                int currentY = Y + Padding;
+                for (int i = 0; i < _widgets.Count; i++) {
+                    var widget = _widgets[i];
+                    int widgetHeight = widget.PreferredHeight;
+                    
+                    if (mx >= X && mx <= X + Width && 
+                        my >= currentY && my <= currentY + widgetHeight) {
+                        // Show context menu for this docked widget
+                        if (Program.widgetContextMenu != null) {
+                            Program.widgetContextMenu.ShowForDockedWidget(widget, this, mx, my);
+                        }
+                        return;
                     }
                     
                     currentY += widgetHeight;

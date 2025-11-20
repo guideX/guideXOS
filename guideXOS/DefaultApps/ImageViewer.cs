@@ -44,7 +44,7 @@ namespace guideXOS.DefaultApps {
         /// <param name="Y"></param>
         public ImageViewer(int X, int Y) : base(X, Y, 600, 450) {
             IsResizable = true;
-            ShowInTaskbar = true;
+            ShowInTaskbar = false;
             ShowMaximize = true;
             ShowMinimize = true;
             ShowTombstone = true;

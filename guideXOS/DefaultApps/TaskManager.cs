@@ -9,13 +9,13 @@ using System.Collections.Generic;
 
 namespace guideXOS.DefaultApps {
     /// <summary>
-    /// Task Manager window with Processes and Performance tabs
+    /// Task Manager window with Processes, Performance, Tombstoned, and Memory Details tabs
     /// </summary>
     internal class TaskManager : Window {
         // Tabs
         private int _tabH = 28;
         private int _tabGap = 6;
-        private int _currentTab = 0; // 0 = Processes, 1 = Performance, 2 = Tombstoned
+        private int _currentTab = 0; // 0 = Processes, 1 = Performance, 2 = Tombstoned, 3 = Memory Details
 
         // Layout
         private int _padding = 10;
@@ -95,6 +95,40 @@ namespace guideXOS.DefaultApps {
         // Flag to enable perf tracking on first draw (not in constructor to prevent freeze)
         private bool _perfTrackingInitialized = false;
 
+        // Memory Details tab tracking
+        private ulong _lastPageInUse = 0;
+        private ulong _cumulativeAllocatedPages = 0;
+        private ulong _cumulativeFreedPages = 0;
+        private ulong _lastMemDetailUpdate = 0;
+        private List<ulong> _leakHistory; // track allocated-freed over time
+        private int _leakHistoryMaxSamples = 60; // 60 samples
+        private bool _leakExists = false;
+        private int _leakGrowthCounter = 0; // count consecutive growths
+        private const int LeakThreshold = 5; // 5 consecutive growths = leak
+        
+        // Memory leak blame tracking
+        private string _memLeakBlame = "None detected";
+        private Dictionary<int, ulong> _ownerHistoryStart;
+        private Dictionary<int, int> _ownerGrowthCounter;
+
+        // Cached strings for Memory Details to reduce per-frame allocations
+        private string _mdFreeCallsStr;
+        private string _mdFreeSuccessStr;
+        private string _mdFailPtrStr;
+        private string _mdFailNoPagesStr;
+        private string _mdAllocPagesStr;
+        private string _mdFreedPagesStr;
+        private string _mdPagesInUseStr;
+        private string _mdNetGrowthStr;
+        private string _mdLeakStr;
+        private string _mdFreeAllocRatioStr;
+        private string _mdHeapSizeStr;
+        private string _mdHeapUsedStr;
+        private string _mdHeapFreeStr;
+        private string _mdHeapUtilStr;
+        private ulong _lastMemLabelUpdateTicks;
+        private const int MemLabelUpdateIntervalMs = 1000; // update labels once per second
+
         public TaskManager(int X, int Y, int Width = 760, int Height = 520)
             : base(X, Y, Width, Height) {
             ShowMinimize = true;
@@ -119,6 +153,11 @@ namespace guideXOS.DefaultApps {
             _lastOwnerBytes = new Dictionary<int, ulong>();
             _ownerKBps = new Dictionary<int, int>();
             _lastOwnerSampleTick = Timer.Ticks;
+
+            // Initialize memory leak tracking
+            _leakHistory = new List<ulong>(_leakHistoryMaxSamples);
+            _ownerHistoryStart = new Dictionary<int, ulong>();
+            _ownerGrowthCounter = new Dictionary<int, int>();
         }
 
         public override void OnSetVisible(bool value) {
@@ -149,7 +188,7 @@ namespace guideXOS.DefaultApps {
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
-                int tabCount = 3;
+                int tabCount = 4; // Changed from 3 to 4
                 int tabW = (cw - _tabGap * (tabCount - 1)) / tabCount;
                 int tx = cx;
                 for (int t = 0; t < tabCount; t++) {
@@ -276,6 +315,7 @@ namespace guideXOS.DefaultApps {
                         EndTombstoned();
                     }
                 }
+                // Memory Details tab (3) has no interactive elements yet
             } else if (Control.MouseButtons.HasFlag(MouseButtons.None)) {
                 _scrollDrag = false;
                 _perfNavClickLatch = false;
@@ -319,7 +359,7 @@ namespace guideXOS.DefaultApps {
             int ch = chAll - _tabH - _tabGap;
 
             // Tabs background
-            int tabCount = 3;
+            int tabCount = 4; // Changed from 3 to 4
             int tabW = (cw - _tabGap * (tabCount - 1)) / tabCount;
             int tx = cx;
             DrawTab(tx, cy, tabW, _tabH, "Processes", _currentTab == 0);
@@ -327,6 +367,8 @@ namespace guideXOS.DefaultApps {
             DrawTab(tx, cy, tabW, _tabH, "Performance", _currentTab == 1);
             tx += tabW + _tabGap;
             DrawTab(tx, cy, tabW, _tabH, "Tombstoned", _currentTab == 2);
+            tx += tabW + _tabGap;
+            DrawTab(tx, cy, tabW, _tabH, "Memory Details", _currentTab == 3);
 
             // Content panel
             Framebuffer.Graphics.FillRectangle(cx, contentY, cw, ch, 0xFF1E1E1E);
@@ -336,8 +378,10 @@ namespace guideXOS.DefaultApps {
                 DrawProcesses(cx, contentY, cw, ch);
             else if (_currentTab == 1)
                 DrawPerformance(cx, contentY, cw, ch);
-            else
+            else if (_currentTab == 2)
                 DrawTombstoned(cx, contentY, cw, ch);
+            else if (_currentTab == 3)
+                DrawMemoryDetails(cx, contentY, cw, ch);
         }
 
         private void DrawTombstoned(int x, int y, int w, int h) {
@@ -421,15 +465,12 @@ namespace guideXOS.DefaultApps {
                 return;
             var w = GetTombstonedAt(_selectedTombIndex);
             if (w != null) {
-                // Store owner ID before removing
-                int targetOwnerId = w.OwnerId;
+                // Dispose the window properly
+                w.Dispose();
 
                 // Remove from window list
                 WindowManager.Windows.Remove(w);
                 _selectedTombIndex = -1;
-
-                // Free all memory owned by this window
-                FreeOwnerMemory(targetOwnerId);
             }
         }
 
@@ -514,7 +555,9 @@ namespace guideXOS.DefaultApps {
                 // CPU: per-window counter via WindowManager
                 int ownerId = wdw.OwnerId;
                 int cpuPct = WindowManager.GetWindowCpuPct(ownerId);
-                WindowManager.font.DrawString(cx + 6, dy + 6, cpuPct.ToString());
+                string cpuStr = cpuPct.ToString();
+                WindowManager.font.DrawString(cx + 6, dy + 6, cpuStr);
+                cpuStr.Dispose();
                 cx += colCpuW;
 
                 // Memory per window: use allocator per-owner accounting with try-catch to prevent freeze
@@ -634,11 +677,40 @@ namespace guideXOS.DefaultApps {
             ulong s = totalSec % 60UL;
             ulong m = totalSec / 60UL % 60UL;
             ulong h = totalSec / 3600UL;
-            return h.ToString()
-                + ":"
-                + (m < 10 ? "0" + m.ToString() : m.ToString())
-                + ":"
-                + (s < 10 ? "0" + s.ToString() : s.ToString());
+            
+            // Convert each component to string
+            string hStr = h.ToString();
+            string mStr = m.ToString();
+            string sStr = s.ToString();
+            
+            // Build the result with proper padding
+            string result;
+            if (m < 10) {
+                string mPadded = "0" + mStr;
+                if (s < 10) {
+                    string sPadded = "0" + sStr;
+                    result = hStr + ":" + mPadded + ":" + sPadded;
+                    sPadded.Dispose();
+                } else {
+                    result = hStr + ":" + mPadded + ":" + sStr;
+                }
+                mPadded.Dispose();
+            } else {
+                if (s < 10) {
+                    string sPadded = "0" + sStr;
+                    result = hStr + ":" + mStr + ":" + sPadded;
+                    sPadded.Dispose();
+                } else {
+                    result = hStr + ":" + mStr + ":" + sStr;
+                }
+            }
+            
+            // Dispose component strings
+            hStr.Dispose();
+            mStr.Dispose();
+            sStr.Dispose();
+            
+            return result;
         }
 
         private void DrawPerformance(int x, int y, int w, int h) {
@@ -749,10 +821,13 @@ namespace guideXOS.DefaultApps {
                 int labelY = itemY + 8;
                 WindowManager.font.DrawString(textX, labelY, navLabels[i]);
 
-                string pctText = navValues[i].ToString() + "%";
+                // FIXED: Dispose both the navValues ToString() AND the concatenated result
+                string navValueStr = navValues[i].ToString();
+                string pctText = navValueStr + "%";
                 int pctY = labelY + WindowManager.font.FontSize + 4;
                 WindowManager.font.DrawString(textX, pctY, pctText);
                 pctText.Dispose();
+                navValueStr.Dispose();
             }
 
             // Draw separator between navigation and detail
@@ -850,7 +925,11 @@ namespace guideXOS.DefaultApps {
             int col2X = x + w / 2;
 
             WindowManager.font.DrawString(col1X, detailY, "Utilization:");
-            WindowManager.font.DrawString(col2X, detailY, _cpuUtilPct.ToString() + "%");
+            string utilStr = _cpuUtilPct.ToString();
+            string utilPctStr = utilStr + "%";
+            WindowManager.font.DrawString(col2X, detailY, utilPctStr);
+            utilPctStr.Dispose();
+            utilStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Speed:");
@@ -858,15 +937,21 @@ namespace guideXOS.DefaultApps {
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Processes:");
-            WindowManager.font.DrawString(col2X, detailY, _procCount.ToString());
+            string procStr = _procCount.ToString();
+            WindowManager.font.DrawString(col2X, detailY, procStr);
+            procStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Threads:");
-            WindowManager.font.DrawString(col2X, detailY, _threadCount.ToString());
+            string threadStr = _threadCount.ToString();
+            WindowManager.font.DrawString(col2X, detailY, threadStr);
+            threadStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Machine time:");
-            WindowManager.font.DrawString(col2X, detailY, FormatUptime(Timer.Ticks));
+            string uptimeStr = FormatUptime(Timer.Ticks);
+            WindowManager.font.DrawString(col2X, detailY, uptimeStr);
+            uptimeStr.Dispose();
         }
 
         private void DrawMemDetail(int x, int y, int w, int h) {
@@ -902,9 +987,13 @@ namespace guideXOS.DefaultApps {
             ulong avail = total > used ? total - used : 0UL;
 
             WindowManager.font.DrawString(col1X, detailY, "In use:");
-            string usedStr = ToMBString(used) + " (" + _memUtilPct.ToString() + "%)";
+            string usedMBStr = ToMBString(used);
+            string memPctStr = _memUtilPct.ToString();
+            string usedStr = usedMBStr + " (" + memPctStr + "%)";
             WindowManager.font.DrawString(col2X, detailY, usedStr);
             usedStr.Dispose();
+            memPctStr.Dispose();
+            usedMBStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Available:");
@@ -932,10 +1021,14 @@ namespace guideXOS.DefaultApps {
             }
             WindowManager.font.DrawString(col1X, detailY, "Top owner:");
             if (topOwner != 0) {
-                string ownerStr =
-                    "#" + topOwner + " " + (topKbps > 0 ? "+" : "") + topKbps.ToString() + " KB/s";
+                string ownerIdStr = topOwner.ToString();
+                string sign = topKbps > 0 ? "+" : "";
+                string kbpsStr = topKbps.ToString();
+                string ownerStr = "#" + ownerIdStr + " " + sign + kbpsStr + " KB/s";
                 WindowManager.font.DrawString(col2X, detailY, ownerStr);
                 ownerStr.Dispose();
+                kbpsStr.Dispose();
+                ownerIdStr.Dispose();
             } else {
                 WindowManager.font.DrawString(col2X, detailY, "N/A");
             }
@@ -952,10 +1045,13 @@ namespace guideXOS.DefaultApps {
             }
             WindowManager.font.DrawString(col1X, detailY, "Top tag:");
             if (topTag >= 0) {
-                string tagStr =
-                    ((Allocator.AllocTag)topTag).ToString() + " " + ToMBString(topTagBytes);
+                string tagName = ((Allocator.AllocTag)topTag).ToString();
+                string tagBytes = ToMBString(topTagBytes);
+                string tagStr = tagName + " " + tagBytes;
                 WindowManager.font.DrawString(col2X, detailY, tagStr);
                 tagStr.Dispose();
+                tagBytes.Dispose();
+                tagName.Dispose();
             } else {
                 WindowManager.font.DrawString(col2X, detailY, "N/A");
             }
@@ -990,11 +1086,19 @@ namespace guideXOS.DefaultApps {
             int col2X = x + w / 2;
 
             WindowManager.font.DrawString(col1X, detailY, "Active time:");
-            WindowManager.font.DrawString(col2X, detailY, _diskActivePct.ToString() + "%");
+            string activeStr = _diskActivePct.ToString();
+            string activePctStr = activeStr + "%";
+            WindowManager.font.DrawString(col2X, detailY, activePctStr);
+            activePctStr.Dispose();
+            activeStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Avg response time:");
-            WindowManager.font.DrawString(col2X, detailY, _diskRespMs.ToString() + " ms");
+            string respStr = _diskRespMs.ToString();
+            string respMsStr = respStr + " ms";
+            WindowManager.font.DrawString(col2X, detailY, respMsStr);
+            respMsStr.Dispose();
+            respStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Read speed:");
@@ -1050,11 +1154,15 @@ namespace guideXOS.DefaultApps {
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Sent bytes:");
-            WindowManager.font.DrawString(col2X, detailY, _bytesSent.ToString());
+            string sentStr = _bytesSent.ToString();
+            WindowManager.font.DrawString(col2X, detailY, sentStr);
+            sentStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Received bytes:");
-            WindowManager.font.DrawString(col2X, detailY, _bytesRecv.ToString());
+            string recvBytesStr = _bytesRecv.ToString();
+            WindowManager.font.DrawString(col2X, detailY, recvBytesStr);
+            recvBytesStr.Dispose();
         }
 
         private void UpdateChart(Chart chart, int valuePct, uint color) {
@@ -1117,49 +1225,13 @@ namespace guideXOS.DefaultApps {
             if (target == this)
                 return; // do not end self via button
 
-            // CRITICAL FIX: Free all memory allocated by this window's OwnerId
-            int targetOwnerId = target.OwnerId;
+            // CRITICAL FIX: Dispose window to free all memory
+            target.Dispose();
 
-            // Remove from window list first
+            // Remove from window list
             WindowManager.Windows.RemoveAt(_selectedIndex);
             if (_selectedIndex >= WindowManager.Windows.Count)
                 _selectedIndex = WindowManager.Windows.Count - 1;
-
-            // Free all memory owned by this window
-            FreeOwnerMemory(targetOwnerId);
-        }
-
-        // Free all memory allocated by a specific owner (window)
-        private unsafe void FreeOwnerMemory(int ownerId) {
-            if (ownerId == 0)
-                return;
-
-            try {
-                // Scan all pages and free runs owned by this ownerId
-                fixed (Allocator.Info* pInfo = &Allocator._Info) {
-                    for (int i = 0; i < Allocator.NumPages;) {
-                        ulong run = pInfo->Pages[i];
-                        if (run != 0 && run != Allocator.PageSignature) {
-                            // This is a run start - check if owned by ownerId
-                            if (pInfo->Owners[i] == ownerId) {
-                                // Free this allocation
-                                long baseAddr = (long)pInfo->Start;
-                                long offset = (long)(i * Allocator.PageSize);
-                                IntPtr ptr = new IntPtr((void*)(baseAddr + offset));
-                                Allocator.Free(ptr);
-                                // Don't increment i - the Free() cleared the Pages[] entries
-                                continue;
-                            }
-                            // Skip ahead by run length
-                            i += (int)run;
-                        } else {
-                            i++;
-                        }
-                    }
-                }
-            } catch {
-                // If memory cleanup fails, at least the window is gone from the list
-            }
         }
 
         private void SampleOwnerBytes() {
@@ -1209,6 +1281,296 @@ namespace guideXOS.DefaultApps {
 
             // Dispose the temporary list
             keysToCheck.Dispose();
+        }
+
+        public override void Dispose() {
+            // Dispose cached memory detail strings to avoid leaks
+            _mdFreeCallsStr?.Dispose();
+            _mdFreeSuccessStr?.Dispose();
+            _mdFailPtrStr?.Dispose();
+            _mdFailNoPagesStr?.Dispose();
+            _mdAllocPagesStr?.Dispose();
+            _mdFreedPagesStr?.Dispose();
+            _mdPagesInUseStr?.Dispose();
+            _mdNetGrowthStr?.Dispose();
+            _mdLeakStr?.Dispose();
+            _mdFreeAllocRatioStr?.Dispose();
+            _mdHeapSizeStr?.Dispose();
+            _mdHeapUsedStr?.Dispose();
+            _mdHeapFreeStr?.Dispose();
+            _mdHeapUtilStr?.Dispose();
+            base.Dispose();
+        }
+
+        private void DrawMemoryDetails(int x, int y, int w, int h) {
+            // Update underlying statistics every second
+            if ((long)(Timer.Ticks - _lastMemDetailUpdate) >= 1000) {
+                UpdateMemoryDetailStats();
+                _lastMemDetailUpdate = Timer.Ticks;
+            }
+
+            // Refresh cached label strings only if interval elapsed
+            if ((long)(Timer.Ticks - _lastMemLabelUpdateTicks) >= MemLabelUpdateIntervalMs) {
+                _lastMemLabelUpdateTicks = Timer.Ticks;
+
+                // Dispose old cached values
+                _mdFreeCallsStr?.Dispose();
+                _mdFreeSuccessStr?.Dispose();
+                _mdFailPtrStr?.Dispose();
+                _mdFailNoPagesStr?.Dispose();
+                _mdAllocPagesStr?.Dispose();
+                _mdFreedPagesStr?.Dispose();
+                _mdPagesInUseStr?.Dispose();
+                _mdNetGrowthStr?.Dispose();
+                _mdLeakStr?.Dispose();
+                _mdFreeAllocRatioStr?.Dispose();
+                _mdHeapSizeStr?.Dispose();
+                _mdHeapUsedStr?.Dispose();
+                _mdHeapFreeStr?.Dispose();
+                _mdHeapUtilStr?.Dispose();
+
+                // Recompute cached strings
+                _mdFreeCallsStr = Allocator.FreeCallCount.ToString();
+                _mdFreeSuccessStr = Allocator.FreeSuccessCount.ToString();
+                _mdFailPtrStr = Allocator.FreeFailInvalidPtr.ToString();
+                _mdFailNoPagesStr = Allocator.FreeFailNoPages.ToString();
+                _mdAllocPagesStr = _cumulativeAllocatedPages.ToString();
+                _mdFreedPagesStr = _cumulativeFreedPages.ToString();
+                _mdPagesInUseStr = Allocator._Info.PageInUse.ToString();
+                _mdNetGrowthStr = ((long)_cumulativeAllocatedPages - (long)_cumulativeFreedPages).ToString();
+                _mdLeakStr = _leakExists ? "TRUE" : "FALSE";
+                if (_cumulativeAllocatedPages > 0) {
+                    int freePct = (int)((_cumulativeFreedPages * 100UL) / _cumulativeAllocatedPages);
+                    string freePctStr = freePct.ToString();
+                    _mdFreeAllocRatioStr = freePctStr + "%";
+                    freePctStr.Dispose();
+                } else {
+                    _mdFreeAllocRatioStr = "N/A"; // literal
+                }
+                _mdHeapSizeStr = ToMBString(Allocator.MemorySize);
+                _mdHeapUsedStr = ToMBString(Allocator.MemoryInUse);
+                ulong heapFree = Allocator.MemorySize - Allocator.MemoryInUse;
+                _mdHeapFreeStr = ToMBString(heapFree);
+                int heapUtilPct = Allocator.MemorySize > 0 ? (int)(Allocator.MemoryInUse * 100UL / Allocator.MemorySize) : 0;
+                string heapUtilBase = heapUtilPct.ToString();
+                _mdHeapUtilStr = heapUtilBase + "%";
+                heapUtilBase.Dispose();
+            }
+
+            int rowY = y + 10;
+            int labelX = x + 10;
+            int valueX = x + w / 2;
+            int lineHeight = WindowManager.font.FontSize + 8;
+
+            // Title
+            WindowManager.font.DrawString(labelX, rowY, "=== Memory Allocator Details ===");
+            rowY += lineHeight + 10;
+
+            // FREE CALL STATISTICS
+            WindowManager.font.DrawString(labelX, rowY, "=== Free() Call Statistics ===");
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Total Free() Calls:");
+            WindowManager.font.DrawString(valueX, rowY, _mdFreeCallsStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Successful Frees:");
+            WindowManager.font.DrawString(valueX, rowY, _mdFreeSuccessStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Failed (Invalid Ptr):");
+            WindowManager.font.DrawString(valueX, rowY, _mdFailPtrStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Failed (No Pages):");
+            WindowManager.font.DrawString(valueX, rowY, _mdFailNoPagesStr);
+            rowY += lineHeight + 10;
+
+            // Separator
+            Framebuffer.Graphics.DrawRectangle(labelX, rowY, w - 20, 1, 0xFF444444, 1);
+            rowY += 10;
+
+            // Allocated / Freed / In Use
+            WindowManager.font.DrawString(labelX, rowY, "Allocated Pages:");
+            WindowManager.font.DrawString(valueX, rowY, _mdAllocPagesStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Freed Pages:");
+            WindowManager.font.DrawString(valueX, rowY, _mdFreedPagesStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Current Pages in Use:");
+            WindowManager.font.DrawString(valueX, rowY, _mdPagesInUseStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Net Growth (Alloc - Free):");
+            WindowManager.font.DrawString(valueX, rowY, _mdNetGrowthStr);
+            rowY += lineHeight;
+
+            // Leak Exists
+            WindowManager.font.DrawString(labelX, rowY, "Leak Exists:");
+            uint leakColor = _leakExists ? 0xFFFF4444 : 0xFF44FF44;
+            int leakX = valueX;
+            int leakY = rowY;
+            Framebuffer.Graphics.FillRectangle(leakX - 2, leakY - 2, 80, lineHeight, leakColor);
+            WindowManager.font.DrawString(leakX, leakY, _mdLeakStr);
+            rowY += lineHeight + 10;
+
+            // Separator
+            Framebuffer.Graphics.DrawRectangle(labelX, rowY, w - 20, 1, 0xFF444444, 1);
+            rowY += 10;
+
+            // Free/Alloc Ratio
+            WindowManager.font.DrawString(labelX, rowY, "Free/Alloc Ratio:");
+            WindowManager.font.DrawString(valueX, rowY, _mdFreeAllocRatioStr);
+            rowY += lineHeight + 10;
+
+            // Separator
+            Framebuffer.Graphics.DrawRectangle(labelX, rowY, w - 20, 1, 0xFF444444, 1);
+            rowY += 10;
+
+            // Heap Allocator Stats
+            WindowManager.font.DrawString(labelX, rowY, "=== Heap Allocator ===");
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Total Heap Size:");
+            WindowManager.font.DrawString(valueX, rowY, _mdHeapSizeStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Heap In Use:");
+            WindowManager.font.DrawString(valueX, rowY, _mdHeapUsedStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Heap Free:");
+            WindowManager.font.DrawString(valueX, rowY, _mdHeapFreeStr);
+            rowY += lineHeight;
+
+            WindowManager.font.DrawString(labelX, rowY, "Heap Utilization:");
+            WindowManager.font.DrawString(valueX, rowY, _mdHeapUtilStr);
+        }
+
+        private void UpdateMemoryDetailStats() {
+            // Track cumulative allocated/freed pages using the actual counters from Allocator
+            // This is more accurate than trying to infer from PageInUse changes
+            
+            // Use the Allocator's own counters for accurate tracking
+            _cumulativeFreedPages = Allocator.FreeSuccessCount; // Direct count of successful frees
+            
+            // Calculate allocations from current state
+            ulong currentPageInUse = Allocator._Info.PageInUse;
+            _cumulativeAllocatedPages = currentPageInUse + _cumulativeFreedPages;
+
+            // Update leak detection
+            long netGrowth = (long)_cumulativeAllocatedPages - (long)_cumulativeFreedPages;
+            _leakHistory.Add((ulong)netGrowth);
+            
+            // Keep history size limited
+            if (_leakHistory.Count > _leakHistoryMaxSamples) {
+                _leakHistory.RemoveAt(0);
+            }
+
+            // Detect persistent growth (leak)
+            if (_leakHistory.Count >= 2) {
+                ulong prev = _leakHistory[_leakHistory.Count - 2];
+                ulong curr = _leakHistory[_leakHistory.Count - 1];
+                
+                if (curr > prev) {
+                    _leakGrowthCounter++;
+                    if (_leakGrowthCounter >= LeakThreshold) {
+                        _leakExists = true;
+                    }
+                } else {
+                    _leakGrowthCounter = 0;
+                    if (_leakHistory.Count >= _leakHistoryMaxSamples) {
+                        // Check if overall trend is stable
+                        ulong first = _leakHistory[0];
+                        ulong last = _leakHistory[_leakHistory.Count - 1];
+                        if (last <= first + 100) { // Allow small growth margin
+                            _leakExists = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private struct TagStat {
+            public Allocator.AllocTag Tag;
+            public ulong Bytes;
+        }
+
+        private TagStat[] GetTopAllocTags(int count) {
+            var tags = new List<TagStat>();
+            
+            for (int t = 0; t < (int)Allocator.AllocTag.Count; t++) {
+                ulong bytes = Allocator.GetTagBytes((Allocator.AllocTag)t);
+                if (bytes > 0) {
+                    TagStat ts;
+                    ts.Tag = (Allocator.AllocTag)t;
+                    ts.Bytes = bytes;
+                    tags.Add(ts);
+                }
+            }
+
+            // Simple bubble sort (small list)
+            for (int i = 0; i < tags.Count - 1; i++) {
+                for (int j = 0; j < tags.Count - i - 1; j++) {
+                    if (tags[j].Bytes < tags[j + 1].Bytes) {
+                        TagStat temp = tags[j];
+                        tags[j] = tags[j + 1];
+                        tags[j + 1] = temp;
+                    }
+                }
+            }
+
+            // Return top N
+            int resultCount = tags.Count < count ? tags.Count : count;
+            var result = new TagStat[resultCount];
+            for (int i = 0; i < resultCount; i++) {
+                result[i] = tags[i];
+            }
+            
+            return result;
+        }
+
+        private struct OwnerGrowth {
+            public int OwnerId;
+            public int GrowthCount;
+        }
+
+        private OwnerGrowth[] GetTopGrowingOwners(int count) {
+            var growers = new List<OwnerGrowth>();
+            
+            var keys = _ownerGrowthCounter.Keys;
+            for (int i = 0; i < keys.Count; i++) {
+                int ownerId = keys[i];
+                int growthCount = _ownerGrowthCounter[ownerId];
+                if (growthCount > 0) {
+                    OwnerGrowth og;
+                    og.OwnerId = ownerId;
+                    og.GrowthCount = growthCount;
+                    growers.Add(og);
+                }
+            }
+
+            // Simple bubble sort
+            for (int i = 0; i < growers.Count - 1; i++) {
+                for (int j = 0; j < growers.Count - i - 1; j++) {
+                    if (growers[j].GrowthCount < growers[j + 1].GrowthCount) {
+                        OwnerGrowth temp = growers[j];
+                        growers[j] = growers[j + 1];
+                        growers[j + 1] = temp;
+                    }
+                }
+            }
+
+            // Return top N
+            int resultCount = growers.Count < count ? growers.Count : count;
+            var result = new OwnerGrowth[resultCount];
+            for (int i = 0; i < resultCount; i++) {
+                result[i] = growers[i];
+            }
+            
+            return result;
         }
     }
 }

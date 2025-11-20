@@ -43,25 +43,68 @@ abstract unsafe class Allocator {
 
     internal static unsafe void ZeroFill(IntPtr data, ulong size) { Native.Stosb((void*)data, 0, size); }
 
+    // Debug counters
+    private static ulong _freeCallCount = 0;
+    private static ulong _freeSuccessCount = 0;
+    private static ulong _freeFailInvalidPtr = 0;
+    private static ulong _freeFailNoPages = 0;
+    private static ulong _freeFailCorruptRun = 0; // new: detected corrupt run length
+    
+    public static ulong FreeCallCount => _freeCallCount;
+    public static ulong FreeSuccessCount => _freeSuccessCount;
+    public static ulong FreeFailInvalidPtr => _freeFailInvalidPtr;
+    public static ulong FreeFailNoPages => _freeFailNoPages;
+    public static ulong FreeFailCorruptRun => _freeFailCorruptRun;
+
     internal static ulong Free(IntPtr intPtr) {
         lock (_sync) {
-            long p = GetPageIndexStart(intPtr); if (p == -1) return 0;
+            _freeCallCount++; // Track every call
+            
+            long p = GetPageIndexStart(intPtr); 
+            
+            if (p < 0 || p >= NumPages) { // guard invalid start index
+                _freeFailInvalidPtr++;
+                return 0;
+            }
+            
             ulong pages = _Info.Pages[p];
+            
             if (pages != 0 && pages != PageSignature) {
+                // Corruption guard: run length must fit inside array
+                if (pages > (ulong)NumPages - (ulong)p) {
+                    // Do not attempt to free; mark as corrupt
+                    _freeFailCorruptRun++;
+                    return 0;
+                }
                 // Tag accounting
-                byte tag = _Info.Tags[p]; if (tag < (byte)AllocTag.Count) _Info.TagLivePages[tag] -= pages; _Info.Tags[p] = 0;
+                byte tag = _Info.Tags[p]; 
+                if (tag < (byte)AllocTag.Count) _Info.TagLivePages[tag] -= pages; 
+                _Info.Tags[p] = 0;
+                
                 // Owner accounting (do BEFORE clearing pages)
                 int owner = _Info.Owners[p];
+                
                 if (owner != 0 && _ownerLivePages != null && _ownerLivePages.ContainsKey(owner)) {
-                    ulong live = _ownerLivePages[owner]; _ownerLivePages[owner] = live > pages ? live - pages : 0UL;
+                    ulong live = _ownerLivePages[owner]; 
+                    _ownerLivePages[owner] = live > pages ? live - pages : 0UL;
                 }
                 _Info.Owners[p] = 0;
+                
                 // Global usage
                 _Info.PageInUse -= pages;
+                
                 Native.Stosb((void*)intPtr, 0, pages * PageSize);
-                for (ulong i = 0; i < pages; i++) _Info.Pages[(ulong)p + i] = 0;
+                for (ulong i = 0; i < pages; i++) {
+                    ulong idx = (ulong)p + i;
+                    if (idx >= (ulong)NumPages) break; // extra safety
+                    _Info.Pages[idx] = 0;
+                }
+                
+                _freeSuccessCount++; // Track successful frees
                 return pages * PageSize;
             }
+            
+            _freeFailNoPages++;
             return 0;
         }
     }
@@ -85,7 +128,8 @@ abstract unsafe class Allocator {
                 if (_Info.Pages[i] == 0) {
                     found = true;
                     for (ulong k = 0; k < pages; k++) {
-                        if (i + k >= (ulong)NumPages || _Info.Pages[i + k] != 0) { found = false; break; }
+                        ulong idx = i + k;
+                        if (idx >= (ulong)NumPages || _Info.Pages[idx] != 0) { found = false; break; }
                     }
                     if (found) break;
                 } else if (_Info.Pages[i] != PageSignature) {
@@ -93,6 +137,8 @@ abstract unsafe class Allocator {
                 }
             }
             if (!found) { Panic.Error("Out of memory: no free pages (in use=" + MemoryInUse.ToString() + "/" + MemorySize.ToString() + ", req=" + (pages * PageSize).ToString() + ")"); return IntPtr.Zero; }
+            // Guard: ensure run fits
+            if (pages > (ulong)NumPages - i) return IntPtr.Zero;
             for (ulong k = 0; k < pages; k++) _Info.Pages[i + k] = PageSignature;
             _Info.Pages[i] = pages; _Info.PageInUse += pages;
             byte t = (byte)tag; if (t >= (byte)AllocTag.Count) t = (byte)AllocTag.Unknown; _Info.Tags[i] = t; _Info.TagLivePages[t] += pages;
@@ -137,6 +183,8 @@ abstract unsafe class Allocator {
             for (int i = 0; i < NumPages; i++) {
                 ulong run = _Info.Pages[i];
                 if (run != 0 && run != PageSignature) {
+                    // Guard corrupt run length
+                    if (run > (ulong)NumPages - (ulong)i) break;
                     // This is a run start - check if owned by ownerId
                     if (_Info.Owners[i] == ownerId) pages += run;
                     // skip ahead by run-1 (loop will increment i++)

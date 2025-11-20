@@ -14,7 +14,11 @@ namespace guideXOS.DefaultApps {
         private string _status = "Select or add a network";
         private int _pad = 10;
         private int _rowH = 28;
-        public IRCNetworks(int x, int y) : base(x, y, 560, 420) { Title = "IRC Networks"; ShowInTaskbar = true; LoadDefaults(); }
+        public IRCNetworks(int x, int y) : base(x, y, 560, 420) { 
+            Title = "IRC Networks"; 
+            ShowInTaskbar = true; 
+            LoadDefaults(); 
+        }
 
         private void LoadDefaults() {
             if (_entries.Count == 0) {

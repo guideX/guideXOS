@@ -71,7 +71,12 @@ namespace guideXOS.GUI {
         /// Begin Fade Out Close
         /// </summary>
         void BeginFadeOutClose() {
-            if (!UISettings.EnableFadeAnimations) { this._visible = false; return; }
+            if (!UISettings.EnableFadeAnimations) { 
+                this._visible = false;
+                // CRITICAL: Dispose window even when animations are disabled
+                Dispose();
+                return;
+            }
             _animType = WindowAnimationType.FadeOutClose;
             _animStartTicks = Timer.Ticks;
             _animDurationMs = UISettings.FadeOutDurationMs;
@@ -81,7 +86,11 @@ namespace guideXOS.GUI {
         /// Begin Minimize
         /// </summary>
         void BeginMinimize() {
-            if (!UISettings.EnableWindowSlideAnimations) { IsMinimized = true; return; }
+            if (!UISettings.EnableWindowSlideAnimations) { 
+                IsMinimized = true; 
+                // Note: Minimize doesn't dispose, just hides
+                return;
+            }
             _animType = WindowAnimationType.Minimize;
             _animStartTicks = Timer.Ticks;
             _animDurationMs = UISettings.WindowSlideDurationMs;
@@ -120,7 +129,13 @@ namespace guideXOS.GUI {
                 case WindowAnimationType.FadeOutClose: {
                         _overlayAlpha = (byte)((int)(t * 255f));
                         if (t >= 1f) {
-                            _overlayAlpha = 0; _animType = WindowAnimationType.None; this._visible = false; // hide after fade
+                            _overlayAlpha = 0; 
+                            _animType = WindowAnimationType.None; 
+                            this._visible = false; // hide after fade
+                            
+                            // CRITICAL: Dispose window resources after fade-out completes
+                            // This ensures memory is freed when window closes
+                            Dispose();
                         }
                         break;
                     }
@@ -614,8 +629,60 @@ namespace guideXOS.GUI {
         /// On Global Key
         /// </summary>
         /// <param name="key"></param>
-        public virtual void OnGlobalKey(ConsoleKeyInfo key){ if(key.Key==System.ConsoleKey.Escape){ // close on escape if visible and allowed
-                if(this.Visible && !this.IsTombstoned){ this.Visible=false; }
-            }}
+        public virtual void OnGlobalKey(ConsoleKeyInfo key){ 
+            if(key.Key==System.ConsoleKey.Escape){ // close on escape if visible and allowed
+                if(this.Visible && !this.IsTombstoned){ 
+                    this.Visible=false; 
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Dispose window and free all associated memory
+        /// </summary>
+        public virtual void Dispose() {
+            // Dispose blur cache
+            DisposeBlurCache();
+            
+            // Free all memory owned by this window via the allocator
+            if (_ownerId != 0) {
+                FreeOwnerMemory(_ownerId);
+            }
+        }
+        
+        /// <summary>
+        /// Free all memory allocated by a specific owner (window)
+        /// </summary>
+        private unsafe void FreeOwnerMemory(int ownerId) {
+            if (ownerId == 0)
+                return;
+
+            try {
+                // Scan all pages and free runs owned by this ownerId
+                fixed (Allocator.Info* pInfo = &Allocator._Info) {
+                    for (int i = 0; i < Allocator.NumPages;) {
+                        ulong run = pInfo->Pages[i];
+                        if (run != 0 && run != Allocator.PageSignature) {
+                            // This is a run start - check if owned by ownerId
+                            if (pInfo->Owners[i] == ownerId) {
+                                // Free this allocation
+                                long baseAddr = (long)pInfo->Start;
+                                long offset = (long)(i * Allocator.PageSize);
+                                IntPtr ptr = new IntPtr((void*)(baseAddr + offset));
+                                Allocator.Free(ptr);
+                                // Don't increment i - the Free() cleared the Pages[] entries
+                                continue;
+                            }
+                            // Skip ahead by run length
+                            i += (int)run;
+                        } else {
+                            i++;
+                        }
+                    }
+                }
+            } catch {
+                // If memory cleanup fails, at least we tried
+            }
+        }
     }
 }

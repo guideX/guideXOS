@@ -25,7 +25,7 @@ namespace guideXOS.DefaultApps {
             Title = "GXM GUI Samples";
             ShowMinimize = true;
             ShowMaximize = true;
-            ShowInTaskbar = true;
+            ShowInTaskbar = false;
             ShowTombstone = true;
             IsResizable = true;
             // Don't build samples in constructor - wait for a few frames after becoming visible

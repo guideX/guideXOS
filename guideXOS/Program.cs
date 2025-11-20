@@ -183,6 +183,7 @@ unsafe class Program {
     public static FConsole FConsole;
     public static RightMenu rightmenu;
     public static PerformanceWidget perfWidget;
+    public static WidgetContextMenu widgetContextMenu;
 
     public static void SMain() {
         Framebuffer.TripleBuffered = true;
@@ -257,6 +258,11 @@ unsafe class Program {
             rightmenu = new RightMenu();
             rightmenu.Visible = false;
         }
+        
+        // Create widget context menu
+        widgetContextMenu = new WidgetContextMenu();
+        widgetContextMenu.Visible = false;
+        WindowManager.MoveToEnd(widgetContextMenu);
 
         // Create performance widget (initially visible)
         perfWidget = new PerformanceWidget();
