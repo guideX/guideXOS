@@ -543,5 +543,15 @@ namespace guideXOS.DefaultApps {
             // resize handle visual
             Framebuffer.Graphics.FillRectangle(X + Width - ResizeHandle, Y + Height - ResizeHandle, ResizeHandle, ResizeHandle, 0xFF333333);
         }
+
+        public override void Dispose() {
+            // CRITICAL FIX: Unsubscribe from keyboard events to prevent memory leak
+            Keyboard.OnKeyChanged -= Keyboard_OnKeyChanged;
+            
+            // Clean up cached entries
+            ClearEntriesCache();
+            
+            base.Dispose();
+        }
     }
 }

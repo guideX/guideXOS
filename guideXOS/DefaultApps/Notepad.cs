@@ -262,5 +262,11 @@ namespace guideXOS.DefaultApps {
             WindowManager.font.DrawString(x + padX, y + (h / 2 - WindowManager.font.FontSize / 2), text);
             return x; // return new left edge to continue placing leftwards
         }
+
+        public override void Dispose() {
+            // CRITICAL FIX: Unsubscribe from keyboard events to prevent memory leak
+            Keyboard.OnKeyChanged -= Keyboard_OnKeyChanged;
+            base.Dispose();
+        }
     }
 }

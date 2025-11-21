@@ -566,5 +566,11 @@ namespace guideXOS.GUI {
 
             WindowManager.font.DrawString(textX, textY, text);
         }
+
+        public override void Dispose() {
+            // CRITICAL FIX: Unsubscribe from keyboard events to prevent memory leak
+            Keyboard.OnKeyChanged -= Keyboard_OnKeyChanged;
+            base.Dispose();
+        }
     }
 }

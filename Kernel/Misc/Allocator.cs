@@ -8,54 +8,185 @@ using System.Collections.Generic;
 /// are decremented correctly.
 /// </summary>
 abstract unsafe class Allocator {
+    /// <summary>
+    /// Sync
+    /// </summary>
     private static readonly object _sync = new object();
-    public enum AllocTag : byte { Unknown = 0, ThreadMeta = 1, ThreadStack = 2, ExecImage = 3, ExecStack = 4, Image = 5, GraphicsTemp = 6, FileBuffer = 7, Other = 8, Count = 16 }
-
-    // Current owner context (set by Window construction)
+    /// <summary>
+    /// Alloc Tag
+    /// </summary>
+    public enum AllocTag : byte { 
+        /// <summary>
+        /// Unknown
+        /// </summary>
+        Unknown = 0, 
+        /// <summary>
+        /// Thread Meta
+        /// </summary>
+        ThreadMeta = 1, 
+        /// <summary>
+        /// Thread Stack
+        /// </summary>
+        ThreadStack = 2, 
+        /// <summary>
+        /// Exec Image
+        /// </summary>
+        ExecImage = 3, 
+        /// <summary>
+        /// Exec Stack
+        /// </summary>
+        ExecStack = 4, 
+        /// <summary>
+        /// Image
+        /// </summary>
+        Image = 5, 
+        /// <summary>
+        /// Graphics Temp
+        /// </summary>
+        GraphicsTemp = 6, 
+        /// <summary>
+        /// File Buffer
+        /// </summary>
+        FileBuffer = 7, 
+        /// <summary>
+        /// Other
+        /// </summary>
+        Other = 8, 
+        /// <summary>
+        /// Count
+        /// </summary>
+        Count = 16 
+    }
+    /// <summary>
+    /// Current OwnerID
+    /// </summary>
     public static int CurrentOwnerId = 0; // 0 = kernel/unknown
-    private static Dictionary<int, ulong> _ownerLivePages; // pages per owner (start pages)
-
-    public const ulong PageSize = 4096;
-    public const int NumPages = 131072; // 512 MiB total
+    /// <summary>
+    /// pages per owner (start pages)
+    /// </summary>
+    private static Dictionary<int, ulong> _ownerLivePages;
+    /// <summary>
+    /// Page Size
+    /// </summary>
+    public const ulong PageSize = 4096; // 4 KiB
+    //public const ulong PageSize = 8192; // 8 KiB
+    /// <summary>
+    /// Num Pages
+    /// </summary>
+    //public const int NumPages = 131072; // 512 MiB total
+    public const int NumPages = 262144; // 1 GiB total
+    /// <summary>
+    /// Page Signature
+    /// </summary>
     public const ulong PageSignature = 0x2E61666E6166696E;
-
+    /// <summary>
+    /// Info
+    /// </summary>
     public struct Info {
+        /// <summary>
+        /// Start
+        /// </summary>
         public IntPtr Start;
+        /// <summary>
+        /// Page In Use
+        /// </summary>
         public ulong PageInUse;
+        /// <summary>
+        /// Pages
+        /// </summary>
         public fixed ulong Pages[NumPages];
+        /// <summary>
+        /// Tags
+        /// </summary>
         public fixed byte Tags[NumPages];
+        /// <summary>
+        /// Tag Live pages
+        /// </summary>
         public fixed ulong TagLivePages[(int)AllocTag.Count];
+        /// <summary>
+        /// Owners
+        /// </summary>
         public fixed int Owners[NumPages]; // owner id at run start page
     }
+    /// <summary>
+    /// Info
+    /// </summary>
     public static Info _Info;
-
+    /// <summary>
+    /// Initialize
+    /// </summary>
+    /// <param name="start"></param>
     public static void Initialize(IntPtr start) {
         fixed (Info* pInfo = &_Info) Native.Stosb(pInfo, 0, (ulong)sizeof(Info));
         _Info.Start = start; _Info.PageInUse = 0; _ownerLivePages = new Dictionary<int, ulong>();
     }
-
+    /// <summary>
+    /// Memory In Use
+    /// </summary>
     public static ulong MemoryInUse => _Info.PageInUse * PageSize;
+    /// <summary>
+    /// Memory Size
+    /// </summary>
     public static ulong MemorySize => (ulong)NumPages * PageSize;
-
+    /// <summary>
+    /// Get Page Index Start
+    /// </summary>
+    /// <param name="ptr"></param>
+    /// <returns></returns>
     private static long GetPageIndexStart(IntPtr ptr) {
         ulong p = (ulong)ptr; if (p < (ulong)_Info.Start) return -1; p -= (ulong)_Info.Start; if ((p % PageSize) != 0) return -1; return (long)(p / PageSize);
     }
-
+    /// <summary>
+    /// Zero Fill
+    /// </summary>
+    /// <param name="data"></param>
+    /// <param name="size"></param>
     internal static unsafe void ZeroFill(IntPtr data, ulong size) { Native.Stosb((void*)data, 0, size); }
-
-    // Debug counters
+    /// <summary>
+    /// Free Call Count
+    /// </summary>
     private static ulong _freeCallCount = 0;
+    /// <summary>
+    /// Free Success Count
+    /// </summary>
     private static ulong _freeSuccessCount = 0;
+    /// <summary>
+    /// Free Fail Invalid Ptr
+    /// </summary>
     private static ulong _freeFailInvalidPtr = 0;
+    /// <summary>
+    /// Free Fail No Pages
+    /// </summary>
     private static ulong _freeFailNoPages = 0;
-    private static ulong _freeFailCorruptRun = 0; // new: detected corrupt run length
-    
+    /// <summary>
+    /// Free Fail Corrupt Run
+    /// </summary>
+    private static ulong _freeFailCorruptRun = 0;
+    /// <summary>
+    /// Free Call Count
+    /// </summary>
     public static ulong FreeCallCount => _freeCallCount;
+    /// <summary>
+    /// Free Success Count
+    /// </summary>
     public static ulong FreeSuccessCount => _freeSuccessCount;
+    /// <summary>
+    /// Free Fail Invalid Ptr
+    /// </summary>
     public static ulong FreeFailInvalidPtr => _freeFailInvalidPtr;
+    /// <summary>
+    /// Free Fail No Pages
+    /// </summary>
     public static ulong FreeFailNoPages => _freeFailNoPages;
+    /// <summary>
+    /// Free Fail Corrupt Run
+    /// </summary>
     public static ulong FreeFailCorruptRun => _freeFailCorruptRun;
-
+    /// <summary>
+    /// Free
+    /// </summary>
+    /// <param name="intPtr"></param>
+    /// <returns></returns>
     internal static ulong Free(IntPtr intPtr) {
         lock (_sync) {
             _freeCallCount++; // Track every call
@@ -108,14 +239,26 @@ abstract unsafe class Allocator {
             return 0;
         }
     }
-
+    /// <summary>
+    /// Allocate
+    /// </summary>
+    /// <param name="size"></param>
+    /// <returns></returns>
     internal static unsafe IntPtr Allocate(ulong size) => Allocate(size, AllocTag.Unknown);
-
+    /// <summary>
+    /// Suspicious Size
+    /// </summary>
+    /// <param name="size"></param>
+    /// <returns></returns>
     private static bool SuspiciousSize(ulong size) {
-        // Treat sizes far beyond physical memory as suspicious overflow/corruption.
-        return size > MemorySize && size > (MemorySize * 4);
+        return size > MemorySize && size > (MemorySize * 4); // Treat sizes far beyond physical memory as suspicious overflow/corruption.
     }
-
+    /// <summary>
+    /// Allocate
+    /// </summary>
+    /// <param name="size"></param>
+    /// <param name="tag"></param>
+    /// <returns></returns>
     internal static unsafe IntPtr Allocate(ulong size, AllocTag tag) {
         lock (_sync) {
             if (size == 0) size = 1;
@@ -147,8 +290,12 @@ abstract unsafe class Allocator {
             long baseAddr = (long)_Info.Start; long offset = (long)(i * PageSize); return new IntPtr((void*)(baseAddr + offset));
         }
     }
-
-    // Note: method name Reallocate (camel-case) is expected by other code (stdlib, API)
+    /// <summary>
+    /// Reallocate (camel-case) is expected by other code (stdlib, API)
+    /// </summary>
+    /// <param name="intPtr"></param>
+    /// <param name="size"></param>
+    /// <returns></returns>
     public static IntPtr Reallocate(IntPtr intPtr, ulong size) {
         if (intPtr == IntPtr.Zero) return Allocate(size);
         if (size == 0) { Free(intPtr); return IntPtr.Zero; }
@@ -160,18 +307,35 @@ abstract unsafe class Allocator {
         ulong oldBytes = _Info.Pages[p] * PageSize; ulong copyLen = size < oldBytes ? size : oldBytes;
         MemoryCopy(newptr, intPtr, copyLen); Free(intPtr); return newptr;
     }
-
 #pragma warning disable CS8500
-    public static T* ClearAllocate<T>(int num) where T : struct { return (T*)ClearAllocate(num, sizeof(T)); }
+    /// <summary>
+    /// Clear Allocate
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="num"></param>
+    /// <returns></returns>
+    public static T* ClearAllocate<T>(int num) where T : struct { 
+        return (T*)ClearAllocate(num, sizeof(T)); 
+    }
 #pragma warning restore CS8500
-
+    /// <summary>
+    /// Clear Allocate
+    /// </summary>
+    /// <param name="num"></param>
+    /// <param name="size"></param>
+    /// <returns></returns>
     public static IntPtr ClearAllocate(int num, int size) {
         if (num < 0 || size < 0) return IntPtr.Zero;
         ulong unum = (ulong)num; ulong usize = (ulong)size;
         if (unum != 0 && usize > MemorySize / unum) return IntPtr.Zero; // multiplication overflow/too large
         ulong total = unum * usize; IntPtr ptr = Allocate(total); if (ptr == IntPtr.Zero) return IntPtr.Zero; ZeroFill(ptr, total); return ptr;
     }
-
+    /// <summary>
+    /// Memory Copy
+    /// </summary>
+    /// <param name="dst"></param>
+    /// <param name="src"></param>
+    /// <param name="size"></param>
     internal static unsafe void MemoryCopy(IntPtr dst, IntPtr src, ulong size) { Native.Movsb((void*)dst, (void*)src, size); }
     public static ulong GetTagBytes(AllocTag tag) { return _Info.TagLivePages[(int)tag] * PageSize; }
     public static ulong GetOwnerBytes(int ownerId) {
@@ -194,11 +358,14 @@ abstract unsafe class Allocator {
             return pages * PageSize;
         }
     }
-
-    // Snapshot structure for owner accounting (avoids depending on generic KeyValuePair in low-level kernel code)
+    /// <summary>
+    /// Snapshot structure for owner accounting (avoids depending on generic KeyValuePair in low-level kernel code)
+    /// </summary>
     public struct OwnerSnapshot { public int OwnerId; public ulong Bytes; }
-
-    // Return a snapshot of current owner assignments and bytes. Used by diagnostic UI to find leaks.
+    /// <summary>
+    /// Return a snapshot of current owner assignments and bytes. Used by diagnostic UI to find leaks.
+    /// </summary>
+    /// <returns></returns>
     public static OwnerSnapshot[] GetOwnerListSnapshot() {
         lock (_sync) {
             if (_ownerLivePages == null) return new OwnerSnapshot[0];
