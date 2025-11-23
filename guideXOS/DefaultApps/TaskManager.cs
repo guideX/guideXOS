@@ -552,12 +552,11 @@ namespace guideXOS.DefaultApps {
                 );
                 cx += colNameW;
 
-                // CPU: per-window counter via WindowManager
+                // CPU: per-window counter via WindowManager - USE STRING POOL
                 int ownerId = wdw.OwnerId;
                 int cpuPct = WindowManager.GetWindowCpuPct(ownerId);
-                string cpuStr = cpuPct.ToString();
+                string cpuStr = StringPool.GetNumber(cpuPct);
                 WindowManager.font.DrawString(cx + 6, dy + 6, cpuStr);
-                cpuStr.Dispose();
                 cx += colCpuW;
 
                 // Memory per window: use allocator per-owner accounting with try-catch to prevent freeze
@@ -577,20 +576,9 @@ namespace guideXOS.DefaultApps {
                     bytes = 0;
                 }
 
-                // Format memory value more clearly - show KB if < 1MB
-                string memText;
-                if (bytes < 1024UL * 1024UL) {
-                    ulong kb = bytes / 1024UL;
-                    // Cache common KB values to reduce allocations
-                    if (kb == 0)
-                        memText = "0 KB";
-                    else
-                        memText = kb.ToString() + " KB";
-                } else {
-                    memText = ToMBString(bytes);
-                }
+                // USE STRING POOL - eliminates major leak source
+                string memText = StringPool.GetMemorySize(bytes);
                 WindowManager.font.DrawString(cx + 6, dy + 6, memText);
-                memText.Dispose(); // Explicitly dispose the string to free memory
                 cx += colMemW;
 
                 // Disk/Net per-window not implemented
@@ -649,68 +637,18 @@ namespace guideXOS.DefaultApps {
         }
 
         private static string ToMBString(ulong bytes) {
-            ulong mb = bytes / (1024UL * 1024UL);
-            // Avoid repeated string allocation by caching common values
-            if (mb == 0)
-                return "0 MB";
-            if (mb < 10)
-                return mb.ToString() + " MB";
-            // For larger values, round to avoid excessive string allocations
-            if (mb < 100)
-                return mb.ToString() + " MB";
-            // Round to nearest 10 MB for very large values
-            ulong rounded = (mb + 5) / 10 * 10;
-            return rounded.ToString() + " MB";
+            // Use StringPool instead of allocating new strings
+            return StringPool.GetMemorySize(bytes);
         }
 
         private static string ToKBpsString(int kbps) {
-            if (kbps >= 1024) {
-                int mbps = kbps / 1024;
-                return mbps.ToString() + " MB/s";
-            }
-            return kbps.ToString() + " KB/s";
+            // Use StringPool for transfer rates
+            return StringPool.GetTransferRate(kbps);
         }
 
         private static string FormatUptime(ulong ticks) {
-            // assume ticks are milliseconds
-            ulong totalSec = ticks / 1000UL;
-            ulong s = totalSec % 60UL;
-            ulong m = totalSec / 60UL % 60UL;
-            ulong h = totalSec / 3600UL;
-            
-            // Convert each component to string
-            string hStr = h.ToString();
-            string mStr = m.ToString();
-            string sStr = s.ToString();
-            
-            // Build the result with proper padding
-            string result;
-            if (m < 10) {
-                string mPadded = "0" + mStr;
-                if (s < 10) {
-                    string sPadded = "0" + sStr;
-                    result = hStr + ":" + mPadded + ":" + sPadded;
-                    sPadded.Dispose();
-                } else {
-                    result = hStr + ":" + mPadded + ":" + sStr;
-                }
-                mPadded.Dispose();
-            } else {
-                if (s < 10) {
-                    string sPadded = "0" + sStr;
-                    result = hStr + ":" + mStr + ":" + sPadded;
-                    sPadded.Dispose();
-                } else {
-                    result = hStr + ":" + mStr + ":" + sStr;
-                }
-            }
-            
-            // Dispose component strings
-            hStr.Dispose();
-            mStr.Dispose();
-            sStr.Dispose();
-            
-            return result;
+            // Use StringPool for uptime formatting
+            return StringPool.FormatUptime(ticks);
         }
 
         private void DrawPerformance(int x, int y, int w, int h) {
@@ -821,13 +759,11 @@ namespace guideXOS.DefaultApps {
                 int labelY = itemY + 8;
                 WindowManager.font.DrawString(textX, labelY, navLabels[i]);
 
-                // FIXED: Dispose both the navValues ToString() AND the concatenated result
-                string navValueStr = navValues[i].ToString();
-                string pctText = navValueStr + "%";
+                // USE STRING POOL - no more allocations here!
+                string pctText = StringPool.GetPercentage(navValues[i]);
                 int pctY = labelY + WindowManager.font.FontSize + 4;
                 WindowManager.font.DrawString(textX, pctY, pctText);
-                pctText.Dispose();
-                navValueStr.Dispose();
+                // NO DISPOSE NEEDED - pooled strings are reused
             }
 
             // Draw separator between navigation and detail
@@ -913,11 +849,10 @@ namespace guideXOS.DefaultApps {
                 1
             );
 
-            // Utilization percentage on graph
-            string pct = _cpuUtilPct.ToString() + "%";
+            // Utilization percentage on graph - USE STRING POOL (no dispose needed)
+            string pct = StringPool.GetPercentage(_cpuUtilPct);
             int pctX = x + _cpuChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
             WindowManager.font.DrawString(pctX, graphY + 8, pct);
-            pct.Dispose();
 
             // Details below graph
             int detailY = graphY + _cpuChart.graphics.Height + 16;
@@ -925,11 +860,8 @@ namespace guideXOS.DefaultApps {
             int col2X = x + w / 2;
 
             WindowManager.font.DrawString(col1X, detailY, "Utilization:");
-            string utilStr = _cpuUtilPct.ToString();
-            string utilPctStr = utilStr + "%";
+            string utilPctStr = StringPool.GetPercentage(_cpuUtilPct);
             WindowManager.font.DrawString(col2X, detailY, utilPctStr);
-            utilPctStr.Dispose();
-            utilStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Speed:");
@@ -937,21 +869,18 @@ namespace guideXOS.DefaultApps {
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Processes:");
-            string procStr = _procCount.ToString();
+            string procStr = StringPool.GetNumber(_procCount);
             WindowManager.font.DrawString(col2X, detailY, procStr);
-            procStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Threads:");
-            string threadStr = _threadCount.ToString();
+            string threadStr = StringPool.GetNumber(_threadCount);
             WindowManager.font.DrawString(col2X, detailY, threadStr);
-            threadStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Machine time:");
-            string uptimeStr = FormatUptime(Timer.Ticks);
+            string uptimeStr = StringPool.FormatUptime(Timer.Ticks);
             WindowManager.font.DrawString(col2X, detailY, uptimeStr);
-            uptimeStr.Dispose();
         }
 
         private void DrawMemDetail(int x, int y, int w, int h) {
@@ -971,11 +900,10 @@ namespace guideXOS.DefaultApps {
                 1
             );
 
-            // Utilization percentage on graph
-            string pct = _memUtilPct.ToString() + "%";
+            // Utilization percentage on graph - USE STRING POOL (no dispose needed)
+            string pct = StringPool.GetPercentage(_memUtilPct);
             int pctX = x + _memChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
             WindowManager.font.DrawString(pctX, graphY + 8, pct);
-            pct.Dispose();
 
             // Details below graph
             int detailY = graphY + _memChart.graphics.Height + 16;
@@ -987,25 +915,22 @@ namespace guideXOS.DefaultApps {
             ulong avail = total > used ? total - used : 0UL;
 
             WindowManager.font.DrawString(col1X, detailY, "In use:");
-            string usedMBStr = ToMBString(used);
-            string memPctStr = _memUtilPct.ToString();
-            string usedStr = usedMBStr + " (" + memPctStr + "%)";
+            // USE STRING POOL - single string, no concatenation allocations
+            string usedMBStr = StringPool.GetMemorySize(used);
+            string memPctStr = StringPool.GetPercentage(_memUtilPct);
+            string usedStr = usedMBStr + " (" + memPctStr + ")";
             WindowManager.font.DrawString(col2X, detailY, usedStr);
-            usedStr.Dispose();
-            memPctStr.Dispose();
-            usedMBStr.Dispose();
+            usedStr.Dispose(); // Dispose the concatenated result only
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Available:");
-            string availStr = ToMBString(avail);
+            string availStr = StringPool.GetMemorySize(avail);
             WindowManager.font.DrawString(col2X, detailY, availStr);
-            availStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Total:");
-            string totalStr = ToMBString(total);
+            string totalStr = StringPool.GetMemorySize(total);
             WindowManager.font.DrawString(col2X, detailY, totalStr);
-            totalStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             int topOwner = 0;
@@ -1021,14 +946,13 @@ namespace guideXOS.DefaultApps {
             }
             WindowManager.font.DrawString(col1X, detailY, "Top owner:");
             if (topOwner != 0) {
-                string ownerIdStr = topOwner.ToString();
+                string ownerIdStr = StringPool.GetNumber(topOwner);
                 string sign = topKbps > 0 ? "+" : "";
-                string kbpsStr = topKbps.ToString();
+                string kbpsStr = topKbps.ToString(); // Keep this as is since it can be negative
                 string ownerStr = "#" + ownerIdStr + " " + sign + kbpsStr + " KB/s";
                 WindowManager.font.DrawString(col2X, detailY, ownerStr);
                 ownerStr.Dispose();
                 kbpsStr.Dispose();
-                ownerIdStr.Dispose();
             } else {
                 WindowManager.font.DrawString(col2X, detailY, "N/A");
             }
@@ -1046,11 +970,10 @@ namespace guideXOS.DefaultApps {
             WindowManager.font.DrawString(col1X, detailY, "Top tag:");
             if (topTag >= 0) {
                 string tagName = ((Allocator.AllocTag)topTag).ToString();
-                string tagBytes = ToMBString(topTagBytes);
+                string tagBytes = StringPool.GetMemorySize(topTagBytes);
                 string tagStr = tagName + " " + tagBytes;
                 WindowManager.font.DrawString(col2X, detailY, tagStr);
                 tagStr.Dispose();
-                tagBytes.Dispose();
                 tagName.Dispose();
             } else {
                 WindowManager.font.DrawString(col2X, detailY, "N/A");
@@ -1074,11 +997,10 @@ namespace guideXOS.DefaultApps {
                 1
             );
 
-            // Utilization percentage on graph
-            string pct = _diskUtilPct.ToString() + "%";
+            // Utilization percentage on graph - USE STRING POOL (no dispose needed)
+            string pct = StringPool.GetPercentage(_diskUtilPct);
             int pctX = x + _diskChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
             WindowManager.font.DrawString(pctX, graphY + 8, pct);
-            pct.Dispose();
 
             // Details below graph
             int detailY = graphY + _diskChart.graphics.Height + 16;
@@ -1086,31 +1008,24 @@ namespace guideXOS.DefaultApps {
             int col2X = x + w / 2;
 
             WindowManager.font.DrawString(col1X, detailY, "Active time:");
-            string activeStr = _diskActivePct.ToString();
-            string activePctStr = activeStr + "%";
+            string activePctStr = StringPool.GetPercentage(_diskActivePct);
             WindowManager.font.DrawString(col2X, detailY, activePctStr);
-            activePctStr.Dispose();
-            activeStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Avg response time:");
-            string respStr = _diskRespMs.ToString();
-            string respMsStr = respStr + " ms";
-            WindowManager.font.DrawString(col2X, detailY, respMsStr);
-            respMsStr.Dispose();
-            respStr.Dispose();
+            string respStr = StringPool.WithSuffix(_diskRespMs, " ms");
+            WindowManager.font.DrawString(col2X, detailY, respStr);
+            respStr.Dispose(); // This creates a new string, so dispose it
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Read speed:");
-            string readStr = ToKBpsString(_diskReadKBps);
+            string readStr = StringPool.GetTransferRate(_diskReadKBps);
             WindowManager.font.DrawString(col2X, detailY, readStr);
-            readStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Write speed:");
-            string writeStr = ToKBpsString(_diskWriteKBps);
+            string writeStr = StringPool.GetTransferRate(_diskWriteKBps);
             WindowManager.font.DrawString(col2X, detailY, writeStr);
-            writeStr.Dispose();
         }
 
         private void DrawNetDetail(int x, int y, int w, int h) {
@@ -1130,11 +1045,10 @@ namespace guideXOS.DefaultApps {
                 1
             );
 
-            // Utilization percentage on graph
-            string pct = _netUtilPct.ToString() + "%";
+            // Utilization percentage on graph - USE STRING POOL (no dispose needed)
+            string pct = StringPool.GetPercentage(_netUtilPct);
             int pctX = x + _netChart.graphics.Width - WindowManager.font.MeasureString(pct) - 8;
             WindowManager.font.DrawString(pctX, graphY + 8, pct);
-            pct.Dispose();
 
             // Details below graph
             int detailY = graphY + _netChart.graphics.Height + 16;
@@ -1142,27 +1056,23 @@ namespace guideXOS.DefaultApps {
             int col2X = x + w / 2;
 
             WindowManager.font.DrawString(col1X, detailY, "Send:");
-            string sendStr = ToKBpsString(_netSendKBps);
+            string sendStr = StringPool.GetTransferRate(_netSendKBps);
             WindowManager.font.DrawString(col2X, detailY, sendStr);
-            sendStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Receive:");
-            string recvStr = ToKBpsString(_netRecvKBps);
+            string recvStr = StringPool.GetTransferRate(_netRecvKBps);
             WindowManager.font.DrawString(col2X, detailY, recvStr);
-            recvStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Sent bytes:");
-            string sentStr = _bytesSent.ToString();
+            string sentStr = StringPool.GetNumber(_bytesSent);
             WindowManager.font.DrawString(col2X, detailY, sentStr);
-            sentStr.Dispose();
             detailY += WindowManager.font.FontSize + 6;
 
             WindowManager.font.DrawString(col1X, detailY, "Received bytes:");
-            string recvBytesStr = _bytesRecv.ToString();
+            string recvBytesStr = StringPool.GetNumber(_bytesRecv);
             WindowManager.font.DrawString(col2X, detailY, recvBytesStr);
-            recvBytesStr.Dispose();
         }
 
         private void UpdateChart(Chart chart, int valuePct, uint color) {
@@ -1329,32 +1239,28 @@ namespace guideXOS.DefaultApps {
                 _mdHeapFreeStr?.Dispose();
                 _mdHeapUtilStr?.Dispose();
 
-                // Recompute cached strings
-                _mdFreeCallsStr = Allocator.FreeCallCount.ToString();
-                _mdFreeSuccessStr = Allocator.FreeSuccessCount.ToString();
-                _mdFailPtrStr = Allocator.FreeFailInvalidPtr.ToString();
-                _mdFailNoPagesStr = Allocator.FreeFailNoPages.ToString();
-                _mdAllocPagesStr = _cumulativeAllocatedPages.ToString();
-                _mdFreedPagesStr = _cumulativeFreedPages.ToString();
-                _mdPagesInUseStr = Allocator._Info.PageInUse.ToString();
+                // USE STRING POOL where possible
+                _mdFreeCallsStr = StringPool.GetNumber(Allocator.FreeCallCount);
+                _mdFreeSuccessStr = StringPool.GetNumber(Allocator.FreeSuccessCount);
+                _mdFailPtrStr = StringPool.GetNumber(Allocator.FreeFailInvalidPtr);
+                _mdFailNoPagesStr = StringPool.GetNumber(Allocator.FreeFailNoPages);
+                _mdAllocPagesStr = StringPool.GetNumber(_cumulativeAllocatedPages);
+                _mdFreedPagesStr = StringPool.GetNumber(_cumulativeFreedPages);
+                _mdPagesInUseStr = StringPool.GetNumber(Allocator._Info.PageInUse);
                 _mdNetGrowthStr = ((long)_cumulativeAllocatedPages - (long)_cumulativeFreedPages).ToString();
                 _mdLeakStr = _leakExists ? "TRUE" : "FALSE";
                 if (_cumulativeAllocatedPages > 0) {
                     int freePct = (int)((_cumulativeFreedPages * 100UL) / _cumulativeAllocatedPages);
-                    string freePctStr = freePct.ToString();
-                    _mdFreeAllocRatioStr = freePctStr + "%";
-                    freePctStr.Dispose();
+                    _mdFreeAllocRatioStr = StringPool.GetPercentage(freePct);
                 } else {
                     _mdFreeAllocRatioStr = "N/A"; // literal
                 }
-                _mdHeapSizeStr = ToMBString(Allocator.MemorySize);
-                _mdHeapUsedStr = ToMBString(Allocator.MemoryInUse);
+                _mdHeapSizeStr = StringPool.GetMemorySize(Allocator.MemorySize);
+                _mdHeapUsedStr = StringPool.GetMemorySize(Allocator.MemoryInUse);
                 ulong heapFree = Allocator.MemorySize - Allocator.MemoryInUse;
-                _mdHeapFreeStr = ToMBString(heapFree);
+                _mdHeapFreeStr = StringPool.GetMemorySize(heapFree);
                 int heapUtilPct = Allocator.MemorySize > 0 ? (int)(Allocator.MemoryInUse * 100UL / Allocator.MemorySize) : 0;
-                string heapUtilBase = heapUtilPct.ToString();
-                _mdHeapUtilStr = heapUtilBase + "%";
-                heapUtilBase.Dispose();
+                _mdHeapUtilStr = StringPool.GetPercentage(heapUtilPct);
             }
 
             int rowY = y + 10;

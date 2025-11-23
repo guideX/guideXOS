@@ -1,5 +1,6 @@
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
+using System;
 using System.Windows.Forms;
 using System.Drawing;
 using guideXOS.GUI;
@@ -131,10 +132,9 @@ namespace guideXOS.DockableWidgets {
             if (_cpuPct < 0) _cpuPct = 0;
             if (_cpuPct > 100) _cpuPct = 100;
             
-            // Only update cached string if value changed
+            // USE STRING POOL - no allocations, no dispose needed
             if (_cpuPct != oldCpu) {
-                if (_cpuText != null) _cpuText.Dispose();
-                _cpuText = _cpuPct.ToString() + "%";
+                _cpuText = StringPool.GetPercentage(_cpuPct);
             }
             
             // Get memory usage
@@ -146,10 +146,9 @@ namespace guideXOS.DockableWidgets {
             if (_memPct < 0) _memPct = 0;
             if (_memPct > 100) _memPct = 100;
             
-            // Only update cached string if value changed
+            // USE STRING POOL - no allocations, no dispose needed
             if (_memPct != oldMem) {
-                if (_memText != null) _memText.Dispose();
-                _memText = _memPct.ToString() + "%";
+                _memText = StringPool.GetPercentage(_memPct);
             }
         }
     }

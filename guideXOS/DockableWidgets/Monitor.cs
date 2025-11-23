@@ -2,6 +2,7 @@
 using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
+using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -115,10 +116,11 @@ namespace guideXOS.DockableWidgets {
         }
         
         private void Render(ref int aX, int baseY, Chart chart, int pct) {
-            // Draw label with percentage
-            string labelText = chart.name + " " + pct.ToString() + "%";
+            // USE STRING POOL - eliminates allocations every frame
+            string labelText = chart.name + " " + StringPool.GetPercentage(pct);
             int textWidth = WindowManager.font.MeasureString(labelText);
             WindowManager.font.DrawString(aX + chart.graphics.Width / 2 - textWidth / 2, baseY, labelText);
+            labelText.Dispose(); // Only dispose the concatenated result
             
             // Draw chart image
             int chartY = baseY + WindowManager.font.FontSize + 4;
