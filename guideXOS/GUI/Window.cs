@@ -171,9 +171,10 @@ namespace guideXOS.GUI {
         /// </summary>
         /// <returns></returns>
         public bool IsUnderMouse() {
+            // Include title bar area in hit test
             if (Control.MousePosition.X > X &&
                 Control.MousePosition.X < X + Width &&
-                Control.MousePosition.Y > Y &&
+                Control.MousePosition.Y > Y - BarHeight &&
                 Control.MousePosition.Y < Y + Height) return true;
             return false;
         }

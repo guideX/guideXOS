@@ -31,6 +31,12 @@ namespace guideXOS.GUI {
         private bool _enableWindowSlideAnimations;
         private int _windowSlideDuration;
         
+        // Background rotation settings
+        private bool _enableAutoBackgroundRotation;
+        private int _backgroundRotationInterval; // in minutes
+        private bool _enableBackgroundFadeTransition;
+        private int _backgroundFadeDuration;
+        
         // Window frame rate related
         private int _windowFrameDelay = 2; // Thread.Sleep value in main loop
         
@@ -43,7 +49,7 @@ namespace guideXOS.GUI {
         // Button state
         private bool _btnClickLatch = false;
         
-        public VisualEffectsSettings(int X, int Y) : base(X, Y, 700, 550) {
+        public VisualEffectsSettings(int X, int Y) : base(X, Y, 700, 600) {
             IsResizable = false;
             ShowInTaskbar = true;
             ShowMaximize = false;
@@ -57,14 +63,22 @@ namespace guideXOS.GUI {
             _fadeOutDuration = UISettings.FadeOutDurationMs;
             _enableWindowSlideAnimations = UISettings.EnableWindowSlideAnimations;
             _windowSlideDuration = UISettings.WindowSlideDurationMs;
+            
+            // Load background rotation settings
+            _enableAutoBackgroundRotation = UISettings.EnableAutoBackgroundRotation;
+            _backgroundRotationInterval = UISettings.BackgroundRotationIntervalMinutes;
+            _enableBackgroundFadeTransition = UISettings.EnableBackgroundFadeTransition;
+            _backgroundFadeDuration = UISettings.BackgroundFadeDurationMs;
         }
         
         public override void OnInput() {
-            base.OnInput();
             if (!Visible) return;
             
             // Only process input if mouse is within the window bounds
-            if (!IsUnderMouse()) return;
+            if (!IsUnderMouse()) {
+                base.OnInput();
+                return;
+            }
             
             int mx = Control.MousePosition.X;
             int my = Control.MousePosition.Y;
@@ -81,20 +95,43 @@ namespace guideXOS.GUI {
             int sbY = cy;
             int sbH = contentH;
             
-            int totalHeight = _lineHeight * 12; // Approximate total content height
+            int totalHeight = _lineHeight * 17; // Increased for new background rotation settings
             int maxScroll = totalHeight > contentH ? totalHeight - contentH : 0;
             
             if (leftDown) {
-                // Check scrollbar drag
-                if (mx >= sbX && mx <= sbX + sbW && my >= sbY && my <= sbY + sbH) {
-                    if (!_scrollDragging) {
+                if (!_btnClickLatch) {
+                    // Check Apply and Reset buttons FIRST (before base.OnInput and scrollbar)
+                    int btnW = 120;
+                    int btnH = 38;
+                    int btnY = Y + Height - _padding - btnH - 10;
+                    int applyX = X + Width - _padding - btnW;
+                    int resetX = applyX - btnW - 16;
+                    
+                    if (mx >= applyX && mx <= applyX + btnW && my >= btnY && my <= btnY + btnH) {
+                        ApplySettings();
+                        _btnClickLatch = true;
+                        WindowManager.MouseHandled = true;
+                        return;
+                    }
+                    
+                    if (mx >= resetX && mx <= resetX + btnW && my >= btnY && my <= btnY + btnH) {
+                        ResetToDefaults();
+                        _btnClickLatch = true;
+                        WindowManager.MouseHandled = true;
+                        return;
+                    }
+                }
+                
+                // Check scrollbar drag (after buttons)
+                if (!_scrollDragging && !_btnClickLatch) {
+                    if (mx >= sbX && mx <= sbX + sbW && my >= sbY && my <= sbY + sbH) {
                         _scrollDragging = true;
                         _scrollStartY = my;
                         _scrollStartScroll = _scrollY;
                     }
                 }
                 
-                if (!_btnClickLatch) {
+                if (!_btnClickLatch && !_scrollDragging) {
                     // Check checkboxes
                     int currentY = cy - _scrollY;
                     
@@ -112,20 +149,19 @@ namespace guideXOS.GUI {
                         _btnClickLatch = true;
                     }
                     
-                    // Apply button
-                    int btnW = 120;
-                    int btnH = 38;
-                    int btnY = Y + Height - _padding - btnH - 10;
-                    int applyX = X + Width - _padding - btnW;
-                    int resetX = applyX - btnW - 16;
+                    // Background rotation section - skip past window animation settings
+                    currentY += _lineHeight * 3; // Skip slide duration, performance section title, frame delay
                     
-                    if (mx >= applyX && mx <= applyX + btnW && my >= btnY && my <= btnY + btnH) {
-                        ApplySettings();
+                    // Auto Background Rotation checkbox
+                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
+                        _enableAutoBackgroundRotation = !_enableAutoBackgroundRotation;
                         _btnClickLatch = true;
                     }
                     
-                    if (mx >= resetX && mx <= resetX + btnW && my >= btnY && my <= btnY + btnH) {
-                        ResetToDefaults();
+                    // Background Fade Transition checkbox
+                    currentY += _lineHeight * 2; // Skip rotation interval slider
+                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
+                        _enableBackgroundFadeTransition = !_enableBackgroundFadeTransition;
                         _btnClickLatch = true;
                     }
                     
@@ -150,14 +186,26 @@ namespace guideXOS.GUI {
                         _draggingSlider = 2;
                     }
                     
-                    // Window Frame Delay slider
-                    sliderY += _lineHeight;
+                    // Window Frame Delay slider (skipped in new layout)
+                    sliderY += _lineHeight * 2;
                     if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
                         _draggingSlider = 3;
                     }
                     
-                    // Animation Speed slider
-                    sliderY += _lineHeight;
+                    // Background Rotation Interval slider
+                    sliderY += _lineHeight * 2;
+                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
+                        _draggingSlider = 6;
+                    }
+                    
+                    // Background Fade Duration slider
+                    sliderY += _lineHeight * 2;
+                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
+                        _draggingSlider = 7;
+                    }
+                    
+                    // Animation Speed slider (moved down)
+                    sliderY += _lineHeight * 2;
                     if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
                         _draggingSlider = 4;
                     }
@@ -195,6 +243,12 @@ namespace guideXOS.GUI {
                         case 5: // Mouse Responsive Time (0-200ms)
                             _mouseResponsiveMs = (int)(t * 200);
                             break;
+                        case 6: // Background Rotation Interval (1-30 minutes)
+                            _backgroundRotationInterval = (int)(1 + t * 29);
+                            break;
+                        case 7: // Background Fade Duration (200-3000ms)
+                            _backgroundFadeDuration = (int)(200 + t * 2800);
+                            break;
                     }
                 }
                 
@@ -210,6 +264,12 @@ namespace guideXOS.GUI {
                 _scrollY = _scrollStartScroll + dy;
                 if (_scrollY < 0) _scrollY = 0;
                 if (_scrollY > maxScroll) _scrollY = maxScroll;
+            }
+            
+            // Call base.OnInput() AFTER processing our buttons to allow title bar dragging, etc.
+            // But only if we haven't handled the mouse event ourselves
+            if (!_btnClickLatch && !_scrollDragging && _draggingSlider < 0) {
+                base.OnInput();
             }
         }
         
@@ -234,8 +294,10 @@ namespace guideXOS.GUI {
             currentY += _lineHeight;
             
             // Fade Animations checkbox
-            DrawCheckbox(cx, currentY, _enableFadeAnimations);
-            WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Fade Animations");
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                DrawCheckbox(cx, currentY, _enableFadeAnimations);
+                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Fade Animations");
+            }
             currentY += _lineHeight;
             
             // Fade In Duration slider
@@ -270,6 +332,46 @@ namespace guideXOS.GUI {
                 WindowManager.font.DrawString(cx + 32, currentY, "Slide Duration:");
                 DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_windowSlideDuration - 50) / 450.0f);
                 string val = _windowSlideDuration.ToString() + " ms";
+                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
+                val.Dispose();
+            }
+            currentY += _lineHeight;
+            
+            // Background Rotation section
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                WindowManager.font.DrawString(cx, currentY, "Background Rotation Settings");
+            }
+            currentY += _lineHeight;
+            
+            // Auto Background Rotation checkbox
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                DrawCheckbox(cx, currentY, _enableAutoBackgroundRotation);
+                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Auto-Rotate Backgrounds");
+            }
+            currentY += _lineHeight;
+            
+            // Background Rotation Interval slider
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                WindowManager.font.DrawString(cx + 32, currentY, "Rotation Interval:");
+                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_backgroundRotationInterval - 1) / 29.0f);
+                string val = _backgroundRotationInterval.ToString() + " min";
+                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
+                val.Dispose();
+            }
+            currentY += _lineHeight;
+            
+            // Background Fade Transition checkbox
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                DrawCheckbox(cx, currentY, _enableBackgroundFadeTransition);
+                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Fade Transition");
+            }
+            currentY += _lineHeight;
+            
+            // Background Fade Duration slider
+            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
+                WindowManager.font.DrawString(cx + 32, currentY, "Fade Duration:");
+                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_backgroundFadeDuration - 200) / 2800.0f);
+                string val = _backgroundFadeDuration.ToString() + " ms";
                 WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
                 val.Dispose();
             }
@@ -321,7 +423,7 @@ namespace guideXOS.GUI {
             int sbX = X + Width - _padding - sbW;
             int sbY = cy;
             int sbH = contentH;
-            int totalHeight = _lineHeight * 12;
+            int totalHeight = _lineHeight * 17;
             int maxScroll = totalHeight > contentH ? totalHeight - contentH : 0;
             
             g.FillRectangle(sbX, sbY, sbW, sbH, 0xFF0F0F0F);
@@ -413,6 +515,12 @@ namespace guideXOS.GUI {
             UISettings.EnableWindowSlideAnimations = _enableWindowSlideAnimations;
             UISettings.WindowSlideDurationMs = _windowSlideDuration;
             
+            // Apply background rotation settings
+            UISettings.EnableAutoBackgroundRotation = _enableAutoBackgroundRotation;
+            UISettings.BackgroundRotationIntervalMinutes = _backgroundRotationInterval;
+            UISettings.EnableBackgroundFadeTransition = _enableBackgroundFadeTransition;
+            UISettings.BackgroundFadeDurationMs = _backgroundFadeDuration;
+            
             // Show notification
             NotificationManager.Add(new Notify("Visual effects settings applied", NotificationLevel.None));
             
@@ -430,6 +538,12 @@ namespace guideXOS.GUI {
             _windowFrameDelay = 2;
             _animationSpeed = 150;
             _mouseResponsiveMs = 100;
+            
+            // Reset background rotation defaults
+            _enableAutoBackgroundRotation = false;
+            _backgroundRotationInterval = 5;
+            _enableBackgroundFadeTransition = true;
+            _backgroundFadeDuration = 1000;
             
             NotificationManager.Add(new Notify("Settings reset to defaults", NotificationLevel.None));
         }

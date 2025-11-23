@@ -21,7 +21,33 @@ namespace System.Collections.Generic {
             }
         }
 
+        /// <summary>
+        /// Ensure the internal array has enough capacity
+        /// </summary>
+        private void EnsureCapacity(int minCapacity) {
+            if (_value.Length >= minCapacity)
+                return;
+                
+            // Double the size or use minCapacity, whichever is larger
+            int newCapacity = _value.Length * 2;
+            if (newCapacity < minCapacity)
+                newCapacity = minCapacity;
+            
+            // Allocate new array and copy existing items
+            T[] newArray = new T[newCapacity];
+            for (int i = 0; i < Count; i++) {
+                newArray[i] = _value[i];
+            }
+            
+            // Dispose old array and use new one
+            _value.Dispose();
+            _value = newArray;
+        }
+
         public void Add(T t) {
+            // Ensure we have room for one more item
+            EnsureCapacity(Count + 1);
+            
             _value[Count] = t;
             Count++;
         }
@@ -30,8 +56,11 @@ namespace System.Collections.Generic {
             //Broken
             //if (index == IndexOf(item)) return;
 
-            if (!internalMove)
+            if (!internalMove) {
                 Count++;
+                // Ensure capacity for the new item
+                EnsureCapacity(Count);
+            }
 
             if (internalMove) {
                 int _index = IndexOf(item);

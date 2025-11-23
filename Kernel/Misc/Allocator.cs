@@ -135,6 +135,15 @@ abstract unsafe class Allocator {
             return idx;
         }
         
+        // If we're out of space, try to find and reuse a slot with 0 pages
+        for (int i = 0; i < MAX_OWNERS; i++) {
+            if (_ownerPages[i] == 0) {
+                _ownerIds[i] = ownerId;
+                _ownerPages[i] = 0;
+                return i;
+            }
+        }
+        
         return -1; // No space for more owners
     }
     
@@ -248,14 +257,17 @@ abstract unsafe class Allocator {
                 int owner = _Info.Owners[p];
                 
                 if (owner != 0) {
-                    // Find owner in array and decrement
-                    for (int i = 0; i < _ownerCount; i++) {
+                    // Find owner in array and decrement - with safety bounds check
+                    bool found = false;
+                    for (int i = 0; i < _ownerCount && i < MAX_OWNERS; i++) {
                         if (_ownerIds[i] == owner) {
                             ulong live = _ownerPages[i];
                             _ownerPages[i] = live > pages ? live - pages : 0UL;
+                            found = true;
                             break;
                         }
                     }
+                    // If owner not found in tracking array, it's okay - just continue with free
                 }
                 _Info.Owners[p] = 0;
                 
@@ -329,9 +341,11 @@ abstract unsafe class Allocator {
             _Info.Owners[i] = owner;
             if (owner != 0) {
                 int ownerIdx = FindOrAddOwner(owner);
-                if (ownerIdx >= 0) {
+                if (ownerIdx >= 0 && ownerIdx < MAX_OWNERS) {
                     _ownerPages[ownerIdx] += pages;
                 }
+                // If ownerIdx is -1, we couldn't track this owner (table full)
+                // This is okay - allocation proceeds, just won't be in owner tracking
             }
             
             long baseAddr = (long)_Info.Start; long offset = (long)(i * PageSize); return new IntPtr((void*)(baseAddr + offset));
@@ -391,7 +405,8 @@ abstract unsafe class Allocator {
         if (ownerId == 0) return 0UL;
         lock (_sync) {
             // Direct array lookup - much simpler than Dictionary
-            for (int i = 0; i < _ownerCount; i++) {
+            // Add bounds checking to prevent array access violations
+            for (int i = 0; i < _ownerCount && i < MAX_OWNERS; i++) {
                 if (_ownerIds[i] == ownerId) {
                     return _ownerPages[i] * PageSize;
                 }
@@ -423,8 +438,10 @@ abstract unsafe class Allocator {
     /// <returns></returns>
     public static OwnerSnapshot[] GetOwnerListSnapshot() {
         lock (_sync) {
-            var arr = new OwnerSnapshot[_ownerCount];
-            for (int i = 0; i < _ownerCount; i++) {
+            // Ensure we don't exceed bounds
+            int count = _ownerCount < MAX_OWNERS ? _ownerCount : MAX_OWNERS;
+            var arr = new OwnerSnapshot[count];
+            for (int i = 0; i < count; i++) {
                 arr[i].OwnerId = _ownerIds[i];
                 arr[i].Bytes = _ownerPages[i] * PageSize;
             }

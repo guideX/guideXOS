@@ -253,6 +253,9 @@ unsafe class Program {
         //Lockscreen.Run();
         FConsole = null;
 
+        // Initialize background rotation manager
+        BackgroundRotationManager.Initialize();
+
         // Ensure context menu exists
         if (rightmenu == null) {
             rightmenu = new RightMenu();
@@ -315,6 +318,9 @@ unsafe class Program {
         const ulong ActiveMoveMs = 100; // stay responsive for 100ms after a move
 
         for (; ; ) {
+            // Update background rotation manager (handles automatic rotation and fade transitions)
+            BackgroundRotationManager.Update();
+            
             // Per-frame input pass for all windows
             WindowManager.MouseHandled = false;
             WindowManager.InputAll();
@@ -325,9 +331,9 @@ unsafe class Program {
 
             //clear screen
             Framebuffer.Graphics.Clear(0x0);
-            //draw carpet or wallpaper
-            if (Wallpaper != null)
-                Framebuffer.Graphics.DrawImage((Framebuffer.Width / 2) - (Wallpaper.Width / 2), (Framebuffer.Height / 2) - (Wallpaper.Height / 2), Wallpaper);
+            //draw carpet or wallpaper - use BackgroundRotationManager for fade effects
+            BackgroundRotationManager.DrawBackground();
+            
             //Inspects the system to see if the user has right clicked there is a small difference between these two functions
             // Show desktop context menu only when right-click happened and no other window consumed the mouse.
             if (Control.MouseButtons.HasFlag(MouseButtons.Right) && !rightClicked && !WindowManager.MouseHandled) {

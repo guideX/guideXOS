@@ -4,6 +4,7 @@ using guideXOS.Misc;
 using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Windows.Forms;
 namespace guideXOS.GUI {
     /// <summary>
     /// Window Manager
@@ -112,11 +113,21 @@ namespace guideXOS.GUI {
         public static void MoveToEnd(Window window) {
             if (window == null)
                 return;
-                
+            
+            // Safety: Check if Windows list is initialized
+            if (Windows == null) {
+                Windows = new List<Window>();
+            }
+            
             // Remove ALL instances of this window (in case of duplicates)
+            // Use a safe iteration approach to prevent index issues
+            int removed = 0;
             for (int i = Windows.Count - 1; i >= 0; i--) {
-                if (Windows[i] == window) {
+                if (i < Windows.Count && Windows[i] == window) {
                     Windows.RemoveAt(i);
+                    removed++;
+                    // Safety: prevent infinite loop if something goes wrong
+                    if (removed > 100) break;
                 }
             }
             
@@ -211,15 +222,68 @@ namespace guideXOS.GUI {
         /// Input All
         /// </summary>
         public static void InputAll() {
-            for (int i = 0; i < Windows.Count; i++) {
+            // First pass: Handle "always on top" windows like Task Manager
+            // Task Manager should get input priority even if not at the end of the list
+            for (int i = Windows.Count - 1; i >= 0; i--) {
                 var w = Windows[i];
                 if (!w.Visible)
                     continue;
-                if (_perfTrackingEnabled && !(w is guideXOS.DefaultApps.TaskManager))
+                
+                // Only process Task Manager in this pass
+                if (!(w is guideXOS.DefaultApps.TaskManager))
+                    continue;
+                
+                bool isUnderMouse = w.IsUnderMouse();
+                
+                if (_perfTrackingEnabled)
                     Allocator.CurrentOwnerId = w.OwnerId;
+                    
                 w.OnInput();
-                if (_perfTrackingEnabled && !(w is guideXOS.DefaultApps.TaskManager))
+                
+                if (_perfTrackingEnabled)
                     Allocator.CurrentOwnerId = 0;
+                
+                // If Task Manager is under the mouse and there's a click, consume it
+                if (isUnderMouse && Control.MouseButtons != MouseButtons.None) {
+                    MouseHandled = true;
+                    return; // Stop all input processing - Task Manager consumed the input
+                }
+            }
+            
+            // Second pass: Process all other windows in reverse order (front to back)
+            // Windows at the end of the list are on top (foreground)
+            for (int i = Windows.Count - 1; i >= 0; i--) {
+                var w = Windows[i];
+                if (!w.Visible)
+                    continue;
+                
+                // Skip Task Manager - already processed in first pass
+                if (w is guideXOS.DefaultApps.TaskManager)
+                    continue;
+                
+                // Check if this window is under the mouse
+                bool isUnderMouse = w.IsUnderMouse();
+                
+                // If a window under the mouse has handled input (via MouseHandled flag),
+                // stop processing input for windows behind it
+                if (MouseHandled && isUnderMouse) {
+                    break;
+                }
+                
+                if (_perfTrackingEnabled)
+                    Allocator.CurrentOwnerId = w.OwnerId;
+                    
+                w.OnInput();
+                
+                if (_perfTrackingEnabled)
+                    Allocator.CurrentOwnerId = 0;
+                
+                // If this window is under the mouse and consumed the click, stop processing
+                // This prevents windows behind it from receiving the click
+                if (isUnderMouse && Control.MouseButtons != MouseButtons.None) {
+                    MouseHandled = true;
+                    break;
+                }
             }
         }
         /// <summary>

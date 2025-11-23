@@ -9,5 +9,11 @@ namespace guideXOS.GUI {
         // Window slide animations (minimize/restore)
         public static bool EnableWindowSlideAnimations = false; // can be enabled later
         public static int WindowSlideDurationMs = 220;
+        
+        // Background rotation settings
+        public static bool EnableAutoBackgroundRotation = false;
+        public static int BackgroundRotationIntervalMinutes = 5; // 5 minutes default
+        public static bool EnableBackgroundFadeTransition = true;
+        public static int BackgroundFadeDurationMs = 1000; // 1 second fade
     }
 }
