@@ -93,6 +93,9 @@ namespace guideXOS.Misc {
                 BootSplash.Tick();
             }
 
+            // Cleanup boot splash resources before transitioning to desktop
+            BootSplash.Cleanup();
+
             KMain();
         }
 

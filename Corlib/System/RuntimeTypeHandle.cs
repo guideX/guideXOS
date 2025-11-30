@@ -1,4 +1,3 @@
-
 namespace System {
     public struct RuntimeTypeHandle {
         IntPtr Value;

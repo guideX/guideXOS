@@ -101,6 +101,11 @@ namespace guideXOS.GUI {
         public static bool IsAtRoot {
             get => Desktop.Dir.Length < 1;
         }
+        
+        // FIXED: Cache USB Drive labels to prevent per-frame allocations
+        private static string[] _usbDriveLabels = null;
+        private static int _lastUSBCount = -1;
+        
         /// <summary>
         /// Initialize
         /// </summary>
@@ -122,6 +127,8 @@ namespace guideXOS.GUI {
             _dirCacheFor = null;
             _dirCache = null;
             compFiles = null;
+            _lastUSBCount = -1;
+            _usbDriveLabels = null;
         }
         /// <summary>
         /// Bar Height
@@ -211,7 +218,6 @@ namespace guideXOS.GUI {
         /// <param name="audioIcon"></param>
         /// <param name="iconSize"></param>
         public static void Update(Image documentIcon, Image folderIcon, Image imageIcon, Image audioIcon, int iconSize) {
-            // Recompute document icon from current size selection (ignore passed image except for legacy callers)
             SetIconSize(iconSize);
             var docIcon = documentIcon;
             var names = GetDirectoryEntries();
@@ -233,33 +239,61 @@ namespace guideXOS.GUI {
                 }
                 ClickEvent("Computer Files", false, x, y, Apps.Length, clickable, leftDown);
                 uint col98 = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, folderIcon.Width + 8, folderIcon.Height + 8, col98);
+                // Better padding: centered icon with transparent background
                 Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                WindowManager.font.DrawString(x, y + fh, "Computer Files", fw + 32, WindowManager.font.FontSize * 3);
+                // Draw text centered below icon with proper spacing
+                int textWidth = WindowManager.font.MeasureString("Computer Files");
+                int textX = x + (folderIcon.Width / 2) - (textWidth / 2);
+                WindowManager.font.DrawString(textX, y + fh + 4, "Computer Files");
                 y += documentIcon.Height + devide;
                 // USB mass storage icons, one per connected device
                 if (Kernel.Drivers.USBStorage.Count > 0) {
                     int count = Kernel.Drivers.USBStorage.Count;
+                    
+                    // FIXED: Regenerate cached labels only if USB count changed
+                    if (_lastUSBCount != count) {
+                        // Dispose old labels
+                        if (_usbDriveLabels != null) {
+                            for (int i = 0; i < _usbDriveLabels.Length; i++) {
+                                if (_usbDriveLabels[i] != null) {
+                                    _usbDriveLabels[i].Dispose();
+                                }
+                            }
+                            _usbDriveLabels.Dispose();
+                        }
+                        
+                        // Create new labels
+                        _usbDriveLabels = new string[count];
+                        for (int i = 0; i < count; i++) {
+                            if (count == 1) {
+                                _usbDriveLabels[i] = "USB Drive";
+                            } else {
+                                string uNum = (i + 1).ToString();
+                                string temp = "USB Drive " + uNum;
+                                _usbDriveLabels[i] = temp;
+                                uNum.Dispose(); // FIXED: Dispose intermediate string
+                                // Note: temp becomes the cached label, so don't dispose it
+                            }
+                        }
+                        _lastUSBCount = count;
+                    }
+                    
                     for (int u = 0; u < count; u++) {
                         if (y + fh + devide > screenH - devide) {
                             y = devide;
                             x += fw + devide;
                         }
-                        string label;
-                        if (count == 1) {
-                            label = "USB Drive";
-                        } else {
-                            string uNum = (u + 1).ToString();
-                            label = "USB Drive " + uNum;
-                            uNum.Dispose(); // FIXED: Dispose intermediate string
-                        }
+                        // FIXED: Use only cached label - no duplicate creation!
+                        string label = _usbDriveLabels[u];
                         ClickEvent(label, true, x, y, 20000 + u, clickable, leftDown);
                         uint col = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                        Framebuffer.Graphics.FillRectangle(x - 4, y - 4, folderIcon.Width + 8, folderIcon.Height + 8, col);
                         Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                        WindowManager.font.DrawString(x, y + fh, label, fw + 32, WindowManager.font.FontSize * 3);
+                        // Draw text centered below icon
+                        int labelWidth = WindowManager.font.MeasureString(label);
+                        int labelX = x + (folderIcon.Width / 2) - (labelWidth / 2);
+                        WindowManager.font.DrawString(labelX, y + fh + 4, label);
                         y += documentIcon.Height + devide;
-                        label.Dispose();
+                        // FIXED: NEVER dispose cached labels - they are reused every frame!
                     }
                 }
                 if (y + fh + devide > screenH - devide) {
@@ -268,9 +302,11 @@ namespace guideXOS.GUI {
                 }
                 ClickEvent("Root", true, x, y, Apps.Length + 1, clickable, leftDown);
                 uint colRoot = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, folderIcon.Width + 8, folderIcon.Height + 8, colRoot);
                 Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                WindowManager.font.DrawString(x, y + fh, "Root", fw + 32, WindowManager.font.FontSize * 3);
+                // Draw text centered below icon
+                int rootTextWidth = WindowManager.font.MeasureString("Root");
+                int rootTextX = x + (folderIcon.Width / 2) - (rootTextWidth / 2);
+                WindowManager.font.DrawString(rootTextX, y + fh + 4, "Root");
                 y += documentIcon.Height + devide;
             }
             if (!HomeMode) {
@@ -280,9 +316,11 @@ namespace guideXOS.GUI {
                 }
                 ClickEvent("Desktop", false, x, y, -100, clickable, leftDown);
                 uint cDesk = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.FillRectangle(x - 4, y - 4, folderIcon.Width + 8, folderIcon.Height + 8, cDesk);
                 Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                WindowManager.font.DrawString(x, y + fh, "Desktop", fw + 32, WindowManager.font.FontSize * 3);
+                // Draw text centered below icon
+                int deskTextWidth = WindowManager.font.MeasureString("Desktop");
+                int deskTextX = x + (folderIcon.Width / 2) - (deskTextWidth / 2);
+                WindowManager.font.DrawString(deskTextX, y + fh + 4, "Desktop");
                 y += fh + devide;
                 for (int i = 0; i < names.Count; i++) {
                     if (y + fh + devide > screenH - devide) {
@@ -293,7 +331,7 @@ namespace guideXOS.GUI {
                     bool isDir = names[i].Attribute == FileAttribute.Directory;
                     ClickEvent(n, isDir, x, y, i + 1000, clickable, leftDown);
                     uint bg = UI.ButtonFillColor(x, y, documentIcon.Width, documentIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                    Framebuffer.Graphics.FillRectangle(x - 4, y - 4, documentIcon.Width + 8, documentIcon.Height + 8, bg);
+                    // Draw appropriate icon based on file type
                     if (n.EndsWith(".png") || n.EndsWith(".bmp")) {
                         Framebuffer.Graphics.DrawImage(x, y, imageIcon);
                     } else if (n.EndsWith(".wav")) {
@@ -303,7 +341,25 @@ namespace guideXOS.GUI {
                     } else {
                         Framebuffer.Graphics.DrawImage(x, y, docIcon);
                     }
-                    WindowManager.font.DrawString(x, y + fh, n, fw + 32, WindowManager.font.FontSize * 3);
+                    // Draw text centered below icon, truncate if too long
+                    string displayName = n;
+                    int maxTextWidth = fw + 32;
+                    int nameWidth = WindowManager.font.MeasureString(displayName);
+                    if (nameWidth > maxTextWidth) {
+                        // Truncate name if too long
+                        int ellipsisWidth = WindowManager.font.MeasureString("...");
+                        int availWidth = maxTextWidth - ellipsisWidth;
+                        int charCount = 0;
+                        for (int c = 0; c < displayName.Length; c++) {
+                            int w = WindowManager.font.MeasureString(displayName.Substring(0, c + 1));
+                            if (w > availWidth) break;
+                            charCount = c + 1;
+                        }
+                        displayName = displayName.Substring(0, charCount) + "...";
+                        nameWidth = WindowManager.font.MeasureString(displayName);
+                    }
+                    int nameX = x + (documentIcon.Width / 2) - (nameWidth / 2);
+                    WindowManager.font.DrawString(nameX, y + fh + 4, displayName);
                     y += fh + devide;
                 }
             }
@@ -395,9 +451,14 @@ namespace guideXOS.GUI {
                 return;
             }
             if (name == "Computer Files" && HomeMode) {
-                var cf = new ComputerFiles(300, 200, 540, 380);
-                WindowManager.MoveToEnd(cf);
-                cf.Visible = true;
+                // FIXED: Reuse existing ComputerFiles window instead of creating new one!
+                if (compFiles == null) {
+                    compFiles = new ComputerFiles(300, 200, 540, 380);
+                }
+                if (!compFiles.Visible) {
+                    compFiles.Visible = true;
+                }
+                WindowManager.MoveToEnd(compFiles); // Bring to front
                 return;
             }
             // Click on USB drive icon opens Computer Files too (when on Home desktop)
@@ -412,11 +473,16 @@ namespace guideXOS.GUI {
                         }
                     }
                 }
-                usbPrefix.Dispose();
+                // FIXED: NEVER dispose string literals - they are constants!
                 if (isUsb) {
-                    var cf = new ComputerFiles(300, 200, 540, 380);
-                    WindowManager.MoveToEnd(cf);
-                    cf.Visible = true;
+                    // FIXED: Reuse existing ComputerFiles window!
+                    if (compFiles == null) {
+                        compFiles = new ComputerFiles(300, 200, 540, 380);
+                    }
+                    if (!compFiles.Visible) {
+                        compFiles.Visible = true;
+                    }
+                    WindowManager.MoveToEnd(compFiles); // Bring to front
                     return;
                 }
             }

@@ -1,4 +1,3 @@
-
 namespace System {
     public struct Single {
         public override unsafe string ToString() {

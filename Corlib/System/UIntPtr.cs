@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-
 namespace System {
     public unsafe struct UIntPtr {
         void* _value;

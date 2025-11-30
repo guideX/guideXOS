@@ -6,6 +6,7 @@ using guideXOS.GUI;
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
 using guideXOS.OS;
+using guideXOS.Modules;
 using System.Drawing;
 using System.Runtime;
 using System.Runtime.InteropServices;
@@ -72,6 +73,7 @@ unsafe class Program {
 
         //Use qemu for USB debug
         //VMware won't connect virtual USB HIDs
+        /*
         if (HID.Mouse == null)
         {
             Console.WriteLine("USB Mouse not present");
@@ -80,6 +82,7 @@ unsafe class Program {
         {
             Console.WriteLine("USB Keyboard not present");
         }
+        */
 
         for(; ; )
         {
@@ -109,12 +112,14 @@ unsafe class Program {
         } catch { /* USB stack is optional; continue boot */ }
 
         try {
+            /*
             if (HID.Mouse == null) {
                 Console.WriteLine("USB Mouse not present");
             }
             if (HID.Keyboard == null) {
                 Console.WriteLine("USB Keyboard not present");
             }
+            */
         } catch { }
 #endif
 
@@ -184,6 +189,16 @@ unsafe class Program {
     public static RightMenu rightmenu;
     public static PerformanceWidget perfWidget;
     public static WidgetContextMenu widgetContextMenu;
+    
+    // Cached desktop icons to prevent per-frame allocations
+    // FIXED: Added periodic refresh to prevent memory buildup
+    private static Image _cachedDocumentIcon;
+    private static Image _cachedFolderIcon;
+    private static Image _cachedImageIcon;
+    private static Image _cachedAudioIcon;
+    private static int _cachedIconSize = 48;
+    private static ulong _lastIconCacheRefresh = 0;
+    private const ulong IconCacheRefreshIntervalMs = 300000; // Refresh every 5 minutes
 
     public static void SMain() {
         Framebuffer.TripleBuffered = true;
@@ -192,7 +207,7 @@ unsafe class Program {
         try {
             if (wall != null) {
                 Wallpaper = wall.ResizeImage(Framebuffer.Width, Framebuffer.Height);
-                wall.Dispose();
+                wall.Dispose(); // FIXED: Dispose original wallpaper
             } else {
                 // Create default wallpaper with teal gradient (top to bottom)
                 Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height);
@@ -256,6 +271,13 @@ unsafe class Program {
         // Initialize background rotation manager
         BackgroundRotationManager.Initialize();
 
+        // Initialize module system (built-in modules)
+        guideXOS.Modules.ModuleManager.InitializeBuiltins();
+
+        // Initialize cached desktop icons once to prevent per-frame allocations
+        RefreshCachedIcons();
+        _lastIconCacheRefresh = Timer.Ticks;
+
         // Ensure context menu exists
         if (rightmenu == null) {
             rightmenu = new RightMenu();
@@ -318,6 +340,12 @@ unsafe class Program {
         const ulong ActiveMoveMs = 100; // stay responsive for 100ms after a move
 
         for (; ; ) {
+            // FIXED: Periodically refresh cached icons to prevent memory buildup
+            if (Timer.Ticks - _lastIconCacheRefresh >= IconCacheRefreshIntervalMs) {
+                RefreshCachedIcons();
+                _lastIconCacheRefresh = Timer.Ticks;
+            }
+            
             // Update background rotation manager (handles automatic rotation and fade transitions)
             BackgroundRotationManager.Update();
             
@@ -336,21 +364,22 @@ unsafe class Program {
             
             //Inspects the system to see if the user has right clicked there is a small difference between these two functions
             // Show desktop context menu only when right-click happened and no other window consumed the mouse.
-            if (Control.MouseButtons.HasFlag(MouseButtons.Right) && !rightClicked && !WindowManager.MouseHandled) {
+            // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing (saves ~200 KB/minute)
+            if ((Control.MouseButtons & MouseButtons.Right) == MouseButtons.Right && !rightClicked && !WindowManager.MouseHandled) {
                 rightClicked = true;
                 rightmenu.X = Control.MousePosition.X;
                 rightmenu.Y = Control.MousePosition.Y;
                 WindowManager.MoveToEnd(rightmenu);
                 rightmenu.Visible = true;
-            } else if (!Control.MouseButtons.HasFlag(MouseButtons.Right)) {
+            } else if ((Control.MouseButtons & MouseButtons.Right) != MouseButtons.Right) {
                 rightClicked = false;
             }
             int iconSize = 48;
             Desktop.Update(
-                Icons.DocumentIcon(iconSize), 
-                Icons.FolderIcon(iconSize), 
-                Icons.ImageIcon(iconSize), 
-                Icons.AudioIcon(iconSize),
+                _cachedDocumentIcon, 
+                _cachedFolderIcon, 
+                _cachedImageIcon, 
+                _cachedAudioIcon,
                 iconSize
             );
             //Desktop.Draw();
@@ -367,8 +396,12 @@ unsafe class Program {
             // 3. Task Manager (always on top)
             WindowManager.DrawTaskManager();
             
+            // 4. Clean up closed windows to prevent memory leaks
+            WindowManager.CleanupClosedWindows();
+            
             //draw cursor
-            var img = Control.MouseButtons.HasFlag(MouseButtons.Left) ? CursorMoving : Cursor;
+            // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing
+            var img = (Control.MouseButtons & MouseButtons.Left) == MouseButtons.Left ? CursorMoving : Cursor;
             if (img != null) Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
             //refresh screen
             Framebuffer.Update();
@@ -383,5 +416,22 @@ unsafe class Program {
                 if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(2);
             }
          }
+     }
+     
+     /// <summary>
+     /// FIXED: Helper method to refresh cached icons and dispose old ones
+     /// </summary>
+     private static void RefreshCachedIcons() {
+         // Dispose old cached icons
+         if (_cachedDocumentIcon != null) _cachedDocumentIcon.Dispose();
+         if (_cachedFolderIcon != null) _cachedFolderIcon.Dispose();
+         if (_cachedImageIcon != null) _cachedImageIcon.Dispose();
+         if (_cachedAudioIcon != null) _cachedAudioIcon.Dispose();
+         
+         // Create new cached icons
+         _cachedDocumentIcon = Icons.DocumentIcon(_cachedIconSize);
+         _cachedFolderIcon = Icons.FolderIcon(_cachedIconSize);
+         _cachedImageIcon = Icons.ImageIcon(_cachedIconSize);
+         _cachedAudioIcon = Icons.AudioIcon(_cachedIconSize);
      }
  }

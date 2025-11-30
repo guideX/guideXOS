@@ -865,16 +865,40 @@ namespace guideXOS.GUI {
         }
 
         public override void Dispose() {
-            // Clean up thumbnails
+            // Clean up thumbnails - dispose each image, then clear the list
             if (_thumbnails != null) {
                 for (int i = 0; i < _thumbnails.Count; i++) {
-                    if (_thumbnails[i] != null) _thumbnails[i].Dispose();
+                    if (_thumbnails[i] != null) {
+                        _thumbnails[i].Dispose();
+                    }
                 }
-                _thumbnails.Dispose();
+                _thumbnails.Clear(); // Clear the list instead of calling Dispose on it
             }
+            
+            // Clean up background paths list
             if (_backgroundPaths != null) {
-                _backgroundPaths.Dispose();
+                _backgroundPaths.Clear(); // Clear the list instead of calling Dispose on it
             }
+            
+            // Clean up resolution labels array
+            if (_resLabels != null) {
+                for (int i = 0; i < _resLabels.Length; i++) {
+                    if (_resLabels[i] != null) {
+                        _resLabels[i].Dispose();
+                    }
+                }
+            }
+            
+            // Dispose child dialogs if they exist
+            if (_openDlg != null && _openDlg.Visible) {
+                _openDlg.Visible = false;
+                _openDlg.Dispose();
+            }
+            if (_colorDlg != null && _colorDlg.Visible) {
+                _colorDlg.Visible = false;
+                _colorDlg.Dispose();
+            }
+            
             base.Dispose();
         }
     }

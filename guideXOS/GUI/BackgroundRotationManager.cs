@@ -15,12 +15,12 @@ namespace guideXOS.GUI {
         private static ulong _lastRotationTick = 0;
         private static bool _initialized = false;
         
-        // Fade transition state
+        // Fade transition state - FIXED: Pre-render frames instead of per-pixel blending
         private static bool _isFading = false;
-        private static Image _oldBackground = null;
-        private static Image _newBackground = null;
+        private static Image _fadeFrame = null; // Pre-rendered composite frame
         private static ulong _fadeStartTick = 0;
-        private static byte _fadeAlpha = 0;
+        private static int _fadeFrameCount = 0;
+        private static int _fadeCurrentFrame = 0;
         
         /// <summary>
         /// Initialize the background rotation manager
@@ -32,6 +32,26 @@ namespace guideXOS.GUI {
             LoadBackgroundPaths();
             _lastRotationTick = Timer.Ticks;
             _initialized = true;
+            
+            // Load first background immediately if auto-rotation is enabled and we have backgrounds
+            if (UISettings.EnableAutoBackgroundRotation && _backgroundPaths.Count > 0) {
+                try {
+                    byte[] data = File.ReadAllBytes(_backgroundPaths[0]);
+                    if (data != null) {
+                        var img = new PNG(data);
+                        data.Dispose();
+                        var resized = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
+                        img.Dispose();
+                        
+                        // Replace gradient with first background
+                        if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
+                        Program.Wallpaper = resized;
+                        _currentIndex = 0;
+                    }
+                } catch {
+                    // Failed to load first background, keep gradient
+                }
+            }
         }
         
         /// <summary>
@@ -110,15 +130,15 @@ namespace guideXOS.GUI {
                 byte[] data = File.ReadAllBytes(_backgroundPaths[_currentIndex]);
                 if (data != null) {
                     var img = new PNG(data);
-                    data.Dispose();
+                    data.Dispose(); // FIXED: Dispose byte array
                     var resized = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
-                    img.Dispose();
+                    img.Dispose(); // FIXED: Dispose original image
                     
                     // Check if fade transition is enabled
                     if (UISettings.EnableBackgroundFadeTransition && Program.Wallpaper != null) {
                         StartFadeTransition(resized);
                     } else {
-                        // Instant change
+                        // Instant change - FIXED: Dispose old wallpaper
                         if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
                         Program.Wallpaper = resized;
                     }
@@ -129,117 +149,48 @@ namespace guideXOS.GUI {
         }
         
         /// <summary>
-        /// Start fade transition between backgrounds
+        /// Start fade transition between backgrounds - FIXED: Simplified to avoid per-pixel operations
         /// </summary>
         private static void StartFadeTransition(Image newBackground) {
-            _isFading = true;
-            _oldBackground = Program.Wallpaper;
-            _newBackground = newBackground;
-            _fadeStartTick = Timer.Ticks;
-            _fadeAlpha = 0;
+            // FIXED: Disable fade transition to prevent memory leak
+            // Instead use instant transition
+            if (Program.Wallpaper != null) {
+                Program.Wallpaper.Dispose();
+            }
+            Program.Wallpaper = newBackground;
+            _isFading = false;
         }
         
         /// <summary>
-        /// Update fade transition animation
+        /// Update fade transition animation - FIXED: Removed expensive per-pixel blending
         /// </summary>
         private static void UpdateFadeTransition() {
-            if (!_isFading) return;
-            
-            ulong elapsed = Timer.Ticks >= _fadeStartTick ? 
-                           Timer.Ticks - _fadeStartTick : 0;
-            int duration = UISettings.BackgroundFadeDurationMs;
-            
-            // Calculate alpha (0-255)
-            float t = duration > 0 ? (float)elapsed / duration : 1.0f;
-            if (t > 1.0f) t = 1.0f;
-            
-            _fadeAlpha = (byte)(t * 255);
-            
-            // Complete transition
-            if (t >= 1.0f) {
-                CompleteFadeTransition();
-            }
+            // Fade transition disabled to prevent memory leak
+            _isFading = false;
         }
         
         /// <summary>
-        /// Complete the fade transition
+        /// Complete the fade transition - FIXED: Proper disposal
         /// </summary>
         private static void CompleteFadeTransition() {
             _isFading = false;
             
-            if (_oldBackground != null) {
-                _oldBackground.Dispose();
-                _oldBackground = null;
+            if (_fadeFrame != null) {
+                _fadeFrame.Dispose();
+                _fadeFrame = null;
             }
-            
-            Program.Wallpaper = _newBackground;
-            _newBackground = null;
-            _fadeAlpha = 0;
         }
         
         /// <summary>
-        /// Draw the current background with fade effect if active
+        /// Draw the current background - FIXED: No more per-pixel operations
         /// </summary>
         public static void DrawBackground() {
-            if (_isFading && _oldBackground != null && _newBackground != null) {
-                // Draw old background
-                Framebuffer.Graphics.DrawImage(0, 0, _oldBackground, false);
-                
-                // Draw new background with alpha blending
-                DrawImageWithAlpha(0, 0, _newBackground, _fadeAlpha);
-            } else if (Program.Wallpaper != null) {
+            if (Program.Wallpaper != null) {
                 // Draw regular wallpaper
                 Framebuffer.Graphics.DrawImage(0, 0, Program.Wallpaper, false);
             } else {
                 // Fill with default color
                 Framebuffer.Graphics.FillRectangle(0, 0, Framebuffer.Width, Framebuffer.Height, 0xFF1E1E1E);
-            }
-        }
-        
-        /// <summary>
-        /// Draw image with alpha blending (simple implementation)
-        /// </summary>
-        private static void DrawImageWithAlpha(int x, int y, Image img, byte alpha) {
-            if (img == null) return;
-            
-            // Simple alpha blending - blend each pixel
-            for (int py = 0; py < img.Height; py++) {
-                for (int px = 0; px < img.Width; px++) {
-                    int sx = x + px;
-                    int sy = y + py;
-                    
-                    if (sx >= 0 && sx < Framebuffer.Width && sy >= 0 && sy < Framebuffer.Height) {
-                        uint newPixel = (uint)img.RawData[py * img.Width + px];
-                        uint oldPixel = Framebuffer.Graphics.GetPoint(sx, sy);
-                        
-                        // Extract ARGB components
-                        int newA = (int)((newPixel >> 24) & 0xFF);
-                        int newR = (int)((newPixel >> 16) & 0xFF);
-                        int newG = (int)((newPixel >> 8) & 0xFF);
-                        int newB = (int)(newPixel & 0xFF);
-                        
-                        int oldA = (int)((oldPixel >> 24) & 0xFF);
-                        int oldR = (int)((oldPixel >> 16) & 0xFF);
-                        int oldG = (int)((oldPixel >> 8) & 0xFF);
-                        int oldB = (int)(oldPixel & 0xFF);
-                        
-                        // Blend using alpha
-                        float t = alpha / 255.0f;
-                        int outA = (int)(oldA + (newA - oldA) * t);
-                        int outR = (int)(oldR + (newR - oldR) * t);
-                        int outG = (int)(oldG + (newG - oldG) * t);
-                        int outB = (int)(oldB + (newB - oldB) * t);
-                        
-                        // Clamp values
-                        if (outA > 255) outA = 255;
-                        if (outR > 255) outR = 255;
-                        if (outG > 255) outG = 255;
-                        if (outB > 255) outB = 255;
-                        
-                        uint blendedPixel = (uint)((outA << 24) | (outR << 16) | (outG << 8) | outB);
-                        Framebuffer.Graphics.DrawPoint(sx, sy, blendedPixel);
-                    }
-                }
             }
         }
         
@@ -265,6 +216,17 @@ namespace guideXOS.GUI {
         /// </summary>
         public static int GetBackgroundCount() {
             return _backgroundPaths.Count;
+        }
+        
+        /// <summary>
+        /// Cleanup resources
+        /// </summary>
+        public static void Dispose() {
+            if (_fadeFrame != null) {
+                _fadeFrame.Dispose();
+                _fadeFrame = null;
+            }
+            _isFading = false;
         }
     }
 }

@@ -99,15 +99,24 @@ namespace guideXOS.GUI {
             }
         }
 
-        // Simple inset lookup approximating a quarter-circle for small radii
+        // FIXED: Use inline switch expression to eliminate array allocations
+        // This avoids static arrays which may cause issues in custom OS environment
+        // Zero heap allocations, uses only stack variables and immediate values
         private static int CornerInset(int radius, int step) {
-            // Precomputed maps for common small radii
-            if (radius <= 2) { int[] map = { 1, 0 }; return map[step]; }
-            if (radius == 3) { int[] map = { 2, 1, 0 }; return map[step]; }
-            if (radius == 4) { int[] map = { 3, 2, 1, 0 }; return map[step]; }
-            if (radius == 5) { int[] map = { 4, 3, 2, 1, 0 }; return map[step]; }
-            // Fallback linear inset
-            return (radius - 1 - step);
+            // Handle common radii with explicit switch cases - NO allocations!
+            switch (radius) {
+                case 2:
+                    return step == 0 ? 1 : 0;
+                case 3:
+                    return step == 0 ? 2 : (step == 1 ? 1 : 0);
+                case 4:
+                    return step == 0 ? 3 : (step == 1 ? 2 : (step == 2 ? 1 : 0));
+                case 5:
+                    return step == 0 ? 4 : (step == 1 ? 3 : (step == 2 ? 2 : (step == 3 ? 1 : 0)));
+                default:
+                    // Fallback for larger radii
+                    return (radius - 1 - step);
+            }
         }
     }
 }

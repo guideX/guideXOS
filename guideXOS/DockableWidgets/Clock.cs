@@ -18,6 +18,11 @@ namespace guideXOS.DockableWidgets {
         private const int WidgetWidth = 200;
         private const int WidgetHeight = 200;
         
+        // FIXED: Cache time string to prevent per-frame allocations
+        private static string _cachedTimeString = null;
+        private static int _lastMinute = -1;
+        private static int _lastHour = -1;
+        
         public override int PreferredHeight => WidgetHeight - Padding * 2;
         
         /// <summary>
@@ -97,20 +102,32 @@ namespace guideXOS.DockableWidgets {
         }
         
         public override void DrawContent(int contentX, int contentY, int contentWidth) {
-            // Draw digital time at top
-            string devider = ":";
-            string shour = RTC.Hour.ToString();
-            string sminute = RTC.Minute.ToString();
-            string ssecond = RTC.Second.ToString();
-            string result = shour + devider + sminute + devider + ssecond;
-            WindowManager.font.DrawString(contentX + contentWidth / 2 - WindowManager.font.MeasureString(result) / 2, contentY + 4, result);
-            devider.Dispose();
-            shour.Dispose();
-            sminute.Dispose();
-            ssecond.Dispose();
-            result.Dispose();
+            // FIXED: Cache time string and only update when minute changes to prevent per-frame allocations
+            if (_cachedTimeString == null || _lastMinute != RTC.Minute || _lastHour != RTC.Hour) {
+                // Dispose old cached string
+                if (_cachedTimeString != null) {
+                    _cachedTimeString.Dispose();
+                }
+                
+                // Create new time string
+                string devider = ":";
+                string shour = RTC.Hour.ToString();
+                string sminute = RTC.Minute < 10 ? "0" + RTC.Minute.ToString() : RTC.Minute.ToString();
+                _cachedTimeString = shour + devider + sminute; // Removed seconds from display
+                
+                // Dispose temporary strings
+                devider.Dispose();
+                shour.Dispose();
+                sminute.Dispose();
+                
+                _lastMinute = RTC.Minute;
+                _lastHour = RTC.Hour;
+            }
             
-            // Draw analog clock hands
+            // Draw cached time string (no allocations per frame)
+            WindowManager.font.DrawString(contentX + contentWidth / 2 - WindowManager.font.MeasureString(_cachedTimeString) / 2, contentY + 4, _cachedTimeString);
+            
+            // Draw analog clock hands (keep second hand)
             int centerX = contentX + contentWidth / 2;
             int centerY = contentY + PreferredHeight / 2 + 20; // Offset down a bit from digital time
             

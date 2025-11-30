@@ -6,14 +6,19 @@ using System.Windows.Forms;
 
 namespace guideXOS.GUI {
     /// <summary>
-    /// Visual Effects Settings Window - Exposes all animation settings and GUI-related parameters
+    /// Visual Effects Settings Window - Comprehensive settings for all GUI parameters organized in tabs
     /// </summary>
     internal class VisualEffectsSettings : Window {
         private int _padding = 20;
-        private int _lineHeight = 48;
-        private int _labelWidth = 280;
-        private int _sliderWidth = 240;
+        private int _lineHeight = 44;
+        private int _labelWidth = 300;
+        private int _sliderWidth = 220;
         private int _checkboxSize = 24;
+        
+        // Tab system
+        private int _tabH = 40;
+        private int _tabGap = 10;
+        private int _currentTab = 0; // 0=Animations, 1=Visual Effects, 2=Window Rendering, 3=Performance, 4=Widgets, 5=Colors
         
         // Scroll state
         private int _scrollY = 0;
@@ -24,57 +29,144 @@ namespace guideXOS.GUI {
         // Slider state
         private int _draggingSlider = -1;
         
-        // Settings (local copies that get applied when clicking Apply)
+        // Button state
+        private bool _btnClickLatch = false;
+        
+        // Local copies of settings - Animations Tab
         private bool _enableFadeAnimations;
         private int _fadeInDuration;
         private int _fadeOutDuration;
         private bool _enableWindowSlideAnimations;
         private int _windowSlideDuration;
+        private bool _enableFadeOverlay;
+        private bool _enableAnimationUpdates;
         
-        // Background rotation settings
+        // Visual Effects Tab
+        private bool _enableBlurredTitleBars;
+        private bool _enableTransparentWindows;
+        private bool _enableWindowGlow;
+        private bool _enableRoundedCorners;
+        private bool _enableButtonHoverEffects;
+        private bool _enableResizeGrip;
+        private bool _enableBlurCaching;
+        private bool _enableBlurCacheInvalidation;
+        private bool _enableBlurCacheDisposal;
+        
+        // Window Rendering Tab
+        private bool _enableWindowTitles;
+        private bool _enableWindowBorders;
+        private bool _enableTitleBarButtons;
+        private bool _enableTitleBarBackground;
+        private bool _enableWindowContentBackground;
+        private bool _enableButtonBackgrounds;
+        private bool _enableButtonBorders;
+        private bool _enableButtonIcons;
+        private bool _enableTaskbarIcons;
+        private int _buttonSizeOffset;
+        private int _buttonSpacing;
+        
+        // Performance Tab
+        private bool _enableDrawCallCaching;
+        private bool _enableGeometryBatching;
+        private bool _skipOffscreenRendering;
+        private bool _skipMinimizedRendering;
+        private bool _skipInvisibleRendering;
+        private bool _checkFramebufferBeforeRender;
+        private bool _checkFontBeforeRender;
+        private bool _enableEarlyReturnOptimizations;
+        
+        // Widget Tab
+        private bool _enableWidgetRendering;
+        private bool _enableWidgetTransparency;
+        private bool _enableWidgetBorders;
+        private bool _enableWidgetShadows;
+        private bool _enableWidgetFadeAnimations;
+        private bool _enableWidgetHoverAnimations;
+        private int _widgetFadeInDuration;
+        private int _widgetFadeOutDuration;
+        private int _widgetDefaultRefreshRate;
+        
+        // Background Rotation Tab (added to Visual Effects)
         private bool _enableAutoBackgroundRotation;
-        private int _backgroundRotationInterval; // in minutes
+        private int _backgroundRotationInterval;
         private bool _enableBackgroundFadeTransition;
         private int _backgroundFadeDuration;
         
-        // Window frame rate related
-        private int _windowFrameDelay = 2; // Thread.Sleep value in main loop
-        
-        // Animation easing (if Animator exists)
-        private int _animationSpeed = 150; // Generic animation speed
-        
-        // UI responsiveness
-        private int _mouseResponsiveMs = 100; // ActiveMoveMs from Program.cs
-        
-        // Button state
-        private bool _btnClickLatch = false;
-        
-        public VisualEffectsSettings(int X, int Y) : base(X, Y, 700, 600) {
+        public VisualEffectsSettings(int X, int Y) : base(X, Y, 900, 700) {
             IsResizable = false;
             ShowInTaskbar = true;
             ShowMaximize = false;
             ShowMinimize = true;
             ShowTombstone = true;
-            Title = "Visual Effects";
+            Title = "Visual Effects & UI Settings";
             
-            // Load current settings
+            LoadSettings();
+        }
+        
+        private void LoadSettings() {
+            // Animations
             _enableFadeAnimations = UISettings.EnableFadeAnimations;
             _fadeInDuration = UISettings.FadeInDurationMs;
             _fadeOutDuration = UISettings.FadeOutDurationMs;
             _enableWindowSlideAnimations = UISettings.EnableWindowSlideAnimations;
             _windowSlideDuration = UISettings.WindowSlideDurationMs;
+            _enableFadeOverlay = UISettings.EnableFadeOverlay;
+            _enableAnimationUpdates = UISettings.EnableAnimationUpdates;
             
-            // Load background rotation settings
+            // Visual Effects
+            _enableBlurredTitleBars = UISettings.EnableBlurredTitleBars;
+            _enableTransparentWindows = UISettings.EnableTransparentWindows;
+            _enableWindowGlow = UISettings.EnableWindowGlow;
+            _enableRoundedCorners = UISettings.EnableRoundedCorners;
+            _enableButtonHoverEffects = UISettings.EnableButtonHoverEffects;
+            _enableResizeGrip = UISettings.EnableResizeGrip;
+            _enableBlurCaching = UISettings.EnableBlurCaching;
+            _enableBlurCacheInvalidation = UISettings.EnableBlurCacheInvalidation;
+            _enableBlurCacheDisposal = UISettings.EnableBlurCacheDisposal;
+            
+            // Background Rotation
             _enableAutoBackgroundRotation = UISettings.EnableAutoBackgroundRotation;
             _backgroundRotationInterval = UISettings.BackgroundRotationIntervalMinutes;
             _enableBackgroundFadeTransition = UISettings.EnableBackgroundFadeTransition;
             _backgroundFadeDuration = UISettings.BackgroundFadeDurationMs;
+            
+            // Window Rendering
+            _enableWindowTitles = UISettings.EnableWindowTitles;
+            _enableWindowBorders = UISettings.EnableWindowBorders;
+            _enableTitleBarButtons = UISettings.EnableTitleBarButtons;
+            _enableTitleBarBackground = UISettings.EnableTitleBarBackground;
+            _enableWindowContentBackground = UISettings.EnableWindowContentBackground;
+            _enableButtonBackgrounds = UISettings.EnableButtonBackgrounds;
+            _enableButtonBorders = UISettings.EnableButtonBorders;
+            _enableButtonIcons = UISettings.EnableButtonIcons;
+            _enableTaskbarIcons = UISettings.EnableTaskbarIcons;
+            _buttonSizeOffset = UISettings.ButtonSizeOffset;
+            _buttonSpacing = UISettings.ButtonSpacing;
+            
+            // Performance
+            _enableDrawCallCaching = UISettings.EnableDrawCallCaching;
+            _enableGeometryBatching = UISettings.EnableGeometryBatching;
+            _skipOffscreenRendering = UISettings.SkipOffscreenRendering;
+            _skipMinimizedRendering = UISettings.SkipMinimizedRendering;
+            _skipInvisibleRendering = UISettings.SkipInvisibleRendering;
+            _checkFramebufferBeforeRender = UISettings.CheckFramebufferBeforeRender;
+            _checkFontBeforeRender = UISettings.CheckFontBeforeRender;
+            _enableEarlyReturnOptimizations = UISettings.EnableEarlyReturnOptimizations;
+            
+            // Widgets
+            _enableWidgetRendering = UISettings.EnableWidgetRendering;
+            _enableWidgetTransparency = UISettings.EnableWidgetTransparency;
+            _enableWidgetBorders = UISettings.EnableWidgetBorders;
+            _enableWidgetShadows = UISettings.EnableWidgetShadows;
+            _enableWidgetFadeAnimations = UISettings.EnableWidgetFadeAnimations;
+            _enableWidgetHoverAnimations = UISettings.EnableWidgetHoverAnimations;
+            _widgetFadeInDuration = UISettings.WidgetFadeInDurationMs;
+            _widgetFadeOutDuration = UISettings.WidgetFadeOutDurationMs;
+            _widgetDefaultRefreshRate = UISettings.WidgetDefaultRefreshRateMs;
         }
         
         public override void OnInput() {
             if (!Visible) return;
-            
-            // Only process input if mouse is within the window bounds
             if (!IsUnderMouse()) {
                 base.OnInput();
                 return;
@@ -87,20 +179,25 @@ namespace guideXOS.GUI {
             int cx = X + _padding;
             int cy = Y + _padding;
             int cw = Width - _padding * 2;
-            int contentH = Height - _padding * 2 - 60; // Leave space for Apply/Reset buttons
-            
-            // Scrollbar handling
-            int sbW = 12;
-            int sbX = X + Width - _padding - sbW;
-            int sbY = cy;
-            int sbH = contentH;
-            
-            int totalHeight = _lineHeight * 17; // Increased for new background rotation settings
-            int maxScroll = totalHeight > contentH ? totalHeight - contentH : 0;
+            int contentY = cy + _tabH + _tabGap;
+            int contentH = Height - _padding * 2 - _tabH - _tabGap - 60;
             
             if (leftDown) {
                 if (!_btnClickLatch) {
-                    // Check Apply and Reset buttons FIRST (before base.OnInput and scrollbar)
+                    // Tab clicks
+                    int tabW = (cw - _tabGap * 5) / 6; // 6 tabs
+                    int tabY = cy;
+                    for (int i = 0; i < 6; i++) {
+                        int tabX = cx + i * (tabW + _tabGap);
+                        if (mx >= tabX && mx <= tabX + tabW && my >= tabY && my <= tabY + _tabH) {
+                            _currentTab = i;
+                            _scrollY = 0; // Reset scroll when switching tabs
+                            _btnClickLatch = true;
+                            return;
+                        }
+                    }
+                    
+                    // Apply and Reset buttons
                     int btnW = 120;
                     int btnH = 38;
                     int btnY = Y + Height - _padding - btnH - 10;
@@ -110,19 +207,22 @@ namespace guideXOS.GUI {
                     if (mx >= applyX && mx <= applyX + btnW && my >= btnY && my <= btnY + btnH) {
                         ApplySettings();
                         _btnClickLatch = true;
-                        WindowManager.MouseHandled = true;
                         return;
                     }
                     
                     if (mx >= resetX && mx <= resetX + btnW && my >= btnY && my <= btnY + btnH) {
                         ResetToDefaults();
                         _btnClickLatch = true;
-                        WindowManager.MouseHandled = true;
                         return;
                     }
                 }
                 
-                // Check scrollbar drag (after buttons)
+                // Scrollbar handling
+                int sbW = 12;
+                int sbX = X + Width - _padding - sbW;
+                int sbY = contentY;
+                int sbH = contentH;
+                
                 if (!_scrollDragging && !_btnClickLatch) {
                     if (mx >= sbX && mx <= sbX + sbW && my >= sbY && my <= sbY + sbH) {
                         _scrollDragging = true;
@@ -131,125 +231,9 @@ namespace guideXOS.GUI {
                     }
                 }
                 
+                // Process tab-specific inputs
                 if (!_btnClickLatch && !_scrollDragging) {
-                    // Check checkboxes
-                    int currentY = cy - _scrollY;
-                    
-                    // Fade Animations checkbox
-                    currentY += _lineHeight;
-                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
-                        _enableFadeAnimations = !_enableFadeAnimations;
-                        _btnClickLatch = true;
-                    }
-                    
-                    // Slide Animations checkbox
-                    currentY += _lineHeight * 3; // Skip fade duration sliders
-                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
-                        _enableWindowSlideAnimations = !_enableWindowSlideAnimations;
-                        _btnClickLatch = true;
-                    }
-                    
-                    // Background rotation section - skip past window animation settings
-                    currentY += _lineHeight * 3; // Skip slide duration, performance section title, frame delay
-                    
-                    // Auto Background Rotation checkbox
-                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
-                        _enableAutoBackgroundRotation = !_enableAutoBackgroundRotation;
-                        _btnClickLatch = true;
-                    }
-                    
-                    // Background Fade Transition checkbox
-                    currentY += _lineHeight * 2; // Skip rotation interval slider
-                    if (mx >= cx && mx <= cx + _checkboxSize && my >= currentY && my <= currentY + _checkboxSize) {
-                        _enableBackgroundFadeTransition = !_enableBackgroundFadeTransition;
-                        _btnClickLatch = true;
-                    }
-                    
-                    // Check sliders
-                    int sliderY = cy + _lineHeight - _scrollY;
-                    
-                    // Fade In Duration slider
-                    sliderY += _lineHeight;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 0;
-                    }
-                    
-                    // Fade Out Duration slider
-                    sliderY += _lineHeight;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 1;
-                    }
-                    
-                    // Window Slide Duration slider
-                    sliderY += _lineHeight * 2;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 2;
-                    }
-                    
-                    // Window Frame Delay slider (skipped in new layout)
-                    sliderY += _lineHeight * 2;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 3;
-                    }
-                    
-                    // Background Rotation Interval slider
-                    sliderY += _lineHeight * 2;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 6;
-                    }
-                    
-                    // Background Fade Duration slider
-                    sliderY += _lineHeight * 2;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 7;
-                    }
-                    
-                    // Animation Speed slider (moved down)
-                    sliderY += _lineHeight * 2;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 4;
-                    }
-                    
-                    // Mouse Responsive Time slider
-                    sliderY += _lineHeight;
-                    if (my >= sliderY + 8 && my <= sliderY + 24 && mx >= cx + _labelWidth && mx <= cx + _labelWidth + _sliderWidth) {
-                        _draggingSlider = 5;
-                    }
-                }
-                
-                // Handle slider dragging
-                if (_draggingSlider >= 0) {
-                    int sliderX = cx + _labelWidth;
-                    float t = (float)(mx - sliderX) / _sliderWidth;
-                    if (t < 0) t = 0;
-                    if (t > 1) t = 1;
-                    
-                    switch (_draggingSlider) {
-                        case 0: // Fade In Duration (50-500ms)
-                            _fadeInDuration = (int)(50 + t * 450);
-                            break;
-                        case 1: // Fade Out Duration (50-500ms)
-                            _fadeOutDuration = (int)(50 + t * 450);
-                            break;
-                        case 2: // Window Slide Duration (50-500ms)
-                            _windowSlideDuration = (int)(50 + t * 450);
-                            break;
-                        case 3: // Window Frame Delay (0-10ms)
-                            _windowFrameDelay = (int)(t * 10);
-                            break;
-                        case 4: // Animation Speed (50-500ms)
-                            _animationSpeed = (int)(50 + t * 450);
-                            break;
-                        case 5: // Mouse Responsive Time (0-200ms)
-                            _mouseResponsiveMs = (int)(t * 200);
-                            break;
-                        case 6: // Background Rotation Interval (1-30 minutes)
-                            _backgroundRotationInterval = (int)(1 + t * 29);
-                            break;
-                        case 7: // Background Fade Duration (200-3000ms)
-                            _backgroundFadeDuration = (int)(200 + t * 2800);
-                            break;
-                    }
+                    ProcessTabInput(mx, my, cx, contentY, contentH);
                 }
                 
             } else {
@@ -258,19 +242,269 @@ namespace guideXOS.GUI {
                 _btnClickLatch = false;
             }
             
-            // Update scroll position during drag
+            // Update scroll position
             if (_scrollDragging) {
+                int totalHeight = GetCurrentTabHeight();
+                int maxScroll = totalHeight > contentH ? totalHeight - contentH : 0;
                 int dy = my - _scrollStartY;
                 _scrollY = _scrollStartScroll + dy;
                 if (_scrollY < 0) _scrollY = 0;
                 if (_scrollY > maxScroll) _scrollY = maxScroll;
             }
             
-            // Call base.OnInput() AFTER processing our buttons to allow title bar dragging, etc.
-            // But only if we haven't handled the mouse event ourselves
             if (!_btnClickLatch && !_scrollDragging && _draggingSlider < 0) {
                 base.OnInput();
             }
+        }
+        
+        private void ProcessTabInput(int mx, int my, int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            switch (_currentTab) {
+                case 0: ProcessAnimationsInput(mx, my, cx, currentY, contentY, contentH); break;
+                case 1: ProcessVisualEffectsInput(mx, my, cx, currentY, contentY, contentH); break;
+                case 2: ProcessWindowRenderingInput(mx, my, cx, currentY, contentY, contentH); break;
+                case 3: ProcessPerformanceInput(mx, my, cx, currentY, contentY, contentH); break;
+                case 4: ProcessWidgetsInput(mx, my, cx, currentY, contentY, contentH); break;
+            }
+        }
+        
+        private void ProcessAnimationsInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            // Checkboxes
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableFadeAnimations = !_enableFadeAnimations; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Fade In slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 0; }
+            currentY += _lineHeight;
+            
+            // Fade Out slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 1; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWindowSlideAnimations = !_enableWindowSlideAnimations; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Slide Duration slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 2; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableFadeOverlay = !_enableFadeOverlay; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableAnimationUpdates = !_enableAnimationUpdates; _btnClickLatch = true; return; }
+            
+            // Handle slider dragging
+            if (_draggingSlider >= 0) {
+                float t = (float)(mx - (cx + _labelWidth)) / _sliderWidth;
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                
+                switch (_draggingSlider) {
+                    case 0: _fadeInDuration = (int)(50 + t * 950); break; // 50-1000ms
+                    case 1: _fadeOutDuration = (int)(50 + t * 950); break;
+                    case 2: _windowSlideDuration = (int)(50 + t * 950); break;
+                }
+            }
+        }
+        
+        private void ProcessVisualEffectsInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableBlurredTitleBars = !_enableBlurredTitleBars; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableTransparentWindows = !_enableTransparentWindows; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWindowGlow = !_enableWindowGlow; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableRoundedCorners = !_enableRoundedCorners; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableButtonHoverEffects = !_enableButtonHoverEffects; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableResizeGrip = !_enableResizeGrip; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            currentY += _lineHeight; // Skip subtitle
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableBlurCaching = !_enableBlurCaching; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableBlurCacheInvalidation = !_enableBlurCacheInvalidation; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableBlurCacheDisposal = !_enableBlurCacheDisposal; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            currentY += _lineHeight; // Skip subtitle
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableAutoBackgroundRotation = !_enableAutoBackgroundRotation; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Background Rotation Interval slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 10; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableBackgroundFadeTransition = !_enableBackgroundFadeTransition; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Background Fade Duration slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 11; }
+            
+            // Handle slider dragging
+            if (_draggingSlider >= 0) {
+                float t = (float)(mx - (cx + _labelWidth)) / _sliderWidth;
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                
+                switch (_draggingSlider) {
+                    case 10: _backgroundRotationInterval = (int)(1 + t * 59); break; // 1-60 minutes
+                    case 11: _backgroundFadeDuration = (int)(200 + t * 4800); break; // 200-5000ms
+                }
+            }
+        }
+        
+        private void ProcessWindowRenderingInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWindowTitles = !_enableWindowTitles; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWindowBorders = !_enableWindowBorders; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableTitleBarButtons = !_enableTitleBarButtons; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableTitleBarBackground = !_enableTitleBarBackground; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWindowContentBackground = !_enableWindowContentBackground; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            currentY += _lineHeight; // Skip subtitle
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableButtonBackgrounds = !_enableButtonBackgrounds; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableButtonBorders = !_enableButtonBorders; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableButtonIcons = !_enableButtonIcons; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableTaskbarIcons = !_enableTaskbarIcons; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Button Size Offset slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 20; }
+            currentY += _lineHeight;
+            
+            // Button Spacing slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 21; }
+            
+            // Handle slider dragging
+            if (_draggingSlider >= 0) {
+                float t = (float)(mx - (cx + _labelWidth)) / _sliderWidth;
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                
+                switch (_draggingSlider) {
+                    case 20: _buttonSizeOffset = (int)(4 + t * 20); break; // 4-24
+                    case 21: _buttonSpacing = (int)(2 + t * 18); break; // 2-20
+                }
+            }
+        }
+        
+        private void ProcessPerformanceInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableDrawCallCaching = !_enableDrawCallCaching; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableGeometryBatching = !_enableGeometryBatching; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _skipOffscreenRendering = !_skipOffscreenRendering; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _skipMinimizedRendering = !_skipMinimizedRendering; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _skipInvisibleRendering = !_skipInvisibleRendering; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _checkFramebufferBeforeRender = !_checkFramebufferBeforeRender; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _checkFontBeforeRender = !_checkFontBeforeRender; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableEarlyReturnOptimizations = !_enableEarlyReturnOptimizations; _btnClickLatch = true; return; }
+        }
+        
+        private void ProcessWidgetsInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetRendering = !_enableWidgetRendering; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetTransparency = !_enableWidgetTransparency; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetBorders = !_enableWidgetBorders; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetShadows = !_enableWidgetShadows; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            currentY += _lineHeight; // Skip subtitle
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetFadeAnimations = !_enableWidgetFadeAnimations; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableWidgetHoverAnimations = !_enableWidgetHoverAnimations; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Widget Fade In slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 30; }
+            currentY += _lineHeight;
+            
+            // Widget Fade Out slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 31; }
+            currentY += _lineHeight;
+            
+            // Widget Refresh Rate slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 32; }
+            
+            // Handle slider dragging
+            if (_draggingSlider >= 0) {
+                float t = (float)(mx - (cx + _labelWidth)) / _sliderWidth;
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                
+                switch (_draggingSlider) {
+                    case 30: _widgetFadeInDuration = (int)(50 + t * 950); break; // 50-1000ms
+                    case 31: _widgetFadeOutDuration = (int)(50 + t * 950); break;
+                    case 32: _widgetDefaultRefreshRate = (int)(100 + t * 4900); break; // 100-5000ms
+                }
+            }
+        }
+        
+        private bool CheckCheckbox(int mx, int my, int cx, int cy, int contentY, int contentH) {
+            if (cy < contentY - _lineHeight || cy > contentY + contentH) return false;
+            return mx >= cx && mx <= cx + _checkboxSize && my >= cy && my <= cy + _checkboxSize;
+        }
+        
+        private bool CheckSlider(int mx, int my, int sx, int sy, int contentY, int contentH) {
+            if (sy < contentY - _lineHeight || sy > contentY + contentH) return false;
+            return my >= sy + 8 && my <= sy + 24 && mx >= sx && mx <= sx + _sliderWidth;
         }
         
         public override void OnDraw() {
@@ -280,150 +514,344 @@ namespace guideXOS.GUI {
             var g = Framebuffer.Graphics;
             int cx = X + _padding;
             int cy = Y + _padding;
-            int cw = Width - _padding * 2 - 16; // Account for scrollbar
-            int contentH = Height - _padding * 2 - 60;
+            int cw = Width - _padding * 2;
+            int contentY = cy + _tabH + _tabGap;
+            int contentH = Height - _padding * 2 - _tabH - _tabGap - 60;
             
-            // Draw content area background
-            g.FillRectangle(cx - 4, cy - 4, cw + 8, contentH + 8, 0xFF1A1A1A);
+            // Draw tabs
+            int tabW = (cw - _tabGap * 5) / 6;
+            int tabY = cy;
+            string[] tabNames = { "Animations", "Visual Effects", "Rendering", "Performance", "Widgets", "About" };
             
-            // Set up clipping for scrollable content (manual clipping in draw calls)
-            int currentY = cy - _scrollY;
-            
-            // Title section
-            WindowManager.font.DrawString(cx, currentY, "Window Animation Settings");
-            currentY += _lineHeight;
-            
-            // Fade Animations checkbox
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                DrawCheckbox(cx, currentY, _enableFadeAnimations);
-                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Fade Animations");
-            }
-            currentY += _lineHeight;
-            
-            // Fade In Duration slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Fade In Duration:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_fadeInDuration - 50) / 450.0f);
-                string val = _fadeInDuration.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Fade Out Duration slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Fade Out Duration:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_fadeOutDuration - 50) / 450.0f);
-                string val = _fadeOutDuration.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Window Slide Animations checkbox
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                DrawCheckbox(cx, currentY, _enableWindowSlideAnimations);
-                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Window Slide Animations");
-            }
-            currentY += _lineHeight;
-            
-            // Window Slide Duration slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Slide Duration:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_windowSlideDuration - 50) / 450.0f);
-                string val = _windowSlideDuration.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Background Rotation section
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx, currentY, "Background Rotation Settings");
-            }
-            currentY += _lineHeight;
-            
-            // Auto Background Rotation checkbox
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                DrawCheckbox(cx, currentY, _enableAutoBackgroundRotation);
-                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Auto-Rotate Backgrounds");
-            }
-            currentY += _lineHeight;
-            
-            // Background Rotation Interval slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Rotation Interval:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_backgroundRotationInterval - 1) / 29.0f);
-                string val = _backgroundRotationInterval.ToString() + " min";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Background Fade Transition checkbox
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                DrawCheckbox(cx, currentY, _enableBackgroundFadeTransition);
-                WindowManager.font.DrawString(cx + _checkboxSize + 12, currentY + (_checkboxSize - WindowManager.font.FontSize) / 2, "Enable Fade Transition");
-            }
-            currentY += _lineHeight;
-            
-            // Background Fade Duration slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Fade Duration:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_backgroundFadeDuration - 200) / 2800.0f);
-                string val = _backgroundFadeDuration.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Performance Settings section
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx, currentY, "Performance Settings");
-            }
-            currentY += _lineHeight;
-            
-            // Window Frame Delay slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Frame Delay:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, _windowFrameDelay / 10.0f);
-                string val = _windowFrameDelay.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Animation Speed slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Animation Speed:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, (_animationSpeed - 50) / 450.0f);
-                string val = _animationSpeed.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Mouse Responsive Time slider
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx + 32, currentY, "Mouse Response Time:");
-                DrawSlider(cx + _labelWidth, currentY, _sliderWidth, _mouseResponsiveMs / 200.0f);
-                string val = _mouseResponsiveMs.ToString() + " ms";
-                WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, currentY, val);
-                val.Dispose();
-            }
-            currentY += _lineHeight;
-            
-            // Info section
-            if (currentY >= cy - _lineHeight && currentY <= cy + contentH) {
-                WindowManager.font.DrawString(cx, currentY, "Note: Changes take effect after clicking Apply");
+            for (int i = 0; i < 6; i++) {
+                int tabX = cx + i * (tabW + _tabGap);
+                uint tabBg = (_currentTab == i) ? 0xFF3A3A3A : 0xFF252525;
+                g.FillRectangle(tabX, tabY, tabW, _tabH, tabBg);
+                g.DrawRectangle(tabX, tabY, tabW, _tabH, 0xFF4F4F4F, 1);
+                
+                int textX = tabX + (tabW / 2) - (tabNames[i].Length * WindowManager.font.FontSize / 4);
+                int textY = tabY + (_tabH / 2 - WindowManager.font.FontSize / 2);
+                WindowManager.font.DrawString(textX, textY, tabNames[i]);
             }
             
-            // Scrollbar
+            // Draw content background
+            g.FillRectangle(cx - 4, contentY - 4, cw + 8 - 16, contentH + 8, 0xFF1A1A1A);
+            
+            // Draw tab content
+            switch (_currentTab) {
+                case 0: DrawAnimationsTab(cx, contentY, contentH); break;
+                case 1: DrawVisualEffectsTab(cx, contentY, contentH); break;
+                case 2: DrawWindowRenderingTab(cx, contentY, contentH); break;
+                case 3: DrawPerformanceTab(cx, contentY, contentH); break;
+                case 4: DrawWidgetsTab(cx, contentY, contentH); break;
+                case 5: DrawAboutTab(cx, contentY, contentH); break;
+            }
+            
+            // Draw scrollbar
+            DrawScrollbar(cx, contentY, cw, contentH);
+            
+            // Draw buttons
+            DrawButtons();
+        }
+        
+        private void DrawAnimationsTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Window Animation Settings");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableFadeAnimations, "Enable Fade Animations");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Fade In Duration:", _fadeInDuration, 50, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Fade Out Duration:", _fadeOutDuration, 50, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWindowSlideAnimations, "Enable Window Slide Animations");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Slide Duration:", _windowSlideDuration, 50, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableFadeOverlay, "Enable Fade Overlay");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableAnimationUpdates, "Enable Animation Position Updates");
+        }
+        
+        private void DrawVisualEffectsTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Window Visual Effects");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableBlurredTitleBars, "Enable Blurred Title Bars (Aero Glass)");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableTransparentWindows, "Enable Transparent Windows");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWindowGlow, "Enable Window Glow/Shadow");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableRoundedCorners, "Enable Rounded Corners (WARNING: Memory Leak)");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableButtonHoverEffects, "Enable Button Hover Effects");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableResizeGrip, "Enable Resize Grip Visual");
+            currentY += _lineHeight;
+            
+            DrawSubtitle(cx, currentY, "Blur Cache Settings");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableBlurCaching, "Enable Blur Caching");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableBlurCacheInvalidation, "Enable Cache Invalidation on Move/Resize");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableBlurCacheDisposal, "Dispose Cache When Hiding Window");
+            currentY += _lineHeight;
+            
+            DrawSubtitle(cx, currentY, "Background Rotation");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableAutoBackgroundRotation, "Auto-Rotate Desktop Backgrounds");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Rotation Interval:", _backgroundRotationInterval, 1, 60, " min");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableBackgroundFadeTransition, "Enable Background Fade Transition");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Transition Duration:", _backgroundFadeDuration, 200, 5000, " ms");
+        }
+        
+        private void DrawWindowRenderingTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Window Rendering Settings");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWindowTitles, "Enable Window Titles");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWindowBorders, "Enable Window Borders");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableTitleBarButtons, "Enable Title Bar Buttons");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableTitleBarBackground, "Enable Title Bar Background");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWindowContentBackground, "Enable Window Content Background");
+            currentY += _lineHeight;
+            
+            currentY += _lineHeight; // Skip subtitle
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableButtonBackgrounds, "Enable Button Backgrounds");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableButtonBorders, "Enable Button Borders");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableButtonIcons, "Enable Button Icons");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableTaskbarIcons, "Enable Taskbar Icons");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Button Size Offset:", _buttonSizeOffset, 4, 24, " px");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Button Spacing:", _buttonSpacing, 2, 20, " px");
+        }
+        
+        private void DrawPerformanceTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Performance Optimization Settings");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableDrawCallCaching, "Enable Draw Call Caching");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableGeometryBatching, "Enable Geometry Batching");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _skipOffscreenRendering, "Skip Off-screen Window Rendering");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _skipMinimizedRendering, "Skip Minimized Window Rendering");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _skipInvisibleRendering, "Skip Invisible Window Rendering");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _checkFramebufferBeforeRender, "Check Framebuffer Before Render");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _checkFontBeforeRender, "Check Font Before Render");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableEarlyReturnOptimizations, "Enable Early Return Optimizations");
+        }
+        
+        private void DrawWidgetsTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Widget Settings");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetRendering, "Enable Widget Rendering");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetTransparency, "Enable Widget Transparency");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetBorders, "Enable Widget Borders");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetShadows, "Enable Widget Shadows");
+            currentY += _lineHeight;
+            
+            DrawSubtitle(cx, currentY, "Widget Animations");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetFadeAnimations, "Enable Widget Fade Animations");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableWidgetHoverAnimations, "Enable Widget Hover Animations");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Widget Fade In Duration:", _widgetFadeInDuration, 50, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Widget Fade Out Duration:", _widgetFadeOutDuration, 50, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Default Refresh Rate:", _widgetDefaultRefreshRate, 100, 5000, " ms");
+        }
+        
+        private void DrawAboutTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY + 40;
+            
+            WindowManager.font.DrawString(cx, currentY, "Visual Effects & UI Settings");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx, currentY, "Version 2.0 - Comprehensive Settings Management");
+            currentY += _lineHeight * 2;
+            
+            WindowManager.font.DrawString(cx, currentY, "This window provides access to all UI and visual effect settings");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx, currentY, "organized into categorized tabs for easy navigation.");
+            currentY += _lineHeight * 2;
+            
+            WindowManager.font.DrawString(cx, currentY, "Tabs:");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx + 20, currentY, "• Animations - Window fade and slide animations");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx + 20, currentY, "• Visual Effects - Blur, transparency, glow, shadows");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx + 20, currentY, "• Rendering - Window chrome, buttons, icons");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx + 20, currentY, "• Performance - Optimization flags and caching");
+            currentY += _lineHeight;
+            
+            WindowManager.font.DrawString(cx + 20, currentY, "• Widgets - Widget rendering and animation settings");
+            currentY += _lineHeight * 2;
+            
+            WindowManager.font.DrawString(cx, currentY, "Click 'Apply' to save changes or 'Reset' to restore defaults.");
+        }
+        
+        private void DrawTitle(int cx, int cy, string text) {
+            if (cy >= Y + _padding + _tabH + _tabGap - _lineHeight && cy <= Y + Height - _padding - 60) {
+                WindowManager.font.DrawString(cx, cy, text);
+            }
+        }
+        
+        private void DrawSubtitle(int cx, int cy, string text) {
+            if (cy >= Y + _padding + _tabH + _tabGap - _lineHeight && cy <= Y + Height - _padding - 60) {
+                WindowManager.font.DrawString(cx, cy, text);
+            }
+        }
+        
+        private void DrawCheckboxWithLabel(int cx, int cy, int contentY, int contentH, bool checked_, string label) {
+            if (cy < contentY - _lineHeight || cy > contentY + contentH) return;
+            
+            DrawCheckbox(cx, cy, checked_);
+            WindowManager.font.DrawString(cx + _checkboxSize + 12, cy + (_checkboxSize - WindowManager.font.FontSize) / 2, label);
+        }
+        
+        private void DrawSliderWithLabel(int cx, int cy, int contentY, int contentH, string label, int value, int min, int max, string suffix) {
+            if (cy < contentY - _lineHeight || cy > contentY + contentH) return;
+            
+            WindowManager.font.DrawString(cx + 32, cy, label);
+            float t = (float)(value - min) / (max - min);
+            DrawSlider(cx + _labelWidth, cy, _sliderWidth, t);
+            string val = value.ToString() + suffix;
+            WindowManager.font.DrawString(cx + _labelWidth + _sliderWidth + 16, cy, val);
+            val.Dispose();
+        }
+        
+        private void DrawCheckbox(int x, int y, bool checked_) {
+            var g = Framebuffer.Graphics;
+            
+            g.FillRectangle(x, y, _checkboxSize, _checkboxSize, 0xFF2A2A2A);
+            g.DrawRectangle(x, y, _checkboxSize, _checkboxSize, 0xFF4F4F4F, 2);
+            
+            if (checked_) {
+                for (int i = 0; i < 3; i++) {
+                    g.FillRectangle(x + 6 + i, y + 10 + i, 2, 2, 0xFF4A8FD8);
+                    g.FillRectangle(x + 8 + i, y + 12 - i, 2, 2, 0xFF4A8FD8);
+                    g.FillRectangle(x + 10 + i, y + 10 - i, 2, 2, 0xFF4A8FD8);
+                }
+            }
+        }
+        
+        private void DrawSlider(int x, int y, int width, float value) {
+            var g = Framebuffer.Graphics;
+            
+            if (value < 0) value = 0;
+            if (value > 1) value = 1;
+            
+            int trackY = y + 12;
+            int trackH = 6;
+            
+            g.FillRectangle(x, trackY, width, trackH, 0xFF1A1A1A);
+            g.DrawRectangle(x, trackY, width, trackH, 0xFF3F3F3F, 1);
+            
+            int fillW = (int)(width * value);
+            if (fillW > 0) {
+                g.FillRectangle(x, trackY, fillW, trackH, 0xFF4A8FD8);
+            }
+            
+            int thumbX = x + (int)(width * value) - 8;
+            int thumbY = y + 8;
+            int thumbSize = 16;
+            
+            g.FillRectangle(thumbX, thumbY, thumbSize, thumbSize, 0xFF4A8FD8);
+            g.DrawRectangle(thumbX, thumbY, thumbSize, thumbSize, 0xFF6AAFF8, 2);
+        }
+        
+        private void DrawScrollbar(int cx, int contentY, int cw, int contentH) {
+            var g = Framebuffer.Graphics;
             int sbW = 12;
             int sbX = X + Width - _padding - sbW;
-            int sbY = cy;
+            int sbY = contentY;
             int sbH = contentH;
-            int totalHeight = _lineHeight * 17;
+            int totalHeight = GetCurrentTabHeight();
             int maxScroll = totalHeight > contentH ? totalHeight - contentH : 0;
             
             g.FillRectangle(sbX, sbY, sbW, sbH, 0xFF0F0F0F);
@@ -435,115 +863,157 @@ namespace guideXOS.GUI {
                 if (thumbY + thumbH > sbH) thumbY = sbH - thumbH;
                 g.FillRectangle(sbX + 1, sbY + thumbY, sbW - 2, thumbH, 0xFF3F3F3F);
             }
-            
-            // Apply and Reset buttons
+        }
+        
+        private void DrawButtons() {
+            var g = Framebuffer.Graphics;
             int btnW = 120;
             int btnH = 38;
             int btnY = Y + Height - _padding - btnH - 10;
             int applyX = X + Width - _padding - btnW;
             int resetX = applyX - btnW - 16;
             
-            // Reset button
             g.FillRectangle(resetX, btnY, btnW, btnH, 0xFF2A2A2A);
             g.DrawRectangle(resetX, btnY, btnW, btnH, 0xFF3F3F3F, 1);
             WindowManager.font.DrawString(resetX + 30, btnY + (btnH - WindowManager.font.FontSize) / 2, "Reset");
             
-            // Apply button
             g.FillRectangle(applyX, btnY, btnW, btnH, 0xFF2E7F3F);
             g.DrawRectangle(applyX, btnY, btnW, btnH, 0xFF3F3F3F, 1);
             WindowManager.font.DrawString(applyX + 34, btnY + (btnH - WindowManager.font.FontSize) / 2, "Apply");
         }
         
-        private void DrawCheckbox(int x, int y, bool checked_) {
-            var g = Framebuffer.Graphics;
-            
-            // Draw checkbox background
-            g.FillRectangle(x, y, _checkboxSize, _checkboxSize, 0xFF2A2A2A);
-            g.DrawRectangle(x, y, _checkboxSize, _checkboxSize, 0xFF4F4F4F, 2);
-            
-            // Draw checkmark if checked
-            if (checked_) {
-                // Simple checkmark using lines
-                int cx = x + _checkboxSize / 2;
-                int cy = y + _checkboxSize / 2;
-                
-                // Draw a filled checkmark
-                for (int i = 0; i < 3; i++) {
-                    // Short line (down-left)
-                    g.FillRectangle(x + 6 + i, y + 10 + i, 2, 2, 0xFF4A8FD8);
-                    // Long line (up-right)
-                    g.FillRectangle(x + 8 + i, y + 12 - i, 2, 2, 0xFF4A8FD8);
-                    g.FillRectangle(x + 10 + i, y + 10 - i, 2, 2, 0xFF4A8FD8);
-                }
+        private int GetCurrentTabHeight() {
+            switch (_currentTab) {
+                case 0: return _lineHeight * 9; // Animations
+                case 1: return _lineHeight * 16; // Visual Effects
+                case 2: return _lineHeight * 13; // Window Rendering
+                case 3: return _lineHeight * 9; // Performance
+                case 4: return _lineHeight * 11; // Widgets
+                case 5: return _lineHeight * 18; // About
+                default: return _lineHeight * 10;
             }
-        }
-        
-        private void DrawSlider(int x, int y, int width, float value) {
-            var g = Framebuffer.Graphics;
-            
-            // Clamp value
-            if (value < 0) value = 0;
-            if (value > 1) value = 1;
-            
-            int trackY = y + 12;
-            int trackH = 6;
-            
-            // Draw track
-            g.FillRectangle(x, trackY, width, trackH, 0xFF1A1A1A);
-            g.DrawRectangle(x, trackY, width, trackH, 0xFF3F3F3F, 1);
-            
-            // Draw filled portion
-            int fillW = (int)(width * value);
-            if (fillW > 0) {
-                g.FillRectangle(x, trackY, fillW, trackH, 0xFF4A8FD8);
-            }
-            
-            // Draw thumb
-            int thumbX = x + (int)(width * value) - 8;
-            int thumbY = y + 8;
-            int thumbSize = 16;
-            
-            g.FillRectangle(thumbX, thumbY, thumbSize, thumbSize, 0xFF4A8FD8);
-            g.DrawRectangle(thumbX, thumbY, thumbSize, thumbSize, 0xFF6AAFF8, 2);
         }
         
         private void ApplySettings() {
-            // Apply all settings
+            // Animations
             UISettings.EnableFadeAnimations = _enableFadeAnimations;
             UISettings.FadeInDurationMs = _fadeInDuration;
             UISettings.FadeOutDurationMs = _fadeOutDuration;
             UISettings.EnableWindowSlideAnimations = _enableWindowSlideAnimations;
             UISettings.WindowSlideDurationMs = _windowSlideDuration;
+            UISettings.EnableFadeOverlay = _enableFadeOverlay;
+            UISettings.EnableAnimationUpdates = _enableAnimationUpdates;
             
-            // Apply background rotation settings
+            // Visual Effects
+            UISettings.EnableBlurredTitleBars = _enableBlurredTitleBars;
+            UISettings.EnableTransparentWindows = _enableTransparentWindows;
+            UISettings.EnableWindowGlow = _enableWindowGlow;
+            UISettings.EnableRoundedCorners = _enableRoundedCorners;
+            UISettings.EnableButtonHoverEffects = _enableButtonHoverEffects;
+            UISettings.EnableResizeGrip = _enableResizeGrip;
+            UISettings.EnableBlurCaching = _enableBlurCaching;
+            UISettings.EnableBlurCacheInvalidation = _enableBlurCacheInvalidation;
+            UISettings.EnableBlurCacheDisposal = _enableBlurCacheDisposal;
+            
+            // Background Rotation
             UISettings.EnableAutoBackgroundRotation = _enableAutoBackgroundRotation;
             UISettings.BackgroundRotationIntervalMinutes = _backgroundRotationInterval;
             UISettings.EnableBackgroundFadeTransition = _enableBackgroundFadeTransition;
             UISettings.BackgroundFadeDurationMs = _backgroundFadeDuration;
             
-            // Show notification
-            NotificationManager.Add(new Notify("Visual effects settings applied", NotificationLevel.None));
+            // Window Rendering
+            UISettings.EnableWindowTitles = _enableWindowTitles;
+            UISettings.EnableWindowBorders = _enableWindowBorders;
+            UISettings.EnableTitleBarButtons = _enableTitleBarButtons;
+            UISettings.EnableTitleBarBackground = _enableTitleBarBackground;
+            UISettings.EnableWindowContentBackground = _enableWindowContentBackground;
+            UISettings.EnableButtonBackgrounds = _enableButtonBackgrounds;
+            UISettings.EnableButtonBorders = _enableButtonBorders;
+            UISettings.EnableButtonIcons = _enableButtonIcons;
+            UISettings.EnableTaskbarIcons = _enableTaskbarIcons;
+            UISettings.ButtonSizeOffset = _buttonSizeOffset;
+            UISettings.ButtonSpacing = _buttonSpacing;
             
-            // Note: Frame delay, animation speed, and mouse responsive time would need
-            // to be integrated into Program.cs and other parts of the codebase
-            // For now, they're just stored in this window
+            // Performance
+            UISettings.EnableDrawCallCaching = _enableDrawCallCaching;
+            UISettings.EnableGeometryBatching = _enableGeometryBatching;
+            UISettings.SkipOffscreenRendering = _skipOffscreenRendering;
+            UISettings.SkipMinimizedRendering = _skipMinimizedRendering;
+            UISettings.SkipInvisibleRendering = _skipInvisibleRendering;
+            UISettings.CheckFramebufferBeforeRender = _checkFramebufferBeforeRender;
+            UISettings.CheckFontBeforeRender = _checkFontBeforeRender;
+            UISettings.EnableEarlyReturnOptimizations = _enableEarlyReturnOptimizations;
+            
+            // Widgets
+            UISettings.EnableWidgetRendering = _enableWidgetRendering;
+            UISettings.EnableWidgetTransparency = _enableWidgetTransparency;
+            UISettings.EnableWidgetBorders = _enableWidgetBorders;
+            UISettings.EnableWidgetShadows = _enableWidgetShadows;
+            UISettings.EnableWidgetFadeAnimations = _enableWidgetFadeAnimations;
+            UISettings.EnableWidgetHoverAnimations = _enableWidgetHoverAnimations;
+            UISettings.WidgetFadeInDurationMs = _widgetFadeInDuration;
+            UISettings.WidgetFadeOutDurationMs = _widgetFadeOutDuration;
+            UISettings.WidgetDefaultRefreshRateMs = _widgetDefaultRefreshRate;
+            
+            NotificationManager.Add(new Notify("Settings applied successfully", NotificationLevel.None));
+            this.Visible = false;
         }
         
         private void ResetToDefaults() {
+            // Reset to default values from UISettings
             _enableFadeAnimations = false;
             _fadeInDuration = 180;
             _fadeOutDuration = 180;
             _enableWindowSlideAnimations = false;
             _windowSlideDuration = 220;
-            _windowFrameDelay = 2;
-            _animationSpeed = 150;
-            _mouseResponsiveMs = 100;
+            _enableFadeOverlay = false;
+            _enableAnimationUpdates = true;
             
-            // Reset background rotation defaults
-            _enableAutoBackgroundRotation = false;
+            _enableBlurredTitleBars = true;
+            _enableTransparentWindows = true;
+            _enableWindowGlow = true;
+            _enableRoundedCorners = false;
+            _enableButtonHoverEffects = true;
+            _enableResizeGrip = true;
+            _enableBlurCaching = true;
+            _enableBlurCacheInvalidation = true;
+            _enableBlurCacheDisposal = true;
+            
+            _enableAutoBackgroundRotation = true;
             _backgroundRotationInterval = 5;
             _enableBackgroundFadeTransition = true;
             _backgroundFadeDuration = 1000;
+            
+            _enableWindowTitles = true;
+            _enableWindowBorders = true;
+            _enableTitleBarButtons = true;
+            _enableTitleBarBackground = true;
+            _enableWindowContentBackground = true;
+            _enableButtonBackgrounds = true;
+            _enableButtonBorders = true;
+            _enableButtonIcons = true;
+            _enableTaskbarIcons = true;
+            _buttonSizeOffset = 12;
+            _buttonSpacing = 6;
+            
+            _enableDrawCallCaching = true;
+            _enableGeometryBatching = true;
+            _skipOffscreenRendering = true;
+            _skipMinimizedRendering = true;
+            _skipInvisibleRendering = true;
+            _checkFramebufferBeforeRender = true;
+            _checkFontBeforeRender = true;
+            _enableEarlyReturnOptimizations = true;
+            
+            _enableWidgetRendering = true;
+            _enableWidgetTransparency = true;
+            _enableWidgetBorders = true;
+            _enableWidgetShadows = true;
+            _enableWidgetFadeAnimations = true;
+            _enableWidgetHoverAnimations = true;
+            _widgetFadeInDuration = 200;
+            _widgetFadeOutDuration = 200;
+            _widgetDefaultRefreshRate = 1000;
             
             NotificationManager.Add(new Notify("Settings reset to defaults", NotificationLevel.None));
         }

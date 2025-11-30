@@ -19,8 +19,6 @@ namespace System {
             set => _length = value;
         }
 
-
-
         public unsafe char this[int index] {
             [Intrinsic]
             get => Unsafe.Add(ref _firstChar, index);

@@ -324,7 +324,7 @@ namespace guideXOS.GUI {
         /// This should be called periodically (e.g., once per frame after drawing)
         /// </summary>
         public static void CleanupClosedWindows() {
-            // Remove windows that are no longer visible and have completed fade-out
+            // FIXED: Remove windows that are no longer visible and dispose them properly
             for (int i = Windows.Count - 1; i >= 0; i--) {
                 var w = Windows[i];
                 // Remove windows that are not visible and not animating (i.e., fully closed)
@@ -332,6 +332,10 @@ namespace guideXOS.GUI {
                     // Check if window has no ongoing animation
                     // A window with _animType == None and not visible is considered disposed
                     Windows.RemoveAt(i);
+                    // FIXED: Dispose the window to free its resources
+                    if (w != null) {
+                        w.Dispose();
+                    }
                 }
             }
         }

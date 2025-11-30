@@ -1,17 +1,36 @@
 namespace System.Collections.Generic {
+    /// <summary>
+    /// List
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
     public class List<T> {
+        /// <summary>
+        /// Value
+        /// </summary>
         private T[] _value;
-
+        /// <summary>
+        /// Count
+        /// </summary>
         public int Count = 0;
-
+        /// <summary>
+        /// List
+        /// </summary>
+        /// <param name="initsize"></param>
         public List(int initsize = 256) {
             _value = new T[initsize];
         }
-
+        /// <summary>
+        /// List
+        /// </summary>
+        /// <param name="t"></param>
         public List(T[] t) {
             _value = t;
         }
-
+        /// <summary>
+        /// This
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
         public T this[int index] {
             get {
                 return _value[index];
@@ -21,33 +40,7 @@ namespace System.Collections.Generic {
             }
         }
 
-        /// <summary>
-        /// Ensure the internal array has enough capacity
-        /// </summary>
-        private void EnsureCapacity(int minCapacity) {
-            if (_value.Length >= minCapacity)
-                return;
-                
-            // Double the size or use minCapacity, whichever is larger
-            int newCapacity = _value.Length * 2;
-            if (newCapacity < minCapacity)
-                newCapacity = minCapacity;
-            
-            // Allocate new array and copy existing items
-            T[] newArray = new T[newCapacity];
-            for (int i = 0; i < Count; i++) {
-                newArray[i] = _value[i];
-            }
-            
-            // Dispose old array and use new one
-            _value.Dispose();
-            _value = newArray;
-        }
-
         public void Add(T t) {
-            // Ensure we have room for one more item
-            EnsureCapacity(Count + 1);
-            
             _value[Count] = t;
             Count++;
         }
@@ -56,11 +49,8 @@ namespace System.Collections.Generic {
             //Broken
             //if (index == IndexOf(item)) return;
 
-            if (!internalMove) {
+            if (!internalMove)
                 Count++;
-                // Ensure capacity for the new item
-                EnsureCapacity(Count);
-            }
 
             if (internalMove) {
                 int _index = IndexOf(item);

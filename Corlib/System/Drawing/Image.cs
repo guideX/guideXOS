@@ -1,5 +1,4 @@
 using System.Windows.Forms;
-
 namespace System.Drawing {
     public class Image {
         public int[] RawData;
@@ -94,8 +93,7 @@ namespace System.Drawing {
                 }
             }
 
-            Image image = new Image()
-            {
+            Image image = new Image() {
                 Width = NewWidth,
                 Height = NewHeight,
                 Bpp = Bpp,

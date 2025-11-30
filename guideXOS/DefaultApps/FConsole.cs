@@ -1228,6 +1228,27 @@ namespace guideXOS.DefaultApps {
         public override void OnDraw() {
             base.OnDraw();
             DrawString(X, Y, Data, Height, Width);
+            
+            // Draw resize grip on top of console content so it's visible
+            if (IsResizable && UISettings.EnableResizeGrip) {
+                int gx = X + Width - 16; 
+                int gy = Y + Height - 16;
+                
+                uint gripColor = UISettings.EnableTransparentWindows ? 0x332F2F2Fu : 0xFF2F2F2Fu;
+                Framebuffer.Graphics.FillRectangle(gx, gy, 16, 16, gripColor);
+                
+                // three little diagonal lines
+                int inset = 4; 
+                uint lc = 0xFF777777;
+                for (int i = 0; i < 3; i++) {
+                    int ox = gx + 16 - inset - (i * 4); 
+                    int oy = gy + 16 - inset;
+                    Framebuffer.Graphics.DrawLine(ox - 6, oy, ox, oy - 6, lc);
+                }
+                
+                int gripCornerRadius = UISettings.EnableRoundedCorners ? 2 : 0;
+                UIPrimitives.DrawRoundedRect(gx, gy, 16, 16, 0xFF444444, 1, gripCornerRadius);
+            }
         }
 
         public void DrawString(int X, int Y, string Str, int HeightLimit = -1, int LineLimit = -1) {

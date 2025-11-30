@@ -1,3 +1,4 @@
+using guideXOS.FS;
 using guideXOS.Kernel.Drivers;
 using System.Collections.Generic;
 using System.Windows.Forms;
@@ -343,7 +344,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Registers a callback to execute when a control is clicked
-        /// </summary>
+        /// /// </summary>
         /// <param name="id">ID of the control to attach the callback to</param>
         /// <param name="action">Action to execute (MSG, OPENAPP, CLOSE)</param>
         /// <param name="arg">Argument to pass to the action</param>
@@ -505,7 +506,13 @@ namespace guideXOS.GUI {
                 
             string a = s.Substring(0, i);
             string b = s.Substring(i + token.Length);
-            return a + val + b;
+            string result = a + val + b;
+            
+            // FIXED: Dispose intermediate strings to prevent leak
+            a.Dispose();
+            b.Dispose();
+            
+            return result;
         }
         
         /// <summary>
@@ -536,7 +543,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Executes a scripted action with the provided argument
-        /// Supported actions: MSG (show message), OPENAPP (launch app), CLOSE (close window)
+        /// Supported actions: MSG (show message), OPENAPP (launch app), CLOSE (close window), SAVEFILE (save text), LOADFILE (load text)
         /// </summary>
         /// <param name="action">Action name (case-insensitive)</param>
         /// <param name="arg">Action-specific argument</param>
@@ -553,6 +560,7 @@ namespace guideXOS.GUI {
             }
             
             a = new string(ca);
+            ca.Dispose(); // FIXED: Dispose char array
             
             // Execute based on action type
             if (a == "MSG") {
@@ -563,6 +571,167 @@ namespace guideXOS.GUI {
                 }
             } else if (a == "CLOSE") {
                 this.Visible = false;
+            } else if (a == "SAVEFILE") {
+                // Save file functionality
+                SaveFileAction(arg);
+            } else if (a == "LOADFILE") {
+                // Load file functionality
+                LoadFileAction(arg);
+            }
+            
+            // FIXED: Dispose normalized action string if it's different from input
+            if (a != action) {
+                a.Dispose();
+            }
+        }
+        
+        /// <summary>
+        /// Saves text content to a file
+        /// </summary>
+        /// <param name="filename">Filename to save (without path, saves to current Desktop.Dir)</param>
+        private void SaveFileAction(string filename) {
+            if (string.IsNullOrEmpty(filename)) {
+                filename = "notepad.txt";
+            }
+            
+            // Get text content from the first list (if any)
+            string content = "";
+            if (_lists.Count > 0) {
+                var list = _lists[0];
+                for (int i = 0; i < list.Items.Count; i++) {
+                    string oldContent = content;
+                    content += list.Items[i];
+                    if (i < list.Items.Count - 1) {
+                        string temp = content;
+                        content += "\n";
+                        temp.Dispose(); // FIXED: Dispose intermediate concatenation
+                    }
+                    if (i > 0) oldContent.Dispose(); // FIXED: Dispose old content string
+                }
+            }
+            
+            // Build full path
+            string path = Desktop.Dir + filename;
+            
+            try {
+                // Convert string to byte array
+                byte[] data = new byte[content.Length];
+                for (int i = 0; i < content.Length; i++) {
+                    data[i] = (byte)content[i];
+                }
+                
+                // Write to file
+                File.WriteAllBytes(path, data);
+                data.Dispose();
+                
+                // Invalidate directory cache
+                Desktop.InvalidateDirCache();
+                
+                // Show success message
+                string msg = $"File saved: {filename}\nLocation: {Desktop.Dir}";
+                Notify(msg);
+                msg.Dispose(); // FIXED: Dispose message string
+                
+                // Add to recent documents
+                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+            } catch {
+                string errMsg = $"Error: Failed to save file {filename}";
+                Notify(errMsg);
+                errMsg.Dispose(); // FIXED: Dispose error message
+            }
+            
+            // FIXED: Dispose content and path strings
+            content.Dispose();
+            path.Dispose();
+        }
+        
+        /// <summary>
+        /// Loads text content from a file
+        /// </summary>
+        /// <param name="filename">Filename to load (without path, loads from current Desktop.Dir)</param>
+        private void LoadFileAction(string filename) {
+            if (string.IsNullOrEmpty(filename)) {
+                Notify("Error: No filename specified");
+                return;
+            }
+            
+            // Build full path
+            string path = Desktop.Dir + filename;
+            
+            try {
+                // Read file
+                byte[] data = File.ReadAllBytes(path);
+                
+                if (data == null || data.Length == 0) {
+                    string errMsg = $"Error: File {filename} is empty or not found";
+                    Notify(errMsg);
+                    errMsg.Dispose(); // FIXED: Dispose error message
+                    path.Dispose(); // FIXED: Dispose path
+                    return;
+                }
+                
+                // Convert bytes to string
+                string content = "";
+                for (int i = 0; i < data.Length; i++) {
+                    string oldContent = content;
+                    content += (char)data[i];
+                    if (i > 0) oldContent.Dispose(); // FIXED: Dispose old content string
+                }
+                data.Dispose();
+                
+                // Split into lines
+                List<string> lines = new List<string>(32);
+                string currentLine = "";
+                for (int i = 0; i < content.Length; i++) {
+                    char c = content[i];
+                    if (c == '\n' || c == '\r') {
+                        if (currentLine.Length > 0 || c == '\n') {
+                            lines.Add(currentLine);
+                            currentLine = "";
+                        }
+                    } else {
+                        string oldLine = currentLine;
+                        currentLine += c;
+                        if (i > 0 && oldLine.Length > 0) oldLine.Dispose(); // FIXED: Dispose old line string
+                    }
+                }
+                if (currentLine.Length > 0) {
+                    lines.Add(currentLine);
+                } else {
+                    currentLine.Dispose(); // FIXED: Dispose empty current line
+                }
+                
+                // Update the first list with loaded content
+                if (_lists.Count > 0) {
+                    var list = _lists[0];
+                    list.Items.Clear();
+                    for (int i = 0; i < lines.Count; i++) {
+                        list.Items.Add(lines[i]);
+                    }
+                    list.Selected = -1;
+                }
+                
+                // Show success message
+                string linesStr = lines.Count.ToString();
+                string msg = $"File loaded: {filename}\nLines: {linesStr}";
+                Notify(msg);
+                linesStr.Dispose(); // FIXED: Dispose lines count string
+                msg.Dispose(); // FIXED: Dispose message string
+                
+                // FIXED: Don't dispose lines items - they're now owned by the list
+                lines.Dispose();
+                
+                // Add to recent documents
+                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                
+                // FIXED: Dispose content and path strings
+                content.Dispose();
+                path.Dispose();
+            } catch {
+                string errMsg = $"Error: Failed to load file {filename}";
+                Notify(errMsg);
+                errMsg.Dispose(); // FIXED: Dispose error message
+                path.Dispose(); // FIXED: Dispose path
             }
         }
         
@@ -701,6 +870,100 @@ namespace guideXOS.GUI {
                     );
                 }
             }
+        }
+        
+        #endregion
+        
+        #region Disposal
+        
+        /// <summary>
+        /// Dispose all resources used by this window
+        /// </summary>
+        public override void Dispose() {
+            // Dispose all string data in buttons
+            if (_buttons != null) {
+                for (int i = 0; i < _buttons.Count; i++) {
+                    var b = _buttons[i];
+                    if (b.Text != null) {
+                        b.Text.Dispose();
+                    }
+                }
+                _buttons.Clear();
+                _buttons.Dispose();
+                _buttons = null;
+            }
+            
+            // Dispose all string data in labels
+            if (_labels != null) {
+                for (int i = 0; i < _labels.Count; i++) {
+                    var l = _labels[i];
+                    if (l.Text != null) {
+                        l.Text.Dispose();
+                    }
+                }
+                _labels.Clear();
+                _labels.Dispose();
+                _labels = null;
+            }
+            
+            // Dispose all listviews and their items
+            if (_lists != null) {
+                for (int i = 0; i < _lists.Count; i++) {
+                    var list = _lists[i];
+                    if (list != null && list.Items != null) {
+                        for (int j = 0; j < list.Items.Count; j++) {
+                            if (list.Items[j] != null) {
+                                list.Items[j].Dispose();
+                            }
+                        }
+                        list.Items.Clear();
+                        list.Items.Dispose();
+                    }
+                }
+                _lists.Clear();
+                _lists.Dispose();
+                _lists = null;
+            }
+            
+            // Dispose all dropdowns and their items
+            if (_dropdowns != null) {
+                for (int i = 0; i < _dropdowns.Count; i++) {
+                    var dd = _dropdowns[i];
+                    if (dd != null && dd.Items != null) {
+                        for (int j = 0; j < dd.Items.Count; j++) {
+                            if (dd.Items[j] != null) {
+                                dd.Items[j].Dispose();
+                            }
+                        }
+                        dd.Items.Clear();
+                        dd.Items.Dispose();
+                    }
+                }
+                _dropdowns.Clear();
+                _dropdowns.Dispose();
+                _dropdowns = null;
+            }
+            
+            // Dispose all callbacks
+            if (_callbacks != null) {
+                for (int i = 0; i < _callbacks.Count; i++) {
+                    var cb = _callbacks[i];
+                    if (cb != null) {
+                        if (cb.Action != null) {
+                            cb.Action.Dispose();
+                        }
+                        if (cb.Arg != null) {
+                            cb.Arg.Dispose();
+                        }
+                    }
+                }
+                _callbacks.Clear();
+                _callbacks.Dispose();
+                _callbacks = null;
+            }
+            
+            // Call base dispose to handle window-level resources
+            base.Dispose();
         }
         
         #endregion

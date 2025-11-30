@@ -101,6 +101,9 @@ namespace guideXOS.OS {
             _apps.Add(new App("WAVPlayer", Icons.AudioIcon(32)));
             _apps.Add(new App("WebBrowser", Icons.NetworkIcon(32)));
             _apps.Add(new App("Welcome", Icons.ApplicationsIcon(32)));
+            // GXM apps from filesystem
+            _apps.Add(new App("Hello Demo", Icons.ApplicationsIcon(32)));
+            _apps.Add(new App("Minimal Demo", Icons.ApplicationsIcon(32)));
         }
         /// <summary>
         /// Load
@@ -149,6 +152,13 @@ namespace guideXOS.OS {
                             break;
                         case "WebBrowser": _apps[i].AppObject = new WebBrowser(200, 150); b = true; break;
                         case "Welcome": _apps[i].AppObject = new Welcome(300, 200); b = true; break;
+                        // GXM apps
+                        case "Hello Demo":
+                            b = LaunchGXMFromFile("Programs/hello.gxm", _apps[i].Icon);
+                            break;
+                        case "Minimal Demo":
+                            b = LaunchGXMFromFile("Programs/minimal.gxm", _apps[i].Icon);
+                            break;
                     }
                     if (b) {
                         // record recents
@@ -162,6 +172,29 @@ namespace guideXOS.OS {
                 }
             }
             return b;
+        }
+        /// <summary>
+        /// Launch GXM app from file
+        /// </summary>
+        /// <param name="path">Path to GXM file</param>
+        /// <param name="icon">Icon to use for recent items</param>
+        /// <returns>True if successfully launched</returns>
+        private bool LaunchGXMFromFile(string path, Image icon) {
+            byte[] buffer = guideXOS.FS.File.ReadAllBytes(path);
+            if (buffer == null) {
+                guideXOS.GUI.NotificationManager.Add(new Notify($"File not found: {path}"));
+                return false;
+            }
+            
+            string err;
+            bool ok = guideXOS.Misc.GXMLoader.TryExecute(buffer, out err);
+            if (ok) {
+                guideXOS.GUI.RecentManager.AddProgram(path, icon);
+            } else {
+                guideXOS.GUI.NotificationManager.Add(new Notify($"Failed: {err}"));
+            }
+            buffer.Dispose();
+            return ok;
         }
         /// <summary>
         /// Add

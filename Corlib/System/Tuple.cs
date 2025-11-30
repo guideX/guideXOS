@@ -95,8 +95,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             _ => null,
@@ -126,8 +125,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,
@@ -162,8 +160,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,
@@ -201,8 +198,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,
@@ -244,8 +240,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,
@@ -292,8 +287,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,
@@ -348,8 +342,7 @@
         /// <summary>
         /// Get the element at position <param name="index"/>.
         /// </summary>
-        object ITuple.this[int index] => index switch
-        {
+        object ITuple.this[int index] => index switch {
             0 => Item1,
             1 => Item2,
             2 => Item3,

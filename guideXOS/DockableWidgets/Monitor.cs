@@ -17,12 +17,18 @@ namespace guideXOS.DockableWidgets {
             public int lastValue;
             public string name;
             public int writeX;
+            // FIXED: Cache the label string to prevent per-frame allocations
+            public string cachedLabel;
+            public int cachedPct = -1;
+            
             public Chart(int Width, int Height, string Name) {
                 image = new Image(Width, Height);
                 graphics = Graphics.FromImage(image);
                 lastValue = 100;
                 name = Name;
                 writeX = 0;
+                cachedLabel = null;
+                cachedPct = -1;
             }
         }
         
@@ -116,11 +122,23 @@ namespace guideXOS.DockableWidgets {
         }
         
         private void Render(ref int aX, int baseY, Chart chart, int pct) {
-            // USE STRING POOL - eliminates allocations every frame
-            string labelText = chart.name + " " + StringPool.GetPercentage(pct);
-            int textWidth = WindowManager.font.MeasureString(labelText);
-            WindowManager.font.DrawString(aX + chart.graphics.Width / 2 - textWidth / 2, baseY, labelText);
-            labelText.Dispose(); // Only dispose the concatenated result
+            // FIXED: Cache label string and only update when percentage changes
+            if (chart.cachedLabel == null || chart.cachedPct != pct) {
+                // Dispose old cached label
+                if (chart.cachedLabel != null) {
+                    chart.cachedLabel.Dispose();
+                }
+                
+                // Create new cached label using StringPool - ensure no stray characters
+                string pctStr = pct.ToString() + "%";
+                chart.cachedLabel = chart.name + " " + pctStr;
+                pctStr.Dispose();
+                chart.cachedPct = pct;
+            }
+            
+            // Use cached label - NO allocations per frame!
+            int textWidth = WindowManager.font.MeasureString(chart.cachedLabel);
+            WindowManager.font.DrawString(aX + chart.graphics.Width / 2 - textWidth / 2, baseY, chart.cachedLabel);
             
             // Draw chart image
             int chartY = baseY + WindowManager.font.FontSize + 4;

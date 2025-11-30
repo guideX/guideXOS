@@ -1,5 +1,7 @@
 using guideXOS.Kernel.Drivers;
 using guideXOS.Misc;
+using guideXOS.FS;
+using System.Drawing;
 
 namespace guideXOS.Misc {
     internal static class BootSplash {
@@ -13,6 +15,17 @@ namespace guideXOS.Misc {
         const int BlinkPhases = 3; // number of blocks
         const ulong BlinkIntervalMs = 80; // advance phase every 80 ms for faster blinking
         static ulong nextBlinkTick;
+        
+        // Logo image
+        static Image logoImage;
+        static bool logoLoadAttempted; // Track if we've tried to load the logo
+        static bool backgroundDrawn; // Track if background has been drawn
+        
+        // Dots position cache to avoid recalculation
+        static int dotsY;
+        static int dotsStartX;
+        static int dotsSize;
+        static int dotsGap;
 
         public static void Initialize(string team = "Team Nexgen", string os = "guideXOS", string ver = "Version: 0.1") {
             sTeam = team;
@@ -22,53 +35,96 @@ namespace guideXOS.Misc {
             lastTick = 0;
             inited = true;
             nextBlinkTick = Timer.Ticks + BlinkIntervalMs;
+            logoImage = null;
+            logoLoadAttempted = false;
+            backgroundDrawn = false;
+            
+            // DON'T load logo here - filesystem isn't initialized yet!
+            // Logo will be loaded lazily on first Tick() call
+        }
+
+        public static void Cleanup() {
+            // Dispose logo image to free memory before transitioning to desktop
+            if (logoImage != null) {
+                logoImage.Dispose();
+                logoImage = null;
+            }
+            inited = false;
+            backgroundDrawn = false;
         }
 
         public static void Tick() {
             if (!inited) return;
+            if (Framebuffer.Graphics == null) return; // Safety check
+            
+            // Lazy load logo on first tick (filesystem should be ready by then)
+            if (!logoLoadAttempted) {
+                logoLoadAttempted = true; // Set this FIRST to prevent re-entry
+                try {
+                    byte[] logoData = File.ReadAllBytes("Images/tnlogo.png");
+                    if (logoData != null && logoData.Length > 0) {
+                        logoImage = new PNG(logoData);
+                        logoData.Dispose();
+                    }
+                } catch {
+                    // If logo fails to load, continue without it
+                    logoImage = null;
+                }
+            }
+            
+            int w = Framebuffer.Width;
+            int h = Framebuffer.Height;
+
+            // Draw background and logo ONCE on first frame
+            if (!backgroundDrawn) {
+                // Clear screen once
+                Framebuffer.Graphics.Clear(0x00000000);
+
+                // Draw logo image if available (centered)
+                int logoBottomY = h / 2; // Default if no logo
+                if (logoImage != null) {
+                    int logoX = (w / 2) - (logoImage.Width / 2);
+                    int logoY = (h / 2) - (logoImage.Height / 2) - 30; // Offset up a bit to make room for dots
+                    Framebuffer.Graphics.DrawImage(logoX, logoY, logoImage);
+                    logoBottomY = logoY + logoImage.Height;
+                }
+
+                // Calculate dots position - place them below the logo with some spacing
+                dotsSize = 10;
+                dotsGap = 12;
+                int totalW = dotsSize * 3 + dotsGap * 2;
+                dotsStartX = (w / 2) - (totalW / 2);
+                dotsY = logoBottomY + 40; // 40 pixels below the logo bottom
+
+                // Draw initial dots on first frame
+                for (int i = 0; i < 3; i++) {
+                    uint col = (i == phase) ? 0xFF2E86C1u : 0xFF3A3A3Au;
+                    Framebuffer.Graphics.FillRectangle(dotsStartX + i * (dotsSize + dotsGap), dotsY, dotsSize, dotsSize, col);
+                }
+
+                backgroundDrawn = true;
+            }
+
+            // Check if phase changed
             ulong now = Timer.Ticks;
-            // Advance quickly based on BlinkIntervalMs rather than once per tick
+            bool phaseChanged = false;
             if (now >= nextBlinkTick) {
+                phaseChanged = true;
                 phase = (phase + 1) % BlinkPhases;
                 nextBlinkTick = now + BlinkIntervalMs;
             }
 
-            // Clear
-            Framebuffer.Graphics.Clear(0x00000000);
+            // Only redraw dots if phase changed (eliminates flicker!)
+            if (phaseChanged) {
+                // Clear only the dots area (black rectangle)
+                int dotsClearWidth = dotsSize * 3 + dotsGap * 2;
+                Framebuffer.Graphics.FillRectangle(dotsStartX - 2, dotsY - 2, dotsClearWidth + 4, dotsSize + 4, 0x00000000);
 
-            // Draw centered texts using ASC16 (8x16)
-            int w = Framebuffer.Width;
-            int h = Framebuffer.Height;
-
-            // Team (small)
-            int teamW = sTeam.Length * 8;
-            int teamX = (w / 2) - (teamW / 2);
-            int teamY = (h / 2) - 48;
-            ASC16.DrawString(sTeam, teamX, teamY, 0xFFFFFFFF);
-
-            // OS (large look by drawing twice offset)
-            int osW = sOS.Length * 8;
-            int osX = (w / 2) - (osW / 2);
-            int osY = teamY + 22;
-            // drop shadow
-            ASC16.DrawString(sOS, osX + 1, osY + 1, 0xFF202020);
-            ASC16.DrawString(sOS, osX, osY, 0xFFFFFFFF);
-
-            // Version (very small - just normal font with gray)
-            int verW = sVer.Length * 8;
-            int verX = (w / 2) - (verW / 2);
-            int verY = osY + 22;
-            ASC16.DrawString(sVer, verX, verY, 0xFFAAAAAA);
-
-            // Animated 3 blocks below text
-            int blocksY = verY + 40;
-            int size = 10;
-            int gap = 12;
-            int totalW = size * 3 + gap * 2;
-            int startX = (w / 2) - (totalW / 2);
-            for (int i = 0; i < 3; i++) {
-                uint col = (i == phase) ? 0xFF2E86C1u : 0xFF3A3A3Au;
-                Framebuffer.Graphics.FillRectangle(startX + i * (size + gap), blocksY, size, size, col);
+                // Redraw all 3 dots
+                for (int i = 0; i < 3; i++) {
+                    uint col = (i == phase) ? 0xFF2E86C1u : 0xFF3A3A3Au;
+                    Framebuffer.Graphics.FillRectangle(dotsStartX + i * (dotsSize + dotsGap), dotsY, dotsSize, dotsSize, col);
+                }
             }
 
             Framebuffer.Update();

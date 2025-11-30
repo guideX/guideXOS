@@ -1,13 +1,10 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-namespace System.Reflection
-{
-    public sealed class DefaultMemberAttribute : Attribute
-    {
+namespace System.Reflection {
+    public sealed class DefaultMemberAttribute : Attribute {
         // You must provide the name of the member, this is required
-        public DefaultMemberAttribute(string memberName)
-        {
+        public DefaultMemberAttribute(string memberName) {
             MemberName = memberName;
         }
 
