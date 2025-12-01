@@ -21,7 +21,7 @@ namespace guideXOS.GUI {
         // Tabs
         private int _tabH = 40;
         private int _tabGap = 10;
-        private int _currentTab = 0; // 0 = Desktop Background, 1 = Screen Resolution, 2 = Gradients
+        private int _currentTab = 0; // 0 = Desktop Background, 1 = Screen Resolution, 2 = Gradients, 3 = Font Settings
 
         // Background thumbnails
         private List<string> _backgroundPaths;
@@ -44,12 +44,21 @@ namespace guideXOS.GUI {
         private bool _gradientScrollDrag = false;
         private int _gradientScrollStartY, _gradientScrollStartScroll;
 
+        // Font Settings
+        private List<string> _fontPaths;
+        private int _selectedFontIndex = -1;
+        private int _fontScroll = 0;
+        private bool _fontScrollDrag = false;
+        private int _fontScrollStartY, _fontScrollStartScroll;
+        private int _selectedFontSize = 18; // Default
+        private int[] _fontSizes = new[] { 12, 14, 16, 18, 20, 24, 28, 32 };
+        private bool _fontsLoaded = false;
+
         public DisplayOptions(int X, int Y, int W = 800, int H = 600) : base(X, Y, W, H) {
             IsResizable = false;
             ShowInTaskbar = false;
             ShowMaximize = false;
             ShowMinimize = true;
-            //ShowRestore = false;
             ShowTombstone = false;
             Title = "Display Options";
             
@@ -75,6 +84,10 @@ namespace guideXOS.GUI {
             
             // Load backgrounds immediately
             LoadBackgrounds();
+
+            // Initialize font lists
+            _fontPaths = new List<string>();
+            _selectedFontSize = WindowManager.font != null ? WindowManager.font.FontSize : 18;
         }
 
         private void LoadBackgrounds() {
@@ -178,6 +191,27 @@ namespace guideXOS.GUI {
             }
         }
 
+        private void LoadFonts() {
+            if (_fontsLoaded) return;
+            _fontsLoaded = true;
+
+            _fontPaths.Clear();
+            var files = File.GetFiles(@"Fonts/");
+            if (files != null && files.Count > 0) {
+                for (int i = 0; i < files.Count; i++) {
+                    var fi = files[i];
+                    if (fi.Attribute != FileAttribute.Directory) {
+                        string name = fi.Name;
+                        if (name.EndsWith(".png") || name.EndsWith(".PNG")) {
+                            _fontPaths.Add("Fonts/" + name);
+                        }
+                    }
+                    fi.Dispose();
+                }
+                files.Dispose();
+            }
+        }
+
         public override void OnInput() {
             base.OnInput(); 
             if (!Visible) return;
@@ -199,10 +233,11 @@ namespace guideXOS.GUI {
 
             if (Control.MouseButtons == MouseButtons.Left) {
                 // Tab clicks
-                int tabW = (cw - _tabGap * 2) / 3; // 3 tabs now
+                int tabW = (cw - _tabGap * 3) / 4; // 4 tabs now
                 int tabX0 = cx; 
                 int tabX1 = cx + tabW + _tabGap; 
                 int tabX2 = cx + (tabW + _tabGap) * 2;
+                int tabX3 = cx + (tabW + _tabGap) * 3;
                 int tabY = cy;
                 if (mx >= tabX0 && mx <= tabX0 + tabW && my >= tabY && my <= tabY + _tabH) { 
                     _currentTab = 0; 
@@ -214,6 +249,11 @@ namespace guideXOS.GUI {
                 }
                 if (mx >= tabX2 && mx <= tabX2 + tabW && my >= tabY && my <= tabY + _tabH) { 
                     _currentTab = 2; 
+                    return; 
+                }
+                if (mx >= tabX3 && mx <= tabX3 + tabW && my >= tabY && my <= tabY + _tabH) { 
+                    _currentTab = 3;
+                    if (!_fontsLoaded) LoadFonts();
                     return; 
                 }
 
@@ -402,9 +442,65 @@ namespace guideXOS.GUI {
                         }
                     }
                 }
+
+                // Font Settings tab
+                if (_currentTab == 3) {
+                    int listY = contentY + WindowManager.font.FontSize + 16;
+                    int listH = contentH - WindowManager.font.FontSize - 16 - _btnH - 20;
+                    int listW = cw - 14;
+                    int itemH = 40;
+
+                    // Font list clicks
+                    for (int i = 0; i < _fontPaths.Count; i++) {
+                        int rowY = listY + i * itemH - _fontScroll;
+                        if (rowY + itemH < listY || rowY > listY + listH) continue;
+                        
+                        if (mx >= cx && mx <= cx + listW && my >= rowY && my <= rowY + itemH - 2) {
+                            _selectedFontIndex = i;
+                            return;
+                        }
+                    }
+
+                    // Scrollbar for font list
+                    int sbW = 12;
+                    int sbX = cx + cw - sbW;
+                    if (mx >= sbX && mx <= sbX + sbW && my >= listY && my <= listY + listH) {
+                        _fontScrollDrag = true;
+                        _fontScrollStartY = my;
+                        _fontScrollStartScroll = _fontScroll;
+                        return;
+                    }
+
+                    // Font size buttons
+                    int sizeBtnY = listY + listH + 10;
+                    int sizeBtnW = 60;
+                    int sizeBtnH = 32;
+                    int sizeGap = 8;
+                    int sizeX = cx;
+
+                    for (int i = 0; i < _fontSizes.Length; i++) {
+                        if (mx >= sizeX && mx <= sizeX + sizeBtnW && my >= sizeBtnY && my <= sizeBtnY + sizeBtnH) {
+                            _selectedFontSize = _fontSizes[i];
+                            return;
+                        }
+                        sizeX += sizeBtnW + sizeGap;
+                    }
+
+                    // Apply button
+                    int applyBtnW = 120;
+                    int applyBtnH = 38;
+                    int applyBtnX = X + Width - _padding - applyBtnW;
+                    int applyBtnY = Y + Height - _padding - applyBtnH - 10;
+
+                    if (mx >= applyBtnX && mx <= applyBtnX + applyBtnW && my >= applyBtnY && my <= applyBtnY + applyBtnH) {
+                        ApplyFont();
+                        return;
+                    }
+                }
             } else {
                 _bgScrollDrag = false;
                 _gradientScrollDrag = false;
+                _fontScrollDrag = false;
             }
 
             // Background gallery scrolling
@@ -442,6 +538,20 @@ namespace guideXOS.GUI {
                 _gradientScroll = _gradientScrollStartScroll + dy;
                 if (_gradientScroll < 0) _gradientScroll = 0;
                 if (_gradientScroll > maxScroll) _gradientScroll = maxScroll;
+            }
+
+            // Font list scrolling
+            if (_fontScrollDrag && _currentTab == 3) {
+                int listY = contentY + WindowManager.font.FontSize + 16;
+                int listH = contentH - WindowManager.font.FontSize - 16 - _btnH - 20;
+                int itemH = 40;
+                int totalH = _fontPaths.Count * itemH;
+                int maxScroll = totalH > listH ? totalH - listH : 0;
+                
+                int dy = my - _fontScrollStartY;
+                _fontScroll = _fontScrollStartScroll + dy;
+                if (_fontScroll < 0) _fontScroll = 0;
+                if (_fontScroll > maxScroll) _fontScroll = maxScroll;
             }
             
             // Handle resolution confirmation countdown
@@ -567,6 +677,101 @@ namespace guideXOS.GUI {
             }
         }
 
+        private void DrawGradientPreview(int index, int x, int y, int w, int h) {
+            // Define gradient colors matching ApplyGradient
+            uint startColor = 0xFF000000;
+            uint endColor = 0xFF000000;
+            bool vertical = true;
+            
+            switch (index) {
+                case 0: startColor = 0xFF1E3A8A; endColor = 0xFF7C3AED; vertical = true; break;
+                case 1: startColor = 0xFF065F46; endColor = 0xFF0891B2; vertical = true; break;
+                case 2: startColor = 0xFFEA580C; endColor = 0xFFEC4899; vertical = true; break;
+                case 3: startColor = 0xFF6B21A8; endColor = 0xFFDB2777; vertical = true; break;
+                case 4: startColor = 0xFF1E40AF; endColor = 0xFF06B6D4; vertical = true; break;
+                case 5: startColor = 0xFFB91C1C; endColor = 0xFFEA580C; vertical = true; break;
+                case 6: startColor = 0xFF115E59; endColor = 0xFF16A34A; vertical = false; break;
+                case 7: startColor = 0xFFDB2777; endColor = 0xFFF59E0B; vertical = false; break;
+                case 8: startColor = 0xFF4C1D95; endColor = 0xFF1D4ED8; vertical = true; break;
+                case 9: startColor = 0xFF3730A3; endColor = 0xFF7E22CE; vertical = true; break;
+                case 10: startColor = 0xFF1F2937; endColor = 0xFF6B7280; vertical = true; break;
+                case 11: startColor = 0xFF1E3A8A; endColor = 0xFF0EA5E9; vertical = false; break;
+            }
+            
+            int startA = (int)(startColor >> 24);
+            int startR = (int)((startColor >> 16) & 0xFF);
+            int startG = (int)((startColor >> 8) & 0xFF);
+            int startB = (int)(startColor & 0xFF);
+            
+            int endA = (int)(endColor >> 24);
+            int endR = (int)((endColor >> 16) & 0xFF);
+            int endG = (int)((endColor >> 8) & 0xFF);
+            int endB = (int)(endColor & 0xFF);
+            
+            if (vertical) {
+                for (int py = 0; py < h; py++) {
+                    float t = (float)py / h;
+                    int a = (int)(startA + (endA - startA) * t);
+                    int r = (int)(startR + (endR - startR) * t);
+                    int g = (int)(startG + (endG - startG) * t);
+                    int b = (int)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    Framebuffer.Graphics.FillRectangle(x, y + py, w, 1, color);
+                }
+            } else {
+                for (int px = 0; px < w; px++) {
+                    float t = (float)px / w;
+                    int a = (int)(startA + (endA - startA) * t);
+                    int r = (int)(startR + (endR - startR) * t);
+                    int g = (int)(startG + (endG - startG) * t);
+                    int b = (int)(startB + (endB - startB) * t);
+                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
+                    
+                    Framebuffer.Graphics.FillRectangle(x + px, y, 1, h, color);
+                }
+            }
+        }
+
+        private void ApplyFont() {
+            if (_selectedFontIndex < 0 || _selectedFontIndex >= _fontPaths.Count) {
+                NotificationManager.Add(new Notify("Please select a font", NotificationLevel.Error));
+                return;
+            }
+
+            try {
+                string fontPath = _fontPaths[_selectedFontIndex];
+                byte[] fontData = File.ReadAllBytes(fontPath);
+                if (fontData == null || fontData.Length == 0) {
+                    NotificationManager.Add(new Notify("Failed to load font file", NotificationLevel.Error));
+                    return;
+                }
+
+                var fontImg = new PNG(fontData);
+                fontData.Dispose();
+
+                // Create new font with selected size
+                var newFont = new IFont(
+                    fontImg,
+                    "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+                    _selectedFontSize
+                );
+
+                // Dispose old font if needed
+                if (WindowManager.font != null) {
+                    // Note: We can't easily dispose the old font image without breaking references
+                    // Just replace the reference
+                }
+
+                WindowManager.font = newFont;
+                
+                NotificationManager.Add(new Notify("Font applied successfully", NotificationLevel.None));
+                this.Visible = false;
+            } catch {
+                NotificationManager.Add(new Notify("Failed to apply font", NotificationLevel.Error));
+            }
+        }
+
         public override void OnDraw() {
             base.OnDraw(); 
             if (WindowManager.font == null) return;
@@ -578,10 +783,11 @@ namespace guideXOS.GUI {
             int contentH = Height - _padding * 2 - _tabH - _tabGap;
 
             // Draw tabs
-            int tabW = (cw - _tabGap * 2) / 3; // 3 tabs
+            int tabW = (cw - _tabGap * 3) / 4; // 4 tabs
             int tabX0 = cx; 
             int tabX1 = cx + tabW + _tabGap; 
             int tabX2 = cx + (tabW + _tabGap) * 2;
+            int tabX3 = cx + (tabW + _tabGap) * 3;
             int tabY = cy;
             uint tabBg = 0xFF252525; 
             uint tabBgSel = 0xFF3A3A3A; 
@@ -590,14 +796,17 @@ namespace guideXOS.GUI {
             Framebuffer.Graphics.FillRectangle(tabX0, tabY, tabW, _tabH, _currentTab == 0 ? tabBgSel : tabBg);
             Framebuffer.Graphics.FillRectangle(tabX1, tabY, tabW, _tabH, _currentTab == 1 ? tabBgSel : tabBg);
             Framebuffer.Graphics.FillRectangle(tabX2, tabY, tabW, _tabH, _currentTab == 2 ? tabBgSel : tabBg);
+            Framebuffer.Graphics.FillRectangle(tabX3, tabY, tabW, _tabH, _currentTab == 3 ? tabBgSel : tabBg);
             Framebuffer.Graphics.DrawRectangle(tabX0, tabY, tabW, _tabH, border, 1); 
             Framebuffer.Graphics.DrawRectangle(tabX1, tabY, tabW, _tabH, border, 1);
             Framebuffer.Graphics.DrawRectangle(tabX2, tabY, tabW, _tabH, border, 1);
+            Framebuffer.Graphics.DrawRectangle(tabX3, tabY, tabW, _tabH, border, 1);
             
             int textY = tabY + (_tabH / 2 - WindowManager.font.FontSize / 2);
             WindowManager.font.DrawString(tabX0 + 10, textY, "Backgrounds");
             WindowManager.font.DrawString(tabX1 + 10, textY, "Resolution");
             WindowManager.font.DrawString(tabX2 + 10, textY, "Gradients");
+            WindowManager.font.DrawString(tabX3 + 10, textY, "Fonts");
 
             // Draw content based on tab
             if (_currentTab == 0) {
@@ -684,15 +893,15 @@ namespace guideXOS.GUI {
                 int btnEffectsX = btnColorX + _btnW + 16;
                 
                 Framebuffer.Graphics.FillRectangle(btnSelectX, btnY, _btnW, _btnH, 0xFF2A2A2A);
-                Framebuffer.Graphics.DrawRectangle(btnSelectX, btnY, _btnW, _btnH, border, 1);
+                Framebuffer.Graphics.DrawRectangle(btnSelectX, btnY, _btnW, _btnH, 0xFF4F4F4F, 1);
                 WindowManager.font.DrawString(btnSelectX + 16, btnY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Select Background");
                 
                 Framebuffer.Graphics.FillRectangle(btnColorX, btnY, _btnW, _btnH, 0xFF2A2A2A);
-                Framebuffer.Graphics.DrawRectangle(btnColorX, btnY, _btnW, _btnH, border, 1);
+                Framebuffer.Graphics.DrawRectangle(btnColorX, btnY, _btnW, _btnH, 0xFF4F4F4F, 1);
                 WindowManager.font.DrawString(btnColorX + 24, btnY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Choose Color");
                 
                 Framebuffer.Graphics.FillRectangle(btnEffectsX, btnY, _btnW, _btnH, 0xFF2A2A2A);
-                Framebuffer.Graphics.DrawRectangle(btnEffectsX, btnY, _btnW, _btnH, border, 1);
+                Framebuffer.Graphics.DrawRectangle(btnEffectsX, btnY, _btnW, _btnH, 0xFF4F4F4F, 1);
                 WindowManager.font.DrawString(btnEffectsX + 18, btnY + (_btnH / 2 - WindowManager.font.FontSize / 2), "Visual Effects");
 
             } else if (_currentTab == 1) {
@@ -805,62 +1014,99 @@ namespace guideXOS.GUI {
                     if (thumbY + thumbH > galleryH) thumbY = galleryH - thumbH;
                     Framebuffer.Graphics.FillRectangle(sbX + 1, galleryY + thumbY, sbW - 2, thumbH, 0xFF3F3F3F);
                 }
-            }
-        }
-        
-        private void DrawGradientPreview(int index, int x, int y, int w, int h) {
-            // Define gradient colors matching ApplyGradient
-            uint startColor = 0xFF000000;
-            uint endColor = 0xFF000000;
-            bool vertical = true;
-            
-            switch (index) {
-                case 0: startColor = 0xFF1E3A8A; endColor = 0xFF7C3AED; vertical = true; break;
-                case 1: startColor = 0xFF065F46; endColor = 0xFF0891B2; vertical = true; break;
-                case 2: startColor = 0xFFEA580C; endColor = 0xFFEC4899; vertical = true; break;
-                case 3: startColor = 0xFF6B21A8; endColor = 0xFFDB2777; vertical = true; break;
-                case 4: startColor = 0xFF1E40AF; endColor = 0xFF06B6D4; vertical = true; break;
-                case 5: startColor = 0xFFB91C1C; endColor = 0xFFEA580C; vertical = true; break;
-                case 6: startColor = 0xFF115E59; endColor = 0xFF16A34A; vertical = false; break;
-                case 7: startColor = 0xFFDB2777; endColor = 0xFFF59E0B; vertical = false; break;
-                case 8: startColor = 0xFF4C1D95; endColor = 0xFF1D4ED8; vertical = true; break;
-                case 9: startColor = 0xFF3730A3; endColor = 0xFF7E22CE; vertical = true; break;
-                case 10: startColor = 0xFF1F2937; endColor = 0xFF6B7280; vertical = true; break;
-                case 11: startColor = 0xFF1E3A8A; endColor = 0xFF0EA5E9; vertical = false; break;
-            }
-            
-            int startA = (int)(startColor >> 24);
-            int startR = (int)((startColor >> 16) & 0xFF);
-            int startG = (int)((startColor >> 8) & 0xFF);
-            int startB = (int)(startColor & 0xFF);
-            
-            int endA = (int)(endColor >> 24);
-            int endR = (int)((endColor >> 16) & 0xFF);
-            int endG = (int)((endColor >> 8) & 0xFF);
-            int endB = (int)(endColor & 0xFF);
-            
-            if (vertical) {
-                for (int py = 0; py < h; py++) {
-                    float t = (float)py / h;
-                    int a = (int)(startA + (endA - startA) * t);
-                    int r = (int)(startR + (endR - startR) * t);
-                    int g = (int)(startG + (endG - startG) * t);
-                    int b = (int)(startB + (endB - startB) * t);
-                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
-                    
-                    Framebuffer.Graphics.FillRectangle(x, y + py, w, 1, color);
+            } else if (_currentTab == 3) {
+                // Font Settings tab
+                WindowManager.font.DrawString(cx, contentY, "Select a font and size:");
+
+                if (!_fontsLoaded) {
+                    WindowManager.font.DrawString(cx + 20, contentY + WindowManager.font.FontSize + 20, "Loading fonts...");
+                    return;
                 }
-            } else {
-                for (int px = 0; px < w; px++) {
-                    float t = (float)px / w;
-                    int a = (int)(startA + (endA - startA) * t);
-                    int r = (int)(startR + (endR - startR) * t);
-                    int g = (int)(startG + (endG - startG) * t);
-                    int b = (int)(startB + (endB - startB) * t);
-                    uint color = (uint)((a << 24) | (r << 16) | (g << 8) | b);
-                    
-                    Framebuffer.Graphics.FillRectangle(x + px, y, 1, h, color);
+
+                int listY = contentY + WindowManager.font.FontSize + 16;
+                int listH = contentH - WindowManager.font.FontSize - 16 - _btnH - 20;
+                int listW = cw - 14;
+                int itemH = 40;
+
+                Framebuffer.Graphics.FillRectangle(cx, listY, listW + 14, listH, 0xFF1A1A1A);
+
+                if (_fontPaths.Count == 0) {
+                    WindowManager.font.DrawString(cx + 20, listY + 20, "No fonts found in /Fonts directory");
+                } else {
+                    // Draw font list
+                    int mx = Control.MousePosition.X;
+                    int my = Control.MousePosition.Y;
+
+                    for (int i = 0; i < _fontPaths.Count; i++) {
+                        int rowY = listY + i * itemH - _fontScroll;
+                        if (rowY + itemH < listY || rowY > listY + listH) continue;
+
+                        bool selected = i == _selectedFontIndex;
+                        uint rowBg = selected ? 0xFF2E4A7F : 0xFF252525;
+
+                        Framebuffer.Graphics.FillRectangle(cx, rowY, listW, itemH - 2, rowBg);
+                        Framebuffer.Graphics.DrawRectangle(cx, rowY, listW, itemH - 2, 0xFF3F3F3F, 1);
+
+                        // Extract font name from path
+                        string fontPath = _fontPaths[i];
+                        string fontName = fontPath;
+                        int lastSlash = fontPath.LastIndexOf('/');
+                        if (lastSlash >= 0 && lastSlash < fontPath.Length - 1) {
+                            fontName = fontPath.Substring(lastSlash + 1);
+                        }
+
+                        WindowManager.font.DrawString(cx + 16, rowY + itemH / 2 - WindowManager.font.FontSize / 2, fontName, listW - 32, WindowManager.font.FontSize);
+                    }
+
+                    // Scrollbar
+                    int sbW = 12;
+                    int sbX = cx + cw - sbW;
+                    int totalH = _fontPaths.Count * itemH;
+                    int maxScroll = totalH > listH ? totalH - listH : 0;
+
+                    Framebuffer.Graphics.FillRectangle(sbX, listY, sbW, listH, 0xFF0F0F0F);
+                    if (maxScroll > 0 && totalH > 0) {
+                        int thumbH = listH * listH / totalH;
+                        if (thumbH < 24) thumbH = 24;
+                        if (thumbH > listH) thumbH = listH;
+                        int thumbY = listH * _fontScroll / totalH;
+                        if (thumbY + thumbH > listH) thumbY = listH - thumbH;
+                        Framebuffer.Graphics.FillRectangle(sbX + 1, listY + thumbY, sbW - 2, thumbH, 0xFF3F3F3F);
+                    }
                 }
+
+                // Font size buttons
+                int sizeBtnY = listY + listH + 10;
+                int sizeBtnW = 60;
+                int sizeBtnH = 32;
+                int sizeGap = 8;
+                int sizeX = cx;
+
+                WindowManager.font.DrawString(cx, sizeBtnY - WindowManager.font.FontSize - 6, "Font Size:");
+
+                for (int i = 0; i < _fontSizes.Length; i++) {
+                    bool selected = _fontSizes[i] == _selectedFontSize;
+                    uint btnBg = selected ? 0xFF2E4A7F : 0xFF2A2A2A;
+
+                    Framebuffer.Graphics.FillRectangle(sizeX, sizeBtnY, sizeBtnW, sizeBtnH, btnBg);
+                    Framebuffer.Graphics.DrawRectangle(sizeX, sizeBtnY, sizeBtnW, sizeBtnH, 0xFF4F4F4F, 1);
+
+                    string sizeText = _fontSizes[i].ToString();
+                    int textW = WindowManager.font.MeasureString(sizeText);
+                    WindowManager.font.DrawString(sizeX + (sizeBtnW - textW) / 2, sizeBtnY + (sizeBtnH - WindowManager.font.FontSize) / 2, sizeText);
+
+                    sizeX += sizeBtnW + sizeGap;
+                }
+
+                // Apply button
+                int applyBtnW = 120;
+                int applyBtnH = 38;
+                int applyBtnX = X + Width - _padding - applyBtnW;
+                int applyBtnY = Y + Height - _padding - applyBtnH - 10;
+
+                Framebuffer.Graphics.FillRectangle(applyBtnX, applyBtnY, applyBtnW, applyBtnH, 0xFF2E7F3F);
+                Framebuffer.Graphics.DrawRectangle(applyBtnX, applyBtnY, applyBtnW, applyBtnH, 0xFF3F3F3F, 1);
+                WindowManager.font.DrawString(applyBtnX + 30, applyBtnY + (applyBtnH / 2 - WindowManager.font.FontSize / 2), "Apply");
             }
         }
 
@@ -878,6 +1124,11 @@ namespace guideXOS.GUI {
             // Clean up background paths list
             if (_backgroundPaths != null) {
                 _backgroundPaths.Clear(); // Clear the list instead of calling Dispose on it
+            }
+
+            // Clean up font paths list
+            if (_fontPaths != null) {
+                _fontPaths.Clear();
             }
             
             // Clean up resolution labels array

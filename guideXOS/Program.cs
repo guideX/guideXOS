@@ -130,7 +130,6 @@ unsafe class Program {
         //try { Wallpaper = new PNG(File.ReadAllBytes("Images/tronporche.png")); } catch { Wallpaper = new Image(Framebuffer.Width, Framebuffer.Height); }
         BitFont.Initialize();
         string CustomCharset = "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
-        //BitFont.RegisterBitFont(new BitFontDescriptor("Song", CustomCharset, File.ReadAllBytes("Fonts/Song.btf"), 16));
         BitFont.RegisterBitFont(new BitFontDescriptor("Enludo", CustomCharset, File.ReadAllBytes("Fonts/enludo.btf"), 16));
         FConsole = null;
         WindowManager.Initialize();
@@ -340,80 +339,160 @@ unsafe class Program {
         const ulong ActiveMoveMs = 100; // stay responsive for 100ms after a move
 
         for (; ; ) {
-            // FIXED: Periodically refresh cached icons to prevent memory buildup
-            if (Timer.Ticks - _lastIconCacheRefresh >= IconCacheRefreshIntervalMs) {
-                RefreshCachedIcons();
-                _lastIconCacheRefresh = Timer.Ticks;
-            }
-            
-            // Update background rotation manager (handles automatic rotation and fade transitions)
-            BackgroundRotationManager.Update();
-            
-            // Per-frame input pass for all windows
-            WindowManager.MouseHandled = false;
-            WindowManager.InputAll();
-            WindowManager.FlushPendingCreates();
+            try {
+                // FIXED: Periodically refresh cached icons to prevent memory buildup
+                if (Timer.Ticks - _lastIconCacheRefresh >= IconCacheRefreshIntervalMs) {
+                    RefreshCachedIcons();
+                    _lastIconCacheRefresh = Timer.Ticks;
+                }
+                
+                // Update background rotation manager (handles automatic rotation and fade transitions)
+                try {
+                    BackgroundRotationManager.Update();
+                } catch {
+                    // Ignore background rotation errors
+                }
+                
+                // Per-frame input pass for all windows
+                WindowManager.MouseHandled = false;
+                try {
+                    WindowManager.InputAll();
+                } catch {
+                    // Log input error but continue
+                    Console.WriteLine("Input handling error");
+                }
+                
+                try {
+                    WindowManager.FlushPendingCreates();
+                } catch {
+                    // Ignore window creation errors
+                }
 
-            // Service audio playback from main loop
-            WAVPlayer.DoPlay();
+                // Service audio playback from main loop
+                try {
+                    WAVPlayer.DoPlay();
+                } catch {
+                    // Ignore audio errors
+                }
 
-            //clear screen
-            Framebuffer.Graphics.Clear(0x0);
-            //draw carpet or wallpaper - use BackgroundRotationManager for fade effects
-            BackgroundRotationManager.DrawBackground();
-            
-            //Inspects the system to see if the user has right clicked there is a small difference between these two functions
-            // Show desktop context menu only when right-click happened and no other window consumed the mouse.
-            // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing (saves ~200 KB/minute)
-            if ((Control.MouseButtons & MouseButtons.Right) == MouseButtons.Right && !rightClicked && !WindowManager.MouseHandled) {
-                rightClicked = true;
-                rightmenu.X = Control.MousePosition.X;
-                rightmenu.Y = Control.MousePosition.Y;
-                WindowManager.MoveToEnd(rightmenu);
-                rightmenu.Visible = true;
-            } else if ((Control.MouseButtons & MouseButtons.Right) != MouseButtons.Right) {
-                rightClicked = false;
-            }
-            int iconSize = 48;
-            Desktop.Update(
-                _cachedDocumentIcon, 
-                _cachedFolderIcon, 
-                _cachedImageIcon, 
-                _cachedAudioIcon,
-                iconSize
-            );
-            //Desktop.Draw();
-            
-            // Draw windows in layers to control z-order:
-            // 1. Regular windows (except Task Manager)
-            WindowManager.DrawAllExceptTaskManager();
-            
-            // 2. Workspace switcher (if visible) - appears on top of regular windows
-            if (Desktop.Taskbar != null) {
-                Desktop.Taskbar.DrawWorkspaceSwitcher();
-            }
-            
-            // 3. Task Manager (always on top)
-            WindowManager.DrawTaskManager();
-            
-            // 4. Clean up closed windows to prevent memory leaks
-            WindowManager.CleanupClosedWindows();
-            
-            //draw cursor
-            // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing
-            var img = (Control.MouseButtons & MouseButtons.Left) == MouseButtons.Left ? CursorMoving : Cursor;
-            if (img != null) Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
-            //refresh screen
-            Framebuffer.Update();
-            // Mouse responsiveness throttling: if mouse moved recently, keep minimal sleep (0) for max responsiveness.
-            // When idle, yield a bit to lower CPU usage.
-            int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
-            if (mx != lastMouseX || my != lastMouseY) {
-                lastMouseX = mx; lastMouseY = my; lastMoveTick = Timer.Ticks;
-                Thread.Sleep(0);
-            } else {
-                ulong age = (Timer.Ticks >= lastMoveTick) ? (Timer.Ticks - lastMoveTick) : 0UL;
-                if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(2);
+                //clear screen
+                try {
+                    Framebuffer.Graphics.Clear(0x0);
+                } catch {
+                    // Critical: if we can't clear screen, skip frame
+                    Thread.Sleep(1);
+                    continue;
+                }
+                
+                //draw carpet or wallpaper - use BackgroundRotationManager for fade effects
+                try {
+                    BackgroundRotationManager.DrawBackground();
+                } catch {
+                    // Draw solid color fallback
+                    try {
+                        Framebuffer.Graphics.Clear(0xFF0D7D77);
+                    } catch { }
+                }
+                
+                //Inspects the system to see if the user has right clicked there is a small difference between these two functions
+                // Show desktop context menu only when right-click happened and no other window consumed the mouse.
+                // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing (saves ~200 KB/minute)
+                try {
+                    if ((Control.MouseButtons & MouseButtons.Right) == MouseButtons.Right && !rightClicked && !WindowManager.MouseHandled) {
+                        rightClicked = true;
+                        if (rightmenu != null) {
+                            rightmenu.X = Control.MousePosition.X;
+                            rightmenu.Y = Control.MousePosition.Y;
+                            WindowManager.MoveToEnd(rightmenu);
+                            rightmenu.Visible = true;
+                        }
+                    } else if ((Control.MouseButtons & MouseButtons.Right) != MouseButtons.Right) {
+                        rightClicked = false;
+                    }
+                } catch {
+                    // Ignore context menu errors
+                    rightClicked = false;
+                }
+                
+                try {
+                    int iconSize = 48;
+                    Desktop.Update(
+                        _cachedDocumentIcon, 
+                        _cachedFolderIcon, 
+                        _cachedImageIcon, 
+                        _cachedAudioIcon,
+                        iconSize
+                    );
+                } catch {
+                    // Ignore desktop update errors
+                }
+                
+                //Desktop.Draw();
+                
+                // Draw windows in layers to control z-order:
+                // 1. Regular windows (except Task Manager)
+                try {
+                    WindowManager.DrawAllExceptTaskManager();
+                } catch {
+                    // Log but continue if window drawing fails
+                    Console.WriteLine("Window drawing error");
+                }
+                
+                // 2. Workspace switcher (if visible) - appears on top of regular windows
+                try {
+                    if (Desktop.Taskbar != null) {
+                        Desktop.Taskbar.DrawWorkspaceSwitcher();
+                    }
+                } catch {
+                    // Ignore workspace switcher errors
+                }
+                
+                // 3. Task Manager (always on top)
+                try {
+                    WindowManager.DrawTaskManager();
+                } catch {
+                    // Ignore task manager drawing errors
+                }
+                
+                // 4. Clean up closed windows to prevent memory leaks
+                try {
+                    WindowManager.CleanupClosedWindows();
+                } catch {
+                    // Ignore cleanup errors
+                }
+                
+                //draw cursor
+                // FIXED: Use bitwise AND instead of HasFlag() to avoid enum boxing
+                try {
+                    var img = (Control.MouseButtons & MouseButtons.Left) == MouseButtons.Left ? CursorMoving : Cursor;
+                    if (img != null) Framebuffer.Graphics.DrawImage(Control.MousePosition.X, Control.MousePosition.Y, img);
+                } catch {
+                    // Ignore cursor drawing errors
+                }
+                
+                //refresh screen
+                try {
+                    Framebuffer.Update();
+                } catch {
+                    // Critical: if we can't update screen, skip frame
+                    Thread.Sleep(1);
+                    continue;
+                }
+                
+                // Mouse responsiveness throttling: if mouse moved recently, keep minimal sleep (0) for max responsiveness.
+                // When idle, yield a bit to lower CPU usage.
+                int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
+                if (mx != lastMouseX || my != lastMouseY) {
+                    lastMouseX = mx; lastMouseY = my; lastMoveTick = Timer.Ticks;
+                    Thread.Sleep(0);
+                } else {
+                    ulong age = (Timer.Ticks >= lastMoveTick) ? (Timer.Ticks - lastMoveTick) : 0UL;
+                    if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(2);
+                }
+            } catch {
+                // Catch any unhandled exception in main loop
+                Console.WriteLine("Critical error in main loop");
+                Thread.Sleep(10); // Prevent tight error loop
             }
          }
      }

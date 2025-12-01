@@ -51,7 +51,7 @@ namespace guideXOS.GUI {
             CloseButton = new PNG(File.ReadAllBytes("Images/Close.png"));
             MinimizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/down.png"));
             MaximizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/image.png"));
-            PNG defaultFont = new PNG(File.ReadAllBytes("Images/defaultfont.png"));
+            PNG defaultFont = new PNG(File.ReadAllBytes("Fonts/defaultfont.png"));
             font = new IFont(
                 defaultFont,
                 "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",

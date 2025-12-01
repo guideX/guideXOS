@@ -3,6 +3,14 @@ using guideXOS.Misc;
 using System.Drawing;
 namespace guideXOS.GUI {
     /// <summary>
+    /// Icon Format
+    /// </summary>
+    public enum IconFormat {
+        PNG,
+        SVG
+    }
+    
+    /// <summary>
     /// Icons Privateq
     /// </summary>
     public class IconsPrivate {
@@ -86,32 +94,100 @@ namespace guideXOS.GUI {
         /// Icons Private
         /// </summary>
         /// <param name="size"></param>
-        public IconsPrivate(int size) {
-            ConfigureIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/configure.png"));
-            NotepadIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/notepad.png"));
-            EditIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/edit.png"));
-            CalendarIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/calendar.png"));
-            CalculatorIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/calculator.png"));
-            DocumentIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/documents.png"));
-            AudioIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/music.png"));
-            ImageIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/image.png"));
-            FolderIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/folder.png"));
-            TaskbarIcon = new PNG(File.ReadAllBytes($"Images/startmenubutton.png"));
-            TaskbarIconOver = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
-            TaskbarIconDown = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
-            StartIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
-            AudioPauseIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/pause.png"));
-            AudioPlayIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
-            LockIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/lock.png"));
-            ApplicationsIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/applications.png"));
-            ChatIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/chat.png"));
-            NetworkIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/network.png"));
+        /// <param name="format">Icon format to use (PNG or SVG)</param>
+        public IconsPrivate(int size, IconFormat format = IconFormat.PNG) {
+            string ext = format == IconFormat.SVG ? "svg" : "png";
+            string basePath = format == IconFormat.SVG ? "icons" : $"Images/BlueVelvet/{size}";
+            
+            if (format == IconFormat.SVG) {
+                // Load SVG icons with target size
+                ConfigureIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+                NotepadIcon = LoadIcon($"{basePath}/utilities-text-editor.svg", size, format);
+                EditIcon = LoadIcon($"{basePath}/utilities-text-editor.svg", size, format);
+                CalendarIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format); // placeholder
+                CalculatorIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format); // placeholder
+                DocumentIcon = LoadIcon($"{basePath}/utilities-text-editor.svg", size, format);
+                AudioIcon = LoadIcon($"{basePath}/vlc.svg", size, format);
+                ImageIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format); // placeholder
+                FolderIcon = LoadIcon($"{basePath}/system-file-manager.svg", size, format);
+                TaskbarIcon = LoadIcon($"Images/startmenubutton.png", size, IconFormat.PNG); // Keep PNG
+                TaskbarIconOver = LoadIcon($"Images/startmenubutton_over.png", size, IconFormat.PNG);
+                TaskbarIconDown = LoadIcon($"Images/startmenubutton_over.png", size, IconFormat.PNG);
+                StartIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+                AudioPauseIcon = LoadIcon($"{basePath}/vlc.svg", size, format);
+                AudioPlayIcon = LoadIcon($"{basePath}/vlc.svg", size, format);
+                LockIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+                ApplicationsIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+                ChatIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+                NetworkIcon = LoadIcon($"{basePath}/preferences-system.svg", size, format);
+            } else {
+                // Original PNG loading
+                ConfigureIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/configure.png"));
+                NotepadIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/notepad.png"));
+                EditIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/edit.png"));
+                CalendarIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/calendar.png"));
+                CalculatorIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/calculator.png"));
+                DocumentIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/documents.png"));
+                AudioIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/music.png"));
+                ImageIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/image.png"));
+                FolderIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/folder.png"));
+                TaskbarIcon = new PNG(File.ReadAllBytes($"Images/startmenubutton.png"));
+                TaskbarIconOver = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
+                TaskbarIconDown = new PNG(File.ReadAllBytes($"Images/startmenubutton_over.png"));
+                StartIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
+                AudioPauseIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/pause.png"));
+                AudioPlayIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/play.png"));
+                LockIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/lock.png"));
+                ApplicationsIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/applications.png"));
+                ChatIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/chat.png"));
+                NetworkIcon = new PNG(File.ReadAllBytes($"Images/BlueVelvet/{size}/network.png"));
+            }
+        }
+        
+        /// <summary>
+        /// Load icon from file with specified format
+        /// </summary>
+        private Image LoadIcon(string path, int size, IconFormat format) {
+            try {
+                byte[] data = File.ReadAllBytes(path);
+                if (data == null || data.Length == 0) {
+                    // Fall back to PNG if SVG not found
+                    return new PNG(new byte[0]);
+                }
+                
+                if (format == IconFormat.SVG) {
+                    return new SVG(data, size, size);
+                } else {
+                    return new PNG(data);
+                }
+            } catch {
+                // Return fallback icon on error
+                return new PNG(new byte[0]);
+            }
         }
     }
     /// <summary>
     /// Icons
     /// </summary>
     public static class Icons {
+        /// <summary>
+        /// Current icon format
+        /// </summary>
+        public static IconFormat CurrentFormat = IconFormat.PNG;
+        
+        /// <summary>
+        /// Set icon format for all icon sizes
+        /// </summary>
+        public static void SetIconFormat(IconFormat format) {
+            CurrentFormat = format;
+            // Reinitialize all icon sets with new format
+            _iconsPrivate16 = new IconsPrivate(16, format);
+            _iconsPrivate24 = new IconsPrivate(24, format);
+            _iconsPrivate32 = new IconsPrivate(32, format);
+            _iconsPrivate48 = new IconsPrivate(48, format);
+            _iconsPrivate128 = new IconsPrivate(128, format);
+        }
+        
         /// <summary>
         /// Icons Private
         /// </summary>
