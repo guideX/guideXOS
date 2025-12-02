@@ -523,39 +523,13 @@ namespace guideXOS.GUI {
                 WindowManager.MoveToEnd(imageViewer);
                 imageViewer.Visible = true;
                 RecentManager.AddDocument(path, Icons.ImageIcon(32));
-            } else if (!HasDot(name)) {
-                // Fuzzy run for executables when no extension typed
-                string match;
-                bool amb;
-                if (TryFuzzyExec(Dir, name, out match, out amb)) {
-                    // Run matched executable
-                    string newPath = Dir + match;
-                    byte[] buffer = File.ReadAllBytes(newPath);
-                    string err;
-                    bool ok = GXMLoader.TryExecute(buffer, out err);
-                    if (!ok) {
-                        msgbox.X = itemX + 60;
-                        msgbox.Y = itemY + 60;
-                        msgbox.SetText(err ?? "Failed to run executable");
-                        WindowManager.MoveToEnd(msgbox);
-                        msgbox.Visible = true;
-                    } else {
-                        RecentManager.AddDocument(newPath, Icons.DocumentIcon(32));
-                    }
-                    newPath.Dispose();
-                } else if (amb) {
-                    msgbox.X = itemX + 60;
-                    msgbox.Y = itemY + 60;
-                    msgbox.SetText("error: fuzzy match");
-                    WindowManager.MoveToEnd(msgbox);
-                    msgbox.Visible = true;
-                } else if (!Apps.Load(name)) {
-                    msgbox.X = itemX + 75;
-                    msgbox.Y = itemY + 75;
-                    msgbox.SetText("No application can open this file!");
-                    WindowManager.MoveToEnd(msgbox);
-                    msgbox.Visible = true;
-                }
+            } else if (name.EndsWith(".txt")) {
+                // Open in Notepad
+                var notepad = new Notepad(itemX + 40, itemY + 40);
+                notepad.OpenFile(path);
+                WindowManager.MoveToEnd(notepad);
+                notepad.Visible = true;
+                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
             } else if (name.EndsWith(".gxm") || name.EndsWith(".mue")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 string err;

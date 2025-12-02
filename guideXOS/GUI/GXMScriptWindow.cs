@@ -1,177 +1,224 @@
 using guideXOS.FS;
 using guideXOS.Kernel.Drivers;
+using guideXOS.Misc;
+using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
 namespace guideXOS.GUI {
     /// <summary>
-    /// GXM Script Window - Provides a scriptable UI window with buttons, labels, lists, and dropdowns
-    /// </summary>
+    /// GXM Script Window - Provides a scriptable UI window with buttons, labels, lists, dropdowns, and textboxes
+    /// /// </summary>
     internal class GXMScriptWindow : Window {
         #region Nested Types
         
         /// <summary>
         /// Button definition structure
-        /// </summary>
+        /// /// </summary>
         internal struct Btn {
             /// <summary>
             /// Unique identifier for the button
-            /// </summary>
+            /// /// </summary>
             public int Id;
             
             /// <summary>
             /// Display text shown on the button
-            /// </summary>
+            /// /// </summary>
             public string Text;
             
             /// <summary>
             /// X coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int X;
             
             /// <summary>
             /// Y coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int Y;
             
             /// <summary>
             /// Button width in pixels
-            /// </summary>
+            /// /// </summary>
             public int W;
             
             /// <summary>
             /// Button height in pixels
-            /// </summary>
+            /// /// </summary>
             public int H;
         }
         
         /// <summary>
         /// Label definition structure for static text display
-        /// </summary>
+        /// /// </summary>
         internal struct Label {
             /// <summary>
             /// Text content to display
-            /// </summary>
+            /// /// </summary>
             public string Text;
             
             /// <summary>
             /// X coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int X;
             
             /// <summary>
             /// Y coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int Y;
         }
         
         /// <summary>
-        /// ListView definition for displaying selectable item lists
-        /// </summary>
-        internal class ListViewDef {
+        /// TextBox definition for editable multi-line text
+        /// /// </summary>
+        internal class TextBoxDef {
             /// <summary>
-            /// Unique identifier for the listview
-            /// </summary>
+            /// Unique identifier for the textbox
+            /// /// </summary>
             public int Id;
             
             /// <summary>
             /// X coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int X;
             
             /// <summary>
             /// Y coordinate relative to window
-            /// </summary>
+            /// /// </summary>
+            public int Y;
+            
+            /// <summary>
+            /// TextBox width in pixels
+            /// /// </summary>
+            public int W;
+            
+            /// <summary>
+            /// TextBox height in pixels
+            /// /// </summary>
+            public int H;
+            
+            /// <summary>
+            /// Text content of the textbox
+            /// /// </summary>
+            public string Text = string.Empty;
+            
+            /// <summary>
+            /// Whether the textbox is currently focused for input
+            /// /// </summary>
+            public bool Focused;
+            
+            /// <summary>
+            /// Whether the textbox should wrap text to the next line as needed
+            /// /// </summary>
+            public bool WordWrap = true;
+        }
+        
+        /// <summary>
+        /// ListView definition for displaying selectable item lists
+        /// /// </summary>
+        internal class ListViewDef {
+            /// <summary>
+            /// Unique identifier for the listview
+            /// /// </summary>
+            public int Id;
+            
+            /// <summary>
+            /// X coordinate relative to window
+            /// /// </summary>
+            public int X;
+            
+            /// <summary>
+            /// Y coordinate relative to window
+            /// /// </summary>
             public int Y;
             
             /// <summary>
             /// ListView width in pixels
-            /// </summary>
+            /// /// </summary>
             public int W;
             
             /// <summary>
             /// ListView height in pixels
-            /// </summary>
+            /// /// </summary>
             public int H;
             
             /// <summary>
             /// Collection of items to display in the listview
-            /// </summary>
+            /// /// </summary>
             public List<string> Items = new List<string>(32);
             
             /// <summary>
             /// Index of the currently selected item (-1 if none selected)
-            /// </summary>
+            /// /// </summary>
             public int Selected = -1;
         }
         
         /// <summary>
         /// Dropdown (combo box) definition for displaying selectable options
-        /// </summary>
+        /// /// </summary>
         internal class DropdownDef {
             /// <summary>
             /// Unique identifier for the dropdown
-            /// </summary>
+            /// /// </summary>
             public int Id;
             
             /// <summary>
             /// X coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int X;
             
             /// <summary>
             /// Y coordinate relative to window
-            /// </summary>
+            /// /// </summary>
             public int Y;
             
             /// <summary>
             /// Dropdown width in pixels
-            /// </summary>
+            /// /// </summary>
             public int W;
             
             /// <summary>
             /// Dropdown height in pixels
-            /// </summary>
+            /// /// </summary>
             public int H;
             
             /// <summary>
             /// Collection of items available in the dropdown
-            /// </summary>
+            /// /// </summary>
             public List<string> Items = new List<string>(32);
             
             /// <summary>
             /// Index of the currently selected item (-1 if none selected)
-            /// </summary>
+            /// /// </summary>
             public int Selected = -1;
             
             /// <summary>
             /// Whether the dropdown menu is currently expanded
-            /// </summary>
+            /// /// </summary>
             public bool Open;
         }
         
         /// <summary>
         /// Callback action definition for UI events
-        /// </summary>
+        /// /// </summary>
         internal class Callback {
             /// <summary>
-            /// Callback type: 1=click, 2=change
-            /// </summary>
+            /// Callback type: 1=click, 2=change, 3=textchange
+            /// /// </summary>
             public int Type;
             
             /// <summary>
             /// ID of the control this callback is attached to
-            /// </summary>
+            /// /// </summary>
             public int Id;
             
             /// <summary>
             /// Action to execute (e.g., MSG, OPENAPP, CLOSE)
-            /// </summary>
+            /// /// </summary>
             public string Action;
             
             /// <summary>
             /// Argument to pass to the action (may contain tokens like $VALUE)
-            /// </summary>
+            /// /// </summary>
             public string Arg;
         }
         
@@ -179,40 +226,23 @@ namespace guideXOS.GUI {
         
         #region Private Fields
         
-        /// <summary>
-        /// Collection of all buttons in the window
-        /// </summary>
         private List<Btn> _buttons = new List<Btn>(16);
-        
-        /// <summary>
-        /// Collection of all labels in the window
-        /// </summary>
         private List<Label> _labels = new List<Label>(16);
-        
-        /// <summary>
-        /// Collection of all listviews in the window
-        /// </summary>
+        private List<TextBoxDef> _textboxes = new List<TextBoxDef>(4);
         private List<ListViewDef> _lists = new List<ListViewDef>(8);
-        
-        /// <summary>
-        /// Collection of all dropdowns in the window
-        /// </summary>
         private List<DropdownDef> _dropdowns = new List<DropdownDef>(8);
-        
-        /// <summary>
-        /// Collection of all registered callbacks
-        /// </summary>
         private List<Callback> _callbacks = new List<Callback>(16);
 
-        /// <summary>
-        /// Prevents multiple click events from a single mouse press
-        /// </summary>
         private bool _clickLatch;
-        
-        /// <summary>
-        /// ID of the most recently clicked button
-        /// </summary>
         private int _lastClicked = -1;
+        
+        // Keyboard handling
+        private byte _lastScan;
+        private bool _keyDown;
+        
+        // File dialogs
+        private SaveDialog _saveDialog;
+        private OpenDialog _openDialog;
         
         #endregion
         
@@ -220,7 +250,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Initializes a new instance of the GXMScriptWindow class
-        /// </summary>
+        /// /// </summary>
         /// <param name="title">Window title to display</param>
         /// <param name="w">Window width in pixels</param>
         /// <param name="h">Window height in pixels</param>
@@ -230,6 +260,9 @@ namespace guideXOS.GUI {
             ShowMinimize = true;
             ShowMaximize = true;
             ShowInTaskbar = true;
+            
+            // Subscribe to keyboard events for textbox input
+            Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
         }
         
         #endregion
@@ -238,7 +271,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Adds a button to the window
-        /// </summary>
+        /// /// </summary>
         /// <param name="id">Unique identifier for the button</param>
         /// <param name="text">Text to display on the button</param>
         /// <param name="x">X coordinate relative to window</param>
@@ -258,7 +291,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Adds a label (static text) to the window
-        /// </summary>
+        /// /// </summary>
         /// <param name="text">Text content to display</param>
         /// <param name="x">X coordinate relative to window</param>
         /// <param name="y">Y coordinate relative to window</param>
@@ -271,8 +304,31 @@ namespace guideXOS.GUI {
         }
         
         /// <summary>
+        /// Adds a multi-line text box control to the window
+        /// /// </summary>
+        /// <param name="id">Unique identifier for the textbox</param>
+        /// <param name="x">X coordinate relative to window</param>
+        /// <param name="y">Y coordinate relative to window</param>
+        /// <param name="w">TextBox width in pixels</param>
+        /// <param name="h">TextBox height in pixels</param>
+        /// <param name="initialText">Initial text content (optional)</param>
+        public void AddTextBox(int id, int x, int y, int w, int h, string initialText = "") {
+            var tb = new TextBoxDef {
+                Id = id,
+                X = x,
+                Y = y,
+                W = w,
+                H = h,
+                Text = initialText ?? string.Empty,
+                Focused = false,
+                WordWrap = true
+            };
+            _textboxes.Add(tb);
+        }
+        
+        /// <summary>
         /// Adds a listview control to the window
-        /// </summary>
+        /// /// </summary>
         /// <param name="id">Unique identifier for the listview</param>
         /// <param name="x">X coordinate relative to window</param>
         /// <param name="y">Y coordinate relative to window</param>
@@ -306,7 +362,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Adds a dropdown (combo box) control to the window
-        /// </summary>
+        /// /// </summary>
         /// <param name="id">Unique identifier for the dropdown</param>
         /// <param name="x">X coordinate relative to window</param>
         /// <param name="y">Y coordinate relative to window</param>
@@ -360,7 +416,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Registers a callback to execute when a control's value changes
-        /// </summary>
+        /// /// </summary>
         /// <param name="id">ID of the control to attach the callback to</param>
         /// <param name="action">Action to execute (MSG, OPENAPP, CLOSE)</param>
         /// <param name="arg">Argument to pass to the action (may contain $VALUE token)</param>
@@ -374,13 +430,141 @@ namespace guideXOS.GUI {
             _callbacks.Add(cb);
         }
         
+        /// <summary>
+        /// Registers a callback for textbox text changes
+        /// /// </summary>
+        /// <param name="id">ID of the control to attach the callback to</param>
+        /// <param name="action">Action to execute (MSG, OPENAPP, CLOSE)</param>
+        /// <param name="arg">Argument to pass to the action</param>
+        public void AddOnTextChange(int id, string action, string arg) {
+            var cb = new Callback {
+                Type = 3,
+                Id = id,
+                Action = action,
+                Arg = arg
+            };
+            _callbacks.Add(cb);
+        }
+        
+        #endregion
+        
+        #region Keyboard Handling
+        
+        private void Keyboard_OnKeyChanged(object sender, ConsoleKeyInfo key) {
+            if (!Visible || IsMinimized || IsTombstoned)
+                return;
+            
+            if (key.KeyState != ConsoleKeyState.Pressed) {
+                _keyDown = false;
+                _lastScan = 0;
+                return;
+            }
+            
+            if (_keyDown && Keyboard.KeyInfo.ScanCode == _lastScan)
+                return; // de-bounce
+            
+            _keyDown = true;
+            _lastScan = (byte)Keyboard.KeyInfo.ScanCode;
+            
+            // Find focused textbox
+            TextBoxDef focusedTb = null;
+            for (int i = 0; i < _textboxes.Count; i++) {
+                if (_textboxes[i].Focused) {
+                    focusedTb = _textboxes[i];
+                    break;
+                }
+            }
+            
+            if (focusedTb == null)
+                return;
+            
+            // Handle keyboard input for textbox
+            if (key.Key == ConsoleKey.Backspace) {
+                if (focusedTb.Text.Length > 0) {
+                    focusedTb.Text = focusedTb.Text.Substring(0, focusedTb.Text.Length - 1);
+                    RunActions(3, focusedTb.Id, focusedTb.Text);
+                }
+                return;
+            }
+            
+            if (key.Key == ConsoleKey.Enter) {
+                focusedTb.Text += "\n";
+                RunActions(3, focusedTb.Id, focusedTb.Text);
+                return;
+            }
+            
+            if (key.Key == ConsoleKey.Tab) {
+                focusedTb.Text += "    ";
+                RunActions(3, focusedTb.Id, focusedTb.Text);
+                return;
+            }
+            
+            char ch = MapFromKey(key);
+            if (ch != '\0') {
+                focusedTb.Text += ch;
+                RunActions(3, focusedTb.Id, focusedTb.Text);
+            }
+        }
+        
+        private static char MapFromKey(ConsoleKeyInfo key) {
+            if (key.KeyChar != '\0') return key.KeyChar;
+            
+            var k = key.Key;
+            bool shift = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift);
+            bool caps = Keyboard.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.CapsLock);
+            
+            if (k == ConsoleKey.Space) return ' ';
+            
+            if (k >= ConsoleKey.A && k <= ConsoleKey.Z) {
+                char c = (char)('a' + (k - ConsoleKey.A));
+                if (shift ^ caps) {
+                    if (c >= 'a' && c <= 'z')
+                        c = (char)('A' + (c - 'a'));
+                }
+                return c;
+            }
+            
+            if (k >= ConsoleKey.D0 && k <= ConsoleKey.D9) {
+                int d = (int)(k - ConsoleKey.D0);
+                if (!shift) return (char)('0' + d);
+                switch (d) {
+                    case 0: return ')';
+                    case 1: return '!';
+                    case 2: return '@';
+                    case 3: return '#';
+                    case 4: return '$';
+                    case 5: return '%';
+                    case 6: return '^';
+                    case 7: return '&';
+                    case 8: return '*';
+                    case 9: return '(';
+                }
+            }
+            
+            switch (k) {
+                case ConsoleKey.OemPeriod: return shift ? '>' : '.';
+                case ConsoleKey.OemComma: return shift ? '<' : ',';
+                case ConsoleKey.OemMinus: return shift ? '_' : '-';
+                case ConsoleKey.OemPlus: return shift ? '+' : '=';
+                case ConsoleKey.Oem1: return shift ? ':' : ';';
+                case ConsoleKey.Oem2: return shift ? '?' : '/';
+                case ConsoleKey.Oem3: return shift ? '~' : '`';
+                case ConsoleKey.Oem4: return shift ? '{' : '[';
+                case ConsoleKey.Oem5: return shift ? '|' : '\\';
+                case ConsoleKey.Oem6: return shift ? '}' : ']';
+                case ConsoleKey.Oem7: return shift ? '"' : '\'';
+            }
+            
+            return '\0';
+        }
+        
         #endregion
         
         #region Input Handling
         
         /// <summary>
         /// Processes user input events (mouse clicks on buttons, lists, dropdowns)
-        /// </summary>
+        /// /// </summary>
         public override void OnInput() {
             base.OnInput();
             
@@ -393,6 +577,31 @@ namespace guideXOS.GUI {
             
             if (left) {
                 if (!_clickLatch) {
+                    // Process textbox clicks (for focus)
+                    bool tbClicked = false;
+                    for (int i = 0; i < _textboxes.Count; i++) {
+                        var tb = _textboxes[i];
+                        int rx = X + tb.X;
+                        int ry = Y + tb.Y;
+                        
+                        if (mx >= rx && mx <= rx + tb.W && my >= ry && my <= ry + tb.H) {
+                            // Set focus to this textbox
+                            for (int j = 0; j < _textboxes.Count; j++) {
+                                _textboxes[j].Focused = (j == i);
+                            }
+                            tbClicked = true;
+                            _clickLatch = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!tbClicked) {
+                        // Unfocus all textboxes if clicked elsewhere
+                        for (int i = 0; i < _textboxes.Count; i++) {
+                            _textboxes[i].Focused = false;
+                        }
+                    }
+                    
                     // Process button clicks
                     for (int i = 0; i < _buttons.Count; i++) {
                         var b = _buttons[i];
@@ -468,7 +677,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Executes all registered callbacks matching the specified type and control ID
-        /// </summary>
+        /// /// </summary>
         /// <param name="type">Callback type (1=click, 2=change)</param>
         /// <param name="id">ID of the control that triggered the event</param>
         /// <param name="value">Optional value associated with the event (e.g., selected item text)</param>
@@ -485,13 +694,92 @@ namespace guideXOS.GUI {
                         arg = ReplaceToken(arg, "$VALUE", value);
                     }
                     
-                    ExecuteAction(act, arg);
+                    // Special handling for textbox actions
+                    if (type == 3) { // text change
+                        // Update textbox text for GETTEXT action
+                        ExecuteTextAction(act, arg, id, value);
+                    } else {
+                        ExecuteAction(act, arg);
+                    }
                 }
             }
         }
+        
+        /// <summary>
+        /// Executes a scripted action with the provided argument
+        /// Supported actions: MSG (show message), OPENAPP (launch app), CLOSE (close window), SAVEFILE (save text), LOADFILE (load text)
+        /// /// </summary>
+        /// <param name="action">Action name (case-insensitive)</param>
+        /// <param name="arg">Action-specific argument</param>
+        private void ExecuteAction(string action, string arg) {
+            // Normalize action to uppercase
+            string a = action;
+            char[] ca = new char[a.Length];
+            
+            for (int i = 0; i < a.Length; i++) {
+                char c = a[i];
+                if (c >= 'a' && c <= 'z')
+                    c = (char)(c - 32);
+                ca[i] = c;
+            }
+            
+            a = new string(ca);
+            ca.Dispose();
+            
+            // Execute based on action type
+            if (a == "MSG") {
+                Notify(arg);
+            } else if (a == "OPENAPP") {
+                if (Desktop.Apps != null && arg != null) {
+                    Desktop.Apps.Load(arg);
+                }
+            } else if (a == "CLOSE") {
+                this.Visible = false;
+            } else if (a == "SAVEFILE") {
+                // Save file functionality
+                SaveFileAction(arg);
+            } else if (a == "LOADFILE") {
+                // Load file functionality
+                LoadFileAction(arg);
+            } else if (a == "SAVETEXT") {
+                // Save text from first textbox
+                SaveTextFromTextBox(arg);
+            } else if (a == "LOADTEXT") {
+                // Load text into first textbox
+                LoadTextIntoTextBox(arg);
+            } else if (a == "SAVEDIALOG") {
+                // Open save dialog for textbox
+                OpenSaveDialogForTextBox(arg);
+            } else if (a == "OPENDIALOG") {
+                // Open open dialog for textbox
+                OpenOpenDialogForTextBox();
+            } else if (a == "LOADSCRIPT") {
+                // Load and execute GXM script from .txt file
+                LoadAndExecuteScript(arg);
+            }
+            
+            // FIXED: Dispose normalized action string if it's different from input
+            if (a != action) {
+                a.Dispose();
+            }
+        }
+        
+        private void ExecuteTextAction(string action, string arg, int textboxId, string currentText) {
+            string a = action.ToUpper();
+            
+            if (a == "GETTEXT") {
+                // Store text from textbox to a variable (handled by specific actions)
+                ExecuteAction(action, currentText);
+            } else {
+                ExecuteAction(action, arg);
+            }
+            
+            if (a != action) a.Dispose();
+        }
+        
         /// <summary>
         /// Replaces a single token in a string with a value (simple naive implementation)
-        /// </summary>
+        /// /// </summary>
         /// <param name="s">Source string</param>
         /// <param name="token">Token to replace (e.g., "$VALUE")</param>
         /// <param name="val">Value to substitute</param>
@@ -517,7 +805,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Finds the index of a substring within a string
-        /// </summary>
+        /// /// </summary>
         /// <param name="s">Source string to search</param>
         /// <param name="token">Substring to find</param>
         /// <returns>Index of first occurrence, or -1 if not found</returns>
@@ -540,54 +828,13 @@ namespace guideXOS.GUI {
             
             return -1;
         }
-        
-        /// <summary>
-        /// Executes a scripted action with the provided argument
-        /// Supported actions: MSG (show message), OPENAPP (launch app), CLOSE (close window), SAVEFILE (save text), LOADFILE (load text)
-        /// </summary>
-        /// <param name="action">Action name (case-insensitive)</param>
-        /// <param name="arg">Action-specific argument</param>
-        private void ExecuteAction(string action, string arg) {
-            // Normalize action to uppercase
-            string a = action;
-            char[] ca = new char[a.Length];
-            
-            for (int i = 0; i < a.Length; i++) {
-                char c = a[i];
-                if (c >= 'a' && c <= 'z')
-                    c = (char)(c - 32);
-                ca[i] = c;
-            }
-            
-            a = new string(ca);
-            ca.Dispose(); // FIXED: Dispose char array
-            
-            // Execute based on action type
-            if (a == "MSG") {
-                Notify(arg);
-            } else if (a == "OPENAPP") {
-                if (Desktop.Apps != null && arg != null) {
-                    Desktop.Apps.Load(arg);
-                }
-            } else if (a == "CLOSE") {
-                this.Visible = false;
-            } else if (a == "SAVEFILE") {
-                // Save file functionality
-                SaveFileAction(arg);
-            } else if (a == "LOADFILE") {
-                // Load file functionality
-                LoadFileAction(arg);
-            }
-            
-            // FIXED: Dispose normalized action string if it's different from input
-            if (a != action) {
-                a.Dispose();
-            }
-        }
-        
+        #endregion
+
+        #region File Operations
+
         /// <summary>
         /// Saves text content to a file
-        /// </summary>
+        /// /// </summary>
         /// <param name="filename">Filename to save (without path, saves to current Desktop.Dir)</param>
         private void SaveFileAction(string filename) {
             if (string.IsNullOrEmpty(filename)) {
@@ -647,7 +894,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Loads text content from a file
-        /// </summary>
+        /// /// </summary>
         /// <param name="filename">Filename to load (without path, loads from current Desktop.Dir)</param>
         private void LoadFileAction(string filename) {
             if (string.IsNullOrEmpty(filename)) {
@@ -735,9 +982,282 @@ namespace guideXOS.GUI {
             }
         }
         
+        private void SaveTextFromTextBox(string filename) {
+            if (string.IsNullOrEmpty(filename)) {
+                filename = "notes.txt";
+            }
+            
+            string content = "";
+            if (_textboxes.Count > 0) {
+                content = _textboxes[0].Text ?? "";
+            }
+            
+            string path = Desktop.Dir + filename;
+            
+            try {
+                byte[] data = new byte[content.Length];
+                for (int i = 0; i < content.Length; i++) {
+                    data[i] = (byte)content[i];
+                }
+                
+                File.WriteAllBytes(path, data);
+                data.Dispose();
+                
+                Desktop.InvalidateDirCache();
+                
+                string msg = $"File saved: {filename}";
+                Notify(msg);
+                msg.Dispose();
+                
+                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+            } catch {
+                string errMsg = $"Error: Failed to save file {filename}";
+                Notify(errMsg);
+                errMsg.Dispose();
+            }
+            
+            path.Dispose();
+        }
+        
+        private void LoadTextIntoTextBox(string filename) {
+            if (string.IsNullOrEmpty(filename)) {
+                Notify("Error: No filename specified");
+                return;
+            }
+            
+            string path = Desktop.Dir + filename;
+            
+            try {
+                byte[] data = File.ReadAllBytes(path);
+                
+                if (data == null || data.Length == 0) {
+                    string errMsg = $"Error: File {filename} is empty or not found";
+                    Notify(errMsg);
+                    errMsg.Dispose();
+                    path.Dispose();
+                    return;
+                }
+                
+                string content = "";
+                for (int i = 0; i < data.Length; i++) {
+                    char ch = (char)data[i];
+                    if (ch >= 32 || ch == 10 || ch == 13) {
+                        content += ch;
+                    }
+                }
+                data.Dispose();
+                
+                if (_textboxes.Count > 0) {
+                    _textboxes[0].Text = content;
+                }
+                
+                string msg = $"File loaded: {filename}";
+                Notify(msg);
+                msg.Dispose();
+                
+                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                
+                path.Dispose();
+            } catch {
+                string errMsg = $"Error: Failed to load file {filename}";
+                Notify(errMsg);
+                errMsg.Dispose();
+                path.Dispose();
+            }
+        }
+        
+        /// <summary>
+        /// Opens a Save As dialog for the textbox content
+        /// /// </summary>
+        /// <param name="defaultName">Default filename (optional)</param>
+        private void OpenSaveDialogForTextBox(string defaultName) {
+            if (_saveDialog != null && _saveDialog.Visible)
+                return; // Dialog already open
+            
+            string fileName = defaultName ?? "document.txt";
+            
+            _saveDialog = new SaveDialog(X + 40, Y + 40, 520, 360, Desktop.Dir, fileName, (path) => {
+                // On save callback - save textbox content to the selected file
+                if (_textboxes.Count > 0) {
+                    string content = _textboxes[0].Text ?? "";
+                    
+                    try {
+                        byte[] data = new byte[content.Length];
+                        for (int i = 0; i < content.Length; i++) {
+                            data[i] = (byte)content[i];
+                        }
+                        
+                        File.WriteAllBytes(path, data);
+                        data.Dispose();
+                        
+                        Desktop.InvalidateDirCache();
+                        
+                        // Extract filename from path
+                        string filename = path.Substring(path.LastIndexOf('/') + 1);
+                        string msg = $"File saved: {filename}";
+                        Notify(msg);
+                        msg.Dispose();
+                        filename.Dispose();
+                        
+                        RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                    } catch {
+                        string errMsg = $"Error: Failed to save file";
+                        Notify(errMsg);
+                        errMsg.Dispose();
+                    }
+                }
+            });
+            
+            WindowManager.MoveToEnd(_saveDialog);
+            _saveDialog.Visible = true;
+        }
+        
+        /// <summary>
+        /// Opens an Open dialog to load a file into the textbox
+        /// /// </summary>
+        private void OpenOpenDialogForTextBox() {
+            if (_openDialog != null && _openDialog.Visible)
+                return; // Dialog already open
+            
+            _openDialog = new OpenDialog(X + 40, Y + 40, 520, 360, Desktop.Dir, (path) => {
+                // On open callback - load selected file into textbox
+                try {
+                    byte[] data = File.ReadAllBytes(path);
+                    
+                    if (data == null || data.Length == 0) {
+                        string errMsg = $"Error: File is empty or not found";
+                        Notify(errMsg);
+                        errMsg.Dispose();
+                        return;
+                    }
+                    
+                    string content = "";
+                    for (int i = 0; i < data.Length; i++) {
+                        char ch = (char)data[i];
+                        if (ch >= 32 || ch == 10 || ch == 13) {
+                            content += ch;
+                        }
+                    }
+                    data.Dispose();
+                    
+                    if (_textboxes.Count > 0) {
+                        _textboxes[0].Text = content;
+                    }
+                    
+                    // Extract filename from path
+                    string filename = path.Substring(path.LastIndexOf('/') + 1);
+                    string msg = $"File loaded: {filename}";
+                    Notify(msg);
+                    msg.Dispose();
+                    filename.Dispose();
+                    
+                    RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                } catch {
+                    string errMsg = $"Error: Failed to load file";
+                    Notify(errMsg);
+                    errMsg.Dispose();
+                }
+            });
+            
+            WindowManager.MoveToEnd(_openDialog);
+            _openDialog.Visible = true;
+        }
+        
+        /// <summary>
+        /// Loads and executes a GXM script from a .txt file directly
+        /// /// </summary>
+        /// <param name="filename">Script filename (without path, loads from Desktop.Dir)</param>
+        private void LoadAndExecuteScript(string filename) {
+            if (string.IsNullOrEmpty(filename)) {
+                Notify("Error: No script filename specified");
+                return;
+            }
+            
+            string path = Desktop.Dir + filename;
+            
+            try {
+                byte[] data = File.ReadAllBytes(path);
+                
+                if (data == null || data.Length == 0) {
+                    string errMsg = $"Error: Script file {filename} is empty or not found";
+                    Notify(errMsg);
+                    errMsg.Dispose();
+                    path.Dispose();
+                    return;
+                }
+                
+                // Create a new GXM header with GUI marker
+                int headerSize = 20; // GXM header (16) + GUI marker (4)
+                int totalSize = headerSize + data.Length + 1; // +1 for null terminator
+                byte[] gxmData = new byte[totalSize];
+                
+                // Write GXM header
+                gxmData[0] = (byte)'G';
+                gxmData[1] = (byte)'X';
+                gxmData[2] = (byte)'M';
+                gxmData[3] = 0;
+                
+                // Version (1)
+                gxmData[4] = 1;
+                gxmData[5] = 0;
+                gxmData[6] = 0;
+                gxmData[7] = 0;
+                
+                // Entry RVA (0 for GUI scripts)
+                gxmData[8] = 0;
+                gxmData[9] = 0;
+                gxmData[10] = 0;
+                gxmData[11] = 0;
+                
+                // Image size
+                uint size = (uint)totalSize;
+                gxmData[12] = (byte)(size & 0xFF);
+                gxmData[13] = (byte)((size >> 8) & 0xFF);
+                gxmData[14] = (byte)((size >> 16) & 0xFF);
+                gxmData[15] = (byte)((size >> 24) & 0xFF);
+                
+                // GUI marker
+                gxmData[16] = (byte)'G';
+                gxmData[17] = (byte)'U';
+                gxmData[18] = (byte)'I';
+                gxmData[19] = 0;
+                
+                // Copy script data
+                for (int i = 0; i < data.Length; i++) {
+                    gxmData[headerSize + i] = data[i];
+                }
+                
+                // Null terminator
+                gxmData[totalSize - 1] = 0;
+                
+                data.Dispose();
+                
+                // Execute the GXM
+                string error;
+                if (GXMLoader.TryExecute(gxmData, out error)) {
+                    string msg = $"Script loaded: {filename}";
+                    Notify(msg);
+                    msg.Dispose();
+                } else {
+                    string errMsg = $"Error executing script: {error}";
+                    Notify(errMsg);
+                    errMsg.Dispose();
+                    error.Dispose();
+                }
+                
+                gxmData.Dispose();
+                path.Dispose();
+            } catch {
+                string errMsg = $"Error: Failed to load script {filename}";
+                Notify(errMsg);
+                errMsg.Dispose();
+                path.Dispose();
+            }
+        }
+        
         /// <summary>
         /// Displays a notification message box to the user
-        /// </summary>
+        /// /// </summary>
         /// <param name="msg">Message text to display</param>
         private void Notify(string msg) {
             if (Desktop.msgbox != null) {
@@ -755,7 +1275,7 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Renders all UI controls (labels, buttons, lists, dropdowns) to the screen
-        /// </summary>
+        /// /// </summary>
         public override void OnDraw() {
             base.OnDraw();
             
@@ -772,6 +1292,47 @@ namespace guideXOS.GUI {
                     Width - 16, 
                     WindowManager.font.FontSize * 3
                 );
+            }
+            
+            // Draw textboxes
+            for (int i = 0; i < _textboxes.Count; i++) {
+                var tb = _textboxes[i];
+                int rx = X + tb.X;
+                int ry = Y + tb.Y;
+                
+                // Background with focus indication
+                uint bgColor = tb.Focused ? 0xFF323232 : 0x80282828;
+                Framebuffer.Graphics.AFillRectangle(rx, ry, tb.W, tb.H, bgColor);
+                
+                // Border
+                uint borderColor = tb.Focused ? 0xFF3F7FBF : 0xFF3A3A3A;
+                Framebuffer.Graphics.DrawRectangle(rx, ry, tb.W, tb.H, borderColor, 1);
+                
+                // Text with word wrap
+                if (tb.WordWrap) {
+                    WindowManager.font.DrawString(
+                        rx + 6, 
+                        ry + 6, 
+                        tb.Text ?? "", 
+                        tb.W - 12, 
+                        WindowManager.font.FontSize * 3
+                    );
+                } else {
+                    WindowManager.font.DrawString(rx + 6, ry + 6, tb.Text ?? "");
+                }
+                
+                // Cursor if focused
+                if (tb.Focused) {
+                    int cursorX = rx + 6 + WindowManager.font.MeasureString(tb.Text ?? "");
+                    int cursorY = ry + 6;
+                    Framebuffer.Graphics.DrawLine(
+                        cursorX, 
+                        cursorY, 
+                        cursorX, 
+                        cursorY + WindowManager.font.FontSize, 
+                        0xFFFFFFFF
+                    );
+                }
             }
             
             // Draw buttons
@@ -878,8 +1439,34 @@ namespace guideXOS.GUI {
         
         /// <summary>
         /// Dispose all resources used by this window
-        /// </summary>
+        /// /// </summary>
         public override void Dispose() {
+            // Unsubscribe from keyboard events
+            Keyboard.OnKeyChanged -= Keyboard_OnKeyChanged;
+            
+            // Dispose dialogs
+            if (_saveDialog != null) {
+                _saveDialog.Dispose();
+                _saveDialog = null;
+            }
+            if (_openDialog != null) {
+                _openDialog.Dispose();
+                _openDialog = null;
+            }
+            
+            // Dispose textboxes
+            if (_textboxes != null) {
+                for (int i = 0; i < _textboxes.Count; i++) {
+                    var tb = _textboxes[i];
+                    if (tb != null && tb.Text != null) {
+                        tb.Text.Dispose();
+                    }
+                }
+                _textboxes.Clear();
+                _textboxes.Dispose();
+                _textboxes = null;
+            }
+            
             // Dispose all string data in buttons
             if (_buttons != null) {
                 for (int i = 0; i < _buttons.Count; i++) {

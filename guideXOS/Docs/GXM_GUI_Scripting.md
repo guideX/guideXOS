@@ -21,9 +21,49 @@ Each line uses `|` to separate fields.
 `WINDOW|Title|Width|Height`
 Sets window title and size. Size is clamped to minimum 160x120.
 
+### Window Properties
+Control window appearance and behavior:
+
+#### RESIZABLE
+`RESIZABLE|true` or `RESIZABLE|false`
+Controls whether the window can be resized by the user. Default: true
+
+#### TASKBAR
+`TASKBAR|true` or `TASKBAR|false`
+Controls whether the window appears in the taskbar. Default: true
+
+#### MAXIMIZE
+`MAXIMIZE|true` or `MAXIMIZE|false`
+Controls whether the window shows a maximize button. Default: true
+
+#### MINIMIZE
+`MINIMIZE|true` or `MINIMIZE|false`
+Controls whether the window shows a minimize button. Default: true
+
+#### TOMBSTONE
+`TOMBSTONE|true` or `TOMBSTONE|false`
+Controls whether the window shows a tombstone button. Default: true
+
+#### STARTMENU
+`STARTMENU|true` or `STARTMENU|false`
+Controls whether the window appears in the start menu. Default: true
+
 ### LABEL
 `LABEL|Text|X|Y`
 Draws multiline capable text (width constrained to window minus padding).
+
+### TEXTBOX
+`TEXTBOX|Id|X|Y|W|H|InitialText`
+Creates a multi-line editable text box. The InitialText parameter is optional.
+- Click to focus the textbox (blue border indicates focus)
+- Type to enter text
+- Supports: Backspace, Enter, Tab, all printable characters
+- Word wrap enabled by default
+
+Example:
+```
+TEXTBOX|1|10|40|680|340|
+```
 
 ### BUTTON
 `BUTTON|Id|Text|X|Y|W|H`
@@ -41,15 +81,26 @@ Creates a dropdown (combo) control.
 Define callbacks:
 - `ONCLICK|Id|Action|Arg` for button click events
 - `ONCHANGE|Id|Action|Arg` for list selection and dropdown change
+- `ONTEXTCHANGE|Id|Action|Arg` for textbox text change events
 
 Supported actions:
-- `MSG` shows a message box. `Arg` can include `$VALUE` token which is replaced with selection text.
+- `MSG` shows a message box. `Arg` can include `$VALUE` token which is replaced with selection text or textbox content.
 - `OPENAPP` opens a built-in app by name (e.g., Notepad, Calculator).
 - `CLOSE` closes the script window.
+- `SAVETEXT` saves textbox content to a file. `Arg` is the filename (fixed).
+- `LOADTEXT` loads file content into textbox. `Arg` is the filename (fixed).
+- `SAVEDIALOG` opens a Save As dialog for textbox content. `Arg` is the default filename.
+- `OPENDIALOG` opens an Open dialog to load a file into textbox. `Arg` is ignored.
 
 Example:
 ```
 WINDOW|Demo|480|320
+RESIZABLE|false
+TASKBAR|true
+MAXIMIZE|false
+MINIMIZE|true
+TOMBSTONE|false
+STARTMENU|false
 LABEL|Pick a color|16|16
 DROPDOWN|1|16|46|140|24|Red;Green;Blue
 ONCHANGE|1|MSG|Selected $VALUE
@@ -61,10 +112,33 @@ BUTTON|4|Close|360|280|100|28
 ONCLICK|4|CLOSE|
 ```
 
+Example Notepad with Dialogs:
+```
+WINDOW|GXM Notepad|700|460
+RESIZABLE|true
+TEXTBOX|1|10|40|680|340|
+BUTTON|1|Save As...|10|390|88|28
+BUTTON|2|Open...|108|390|72|28
+ONCLICK|1|SAVEDIALOG|notes.txt
+ONCLICK|2|OPENDIALOG|
+```
+
+Example Notepad with Fixed Files:
+```
+WINDOW|GXM Notepad|700|460
+RESIZABLE|true
+TEXTBOX|1|10|40|680|340|
+BUTTON|1|Save|10|390|72|28
+BUTTON|2|Load|92|390|72|28
+ONCLICK|1|SAVETEXT|notes.txt
+ONCLICK|2|LOADTEXT|notes.txt
+```
+
 ## Packaging
 1. Build binary header (16 bytes GXM) with image size including script region.
 2. Append `GUI\0` and script text, end with `\0`.
 
 ## Roadmap
-- TextBox, CheckBox, Radio, Slider, Scrollable list.
-- Callback to native code or user-mode for advanced scenarios.
+- CheckBox, Radio, Slider, Scrollable list.
+- File picker dialogs for Save As / Open
+- Status bars

@@ -428,7 +428,7 @@ namespace guideXOS.DefaultApps {
             string cmd = parts[0];
             switch (cmd) {
                 case "help":
-                    WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, gxminfo <file.gxm>, setbg <image>, apps, launch <app>, netinit, ipconfig [/release | /renew], ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot, osk, workspaces");
+                    WriteLine("Commands: help, pwd, ls, ll, cd, cd .., clear, exit, cat, echo, notepad <file>, vi <file>, launchscript <file.txt>, gxminfo <file.gxm>, setbg <image>, apps, launch <app>, netinit, ipconfig [/release | /renew], ifconfig, arp, dns <host>, ping <hostOrIp>, authurl <http>, authlogin <u> <p>, authregister <u> <p>, authtoken, logout, shutdown, reboot, osk, workspaces");
                     break;
                 case "exit": {
                         this.Visible = false;
@@ -724,6 +724,90 @@ namespace guideXOS.DefaultApps {
                             else path = parts[1];
                         }
                         EnterVi(path);
+                        return;
+                    }
+                case "launchscript": {
+                        if (parts.Length < 2) {
+                            WriteLine("Usage: launchscript <script.txt>");
+                            WriteLine("Loads and executes a GXM GUI script from a .txt file");
+                            return;
+                        }
+                        
+                        string fileToken = parts[1];
+                        if (!ResolveFileToken(fileToken, out
+                            var path, out
+                            var ferr)) {
+                            if (ferr != null) {
+                                WriteLine(ferr);
+                                return;
+                            }
+                            // File doesn't exist, try as-is
+                            path = Posix.NormalizePath(_cwd, fileToken);
+                        }
+                        
+                        // Load the script file
+                        byte[] scriptData = FS.File.ReadAllBytes(path);
+                        if (scriptData == null) {
+                            WriteLine("Error: Unable to read script file: " + fileToken);
+                            return;
+                        }
+                        
+                        // Create GXM header with GUI marker
+                        int headerSize = 20; // GXM header (16) + GUI marker (4)
+                        int totalSize = headerSize + scriptData.Length + 1; // +1 for null terminator
+                        byte[] gxmData = new byte[totalSize];
+                        
+                        // Write GXM header
+                        gxmData[0] = (byte)'G';
+                        gxmData[1] = (byte)'X';
+                        gxmData[2] = (byte)'M';
+                        gxmData[3] = 0;
+                        
+                        // Version (1)
+                        gxmData[4] = 1;
+                        gxmData[5] = 0;
+                        gxmData[6] = 0;
+                        gxmData[7] = 0;
+                        
+                        // Entry RVA (0 for GUI scripts)
+                        gxmData[8] = 0;
+                        gxmData[9] = 0;
+                        gxmData[10] = 0;
+                        gxmData[11] = 0;
+                        
+                        // Image size
+                        uint size = (uint)totalSize;
+                        gxmData[12] = (byte)(size & 0xFF);
+                        gxmData[13] = (byte)((size >> 8) & 0xFF);
+                        gxmData[14] = (byte)((size >> 16) & 0xFF);
+                        gxmData[15] = (byte)((size >> 24) & 0xFF);
+                        
+                        // GUI marker
+                        gxmData[16] = (byte)'G';
+                        gxmData[17] = (byte)'U';
+                        gxmData[18] = (byte)'I';
+                        gxmData[19] = 0;
+                        
+                        // Copy script data
+                        for (int i = 0; i < scriptData.Length; i++) {
+                            gxmData[headerSize + i] = scriptData[i];
+                        }
+                        
+                        // Null terminator
+                        gxmData[totalSize - 1] = 0;
+                        
+                        scriptData.Dispose();
+                        
+                        // Execute the GXM
+                        string error;
+                        if (Misc.GXMLoader.TryExecute(gxmData, out error)) {
+                            WriteLine("Script loaded: " + fileToken);
+                        } else {
+                            WriteLine("Error executing script: " + (error ?? "unknown error"));
+                            if (error != null) error.Dispose();
+                        }
+                        
+                        gxmData.Dispose();
                         return;
                     }
                 case "gxminfo": {
