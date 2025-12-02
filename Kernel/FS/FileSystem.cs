@@ -59,6 +59,12 @@ namespace guideXOS.FS {
         /// <returns></returns>
         public static byte[] ReadAllBytes(string name) => Instance.ReadAllBytes(name);
         /// <summary>
+        /// Read All Bytes
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
+        //public static string ReadAllText(string name) => Instance.ReadAllText(name);
+        /// <summary>
         /// Write All Bytes
         /// </summary>
         /// <param name="name"></param>

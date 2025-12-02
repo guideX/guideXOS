@@ -93,7 +93,6 @@ namespace guideXOS.DefaultApps {
             if (ch >= ' ' && ch <= '~') { 
                 string charStr = ch.ToString();
                 _search = _search + charStr;
-                charStr.Dispose(); // FIXED: Dispose character string after concatenation
             }
         }
 
@@ -181,6 +180,34 @@ namespace guideXOS.DefaultApps {
             MarkEntriesDirty();
         }
 
+        private void GoTo(string path) {
+            if (_historyIndex < _historyCount - 1) {
+                // Clear "forward" history
+                for (int i = _historyIndex + 1; i < _historyCount; i++) {
+                    if (_history[i] != null) {
+                        _history[i].Dispose();
+                        _history[i] = null;
+                    }
+                }
+                _historyCount = _historyIndex + 1;
+            }
+
+            // FIXED: Do not dispose the incoming path if it's a literal or shared
+            _history[_historyCount] = path;
+            _historyCount++;
+            _historyIndex = _historyCount - 1;
+
+            // Do not dispose the old path if it's the same as the new one
+            if (_currentPath != path) {
+                _currentPath.Dispose();
+            }
+            
+            _currentPath = path;
+            _entriesDirty = true;
+            _scroll = 0;
+            _showDrives = string.IsNullOrEmpty(path);
+        }
+
         // Conservative spacing to improve readability without heavy layout work
         private int CurrentPad() {
             int icon = _iconFolder != null ? _iconFolder.Width : 48;
@@ -200,12 +227,10 @@ namespace guideXOS.DefaultApps {
             for (; i < text.Length; i++) {
                 string chs = text[i].ToString();
                 int chW = WindowManager.font.MeasureString(chs);
-                chs.Dispose(); // FIXED: Dispose character string
                 if (w + chW + ellW > maxW) break;
                 w += chW;
             }
             string sub = text.Substring(0, i) + ell;
-            ell.Dispose(); // FIXED: Dispose ellipsis string
             return sub;
         }
 
@@ -456,7 +481,6 @@ namespace guideXOS.DefaultApps {
                 UIPrimitives.DrawRoundedRect(sx, tbY, w, btnH, 0xFF3F3F3F, 1, 4);
                 string sizeText = _sizes[i].ToString();
                 WindowManager.font.DrawString(sx + 6, tbY + 4, sizeText);
-                sizeText.Dispose(); // FIXED: Dispose size text
                 sx += w + 4;
             }
 
@@ -468,7 +492,6 @@ namespace guideXOS.DefaultApps {
             UIPrimitives.DrawRoundedRect(searchX, searchY, searchW, searchH, 0xFF3F3F3F, 1, 4);
             string placeholder = string.IsNullOrEmpty(_search) ? "Search" : _search;
             WindowManager.font.DrawString(searchX + 8, searchY + 4, placeholder, searchW - 16, WindowManager.font.FontSize);
-            if (placeholder != _search) placeholder.Dispose(); // FIXED: Only dispose if it's not the actual _search field
 
             // content area bounds
             int contentX = X + 8;
@@ -498,7 +521,6 @@ namespace guideXOS.DefaultApps {
                 Framebuffer.Graphics.DrawImage(X + 10, cursorY, _iconFolder);
                 WindowManager.font.DrawString(X + 10 + _iconFolder.Width + 8, cursorY + _iconFolder.Height / 2 - WindowManager.font.FontSize / 2, baseLabel, maxLeftText, WindowManager.font.FontSize);
                 cursorY += _iconFolder.Height + 10; 
-                baseLabel.Dispose(); // FIXED: Dispose label string
             }
 
             // Right content panel

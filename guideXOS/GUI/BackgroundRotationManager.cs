@@ -39,7 +39,6 @@ namespace guideXOS.GUI {
                     byte[] data = File.ReadAllBytes(_backgroundPaths[0]);
                     if (data != null) {
                         var img = new PNG(data);
-                        data.Dispose();
                         var resized = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
                         img.Dispose();
                         
@@ -130,7 +129,6 @@ namespace guideXOS.GUI {
                 byte[] data = File.ReadAllBytes(_backgroundPaths[_currentIndex]);
                 if (data != null) {
                     var img = new PNG(data);
-                    data.Dispose(); // FIXED: Dispose byte array
                     var resized = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
                     img.Dispose(); // FIXED: Dispose original image
                     

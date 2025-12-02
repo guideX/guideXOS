@@ -514,7 +514,6 @@ namespace guideXOS.DefaultApps {
                             }
 
                             var img = new guideXOS.Misc.PNG(data);
-                            data.Dispose();
 
                             if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
                             Program.Wallpaper = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);

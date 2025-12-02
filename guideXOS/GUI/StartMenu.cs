@@ -149,8 +149,6 @@ namespace guideXOS.GUI {
             // swap into cache
             if (_bgBlurCache != null) _bgBlurCache.Dispose();
             _bgBlurCache = img; _bgCacheReady = true;
-            // dispose temps
-            tmp.Dispose(); dst.Dispose();
         }
 
         private struct AppEntry { public Image Icon; public string Name; }
@@ -197,6 +195,32 @@ namespace guideXOS.GUI {
             int listY = Y + Padding;
             int listW = (rcX - Gap) - listX; // space left of right column
             int listH = rcH;
+
+            // Mouse wheel scrolling
+            if (mx >= listX && mx <= listX + listW && my >= listY && my <= listY + listH)
+            {
+                int scrollDelta = PS2Mouse.DeltaZ;
+                if (scrollDelta != 0)
+                {
+                    int scrollAmount = -scrollDelta * Spacing; // scroll one item per wheel notch
+
+                    int newScroll = _scroll + scrollAmount;
+
+                    // Clamp scroll value
+                    int total = (_showAllPrograms ? (Desktop.Apps.Length + (_allProgramsWindows != null ? _allProgramsWindows.Count : 0)) : RecentManager.Programs.Count) * Spacing;
+                    int maxScroll = total - listH;
+                    if (maxScroll < 0) maxScroll = 0;
+
+                    if (newScroll < 0) newScroll = 0;
+                    if (newScroll > maxScroll) newScroll = maxScroll;
+
+                    if (newScroll != _scroll)
+                    {
+                        _scroll = newScroll;
+                        _frameDirty = true;
+                    }
+                }
+            }
 
             // All Programs toggle button area (bottom-left)
             int allBtnH = 28;

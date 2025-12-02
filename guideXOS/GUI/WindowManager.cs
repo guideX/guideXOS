@@ -1,4 +1,4 @@
-﻿using guideXOS.DefaultApps;
+using guideXOS.DefaultApps;
 using guideXOS.FS;
 using guideXOS.Misc;
 using guideXOS.Kernel.Drivers;
@@ -51,17 +51,46 @@ namespace guideXOS.GUI {
             CloseButton = new PNG(File.ReadAllBytes("Images/Close.png"));
             MinimizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/down.png"));
             MaximizeButton = new PNG(File.ReadAllBytes("Images/BlueVelvet/16/image.png"));
-            PNG defaultFont = new PNG(File.ReadAllBytes("Fonts/defaultfont.png"));
-            font = new IFont(
-                defaultFont,
-                "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
-                18
-            );
+            try {
+                PNG robotoBlack = new PNG(File.ReadAllBytes("Fonts/roboto/roboto_12pt_regular.png"));
+                // FIXED: Charset must match ASCII order of the font image - percent sign must be at correct position
+                string charset = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+                font = new IFont(
+                    robotoBlack,
+                    charset,
+                    20,
+                    true,
+                    15,
+                    -5
+                );
+                
+                // Diagnostic output
+                //font.DiagnoseFont();
+            } catch {
+                Console.WriteLine("[FONT] ERROR: Could not load quickening.png!");
+                Console.WriteLine("[FONT] Falling back to placeholder font");
+                
+                // Fallback to simple white blocks
+                Image simpleFontImg = new Image(260, 160); // 13 chars * 20px width, 8 rows * 20px height
+                for (int y = 0; y < simpleFontImg.Height; y++) {
+                    for (int x = 0; x < simpleFontImg.Width; x++) {
+                        simpleFontImg.RawData[y * simpleFontImg.Width + x] = unchecked((int)0xFFFFFFFF);
+                    }
+                }
+                
+                font = new IFont(
+                    simpleFontImg,
+                    " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+                    20,
+                    true,
+                    11,
+                    -3
+                );
+            }
+            
             MouseHandled = false;
             _pending = new List<PendingWindow>();
-            //_drawMs = new Dictionary<int, ulong>();
-            //_cpuPct = new Dictionary<int, int>();
-            _cpuEpochTick = 0; // defer until enabled
+            _cpuEpochTick = 0;
         }
         /// <summary>
         /// Enable performance tracking

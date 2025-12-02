@@ -14,12 +14,13 @@ namespace guideXOS.Kernel.Drivers {
         public static byte[] MData;
         private static int aX;
         private static int aY;
+        public static int DeltaZ;
 
         public static int ScreenWidth = 0;
         public static int ScreenHeight = 0;
 
         public static void Initialise() {
-            MData = new byte[3];
+            MData = new byte[4];
             Interrupts.EnableInterrupt(0x2c, &OnInterrupt);
 
             byte _status;
@@ -39,14 +40,19 @@ namespace guideXOS.Kernel.Drivers {
             WriteRegister(SetDefaults);
             WriteRegister(EnableDataReporting);
 
-            WriteRegister(0xF2);
-
-            WriteRegister(0xF3);
+            // IntelliMouse detection sequence
+            WriteRegister(0xF3); // Set Sample Rate
             WriteRegister(200);
-
-            WriteRegister(0xF2);
+            WriteRegister(0xF3); // Set Sample Rate
+            WriteRegister(100);
+            WriteRegister(0xF3); // Set Sample Rate
+            WriteRegister(80);
+            WriteRegister(0xF2); // Get Device ID
+            ReadRegister(); // Discard ACK
+            byte deviceId = ReadRegister(); // Should be 0x03 for wheel mouse
 
             Control.MouseButtons = MouseButtons.None;
+            DeltaZ = 0;
         }
 
         public static void WriteRegister(byte value) {
@@ -80,22 +86,35 @@ namespace guideXOS.Kernel.Drivers {
                 Phase = 3;
             } else if (Phase == 3) {
                 MData[2] = D;
+                Phase = 4; // Move to phase 4 for the Z-axis byte
+            }
+            else if (Phase == 4)
+            {
+                MData[3] = D;
                 Phase = 1;
 
-                MData[0] &= 0x07;
+                MData[0] &= 0x0F;
 
                 Control.MouseButtons = MouseButtons.None;
-                if (MData[0] == 0x01) {
-                    Control.MouseButtons = MouseButtons.Left;
+                if ((MData[0] & 0x01) != 0) {
+                    Control.MouseButtons |= MouseButtons.Left;
                 }
-                if (MData[0] == 0x02) {
-                    Control.MouseButtons = MouseButtons.Right;
+                if ((MData[0] & 0x02) != 0) {
+                    Control.MouseButtons |= MouseButtons.Right;
+                }
+                if ((MData[0] & 0x04) != 0)
+                {
+                    Control.MouseButtons |= MouseButtons.Middle;
                 }
 
                 aX = (sbyte)MData[1];
 
                 aY = (sbyte)MData[2];
                 aY = -aY;
+
+                // The 4th byte is the scroll wheel movement.
+                sbyte wheel = (sbyte)MData[3];
+                DeltaZ = wheel;
 
                 Control.MousePosition.X = Math.Clamp(Control.MousePosition.X + aX, 0, Framebuffer.Width);
                 Control.MousePosition.Y = Math.Clamp(Control.MousePosition.Y + aY, 0, Framebuffer.Height);

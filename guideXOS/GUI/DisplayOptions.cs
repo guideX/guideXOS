@@ -140,7 +140,6 @@ namespace guideXOS.GUI {
                                     byte[] thumbData = File.ReadAllBytes(thumbPath);
                                     if (thumbData != null && thumbData.Length > 0) {
                                         var thumbImg = new PNG(thumbData);
-                                        thumbData.Dispose();
                                         thumb = thumbImg;
                                         thumbLoaded = true;
                                     }
@@ -156,7 +155,6 @@ namespace guideXOS.GUI {
                                     if (data != null && data.Length > 0) {
                                         // Create PNG from data
                                         var fullImg = new PNG(data);
-                                        data.Dispose();
                                         
                                         // Calculate aspect-fit resize for thumbnail
                                         int thumbW = _thumbSize;
@@ -285,7 +283,6 @@ namespace guideXOS.GUI {
                                 byte[] data = File.ReadAllBytes(_backgroundPaths[i]);
                                 if (data != null) {
                                     var img = new PNG(data);
-                                    data.Dispose();
                                     if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
                                     Program.Wallpaper = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
                                     img.Dispose();
@@ -320,7 +317,6 @@ namespace guideXOS.GUI {
                             try { 
                                 byte[] imgData = File.ReadAllBytes(path);
                                 var img = new PNG(imgData);
-                                imgData.Dispose();
                                 if (Program.Wallpaper != null) Program.Wallpaper.Dispose(); 
                                 Program.Wallpaper = img.ResizeImage(Framebuffer.Width, Framebuffer.Height); 
                                 img.Dispose(); 
@@ -748,12 +744,12 @@ namespace guideXOS.GUI {
                 }
 
                 var fontImg = new PNG(fontData);
-                fontData.Dispose();
 
                 // Create new font with selected size
+                // FIXED: Added leading space to charset to match WindowManager.cs and generate_font.py
                 var newFont = new IFont(
                     fontImg,
-                    "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+                    " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
                     _selectedFontSize
                 );
 

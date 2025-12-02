@@ -81,29 +81,29 @@ namespace guideXOS.OS {
         /// </summary>
         private void LoadDefaultApps() {
             _apps.Add(new App("Calculator", Icons.CalculatorIcon(32)));
-            _apps.Add(new App("Clock", Icons.CalendarIcon(32)));
-            _apps.Add(new App("Paint", Icons.ImageIcon(32)));
-            _apps.Add(new App("Console", Icons.EditIcon(32)));
-            _apps.Add(new App("Monitor", Icons.DocumentIcon(32)));
-            _apps.Add(new App("Lock", Icons.LockIcon(32)));
-            _apps.Add(new App("Notepad", Icons.NotepadIcon(32)));
-            _apps.Add(new App("TaskManager", Icons.ApplicationsIcon(32)));
-            _apps.Add(new App("Devices", Icons.ConfigureIcon(32)));
-            _apps.Add(new App("nexIRC", Icons.ChatIcon(32)));
-            _apps.Add(new App("IRCNetworks", Icons.NetworkIcon(32)));
-            _apps.Add(new App("GUISamples", Icons.ApplicationsIcon(32)));
             _apps.Add(new App("ComputerFiles", Icons.FolderIcon(32)));
+            _apps.Add(new App("Console", Icons.EditIcon(32)));
+            _apps.Add(new App("Devices", Icons.ConfigureIcon(32)));
             _apps.Add(new App("DiskManager", Icons.DocumentIcon(32)));
             _apps.Add(new App("DisplayOptions", Icons.ConfigureIcon(32)));
-            _apps.Add(new App("FirewallWindow", Icons.ConfigureIcon(32)));
+            _apps.Add(new App("Firewall", Icons.ConfigureIcon(32)));
+            _apps.Add(new App("Notepad", Icons.NotepadIcon(32)));
+            _apps.Add(new App("Paint", Icons.ImageIcon(32)));
+            _apps.Add(new App("TaskManager", Icons.ApplicationsIcon(32)));
             _apps.Add(new App("ImageViewer", Icons.ImageIcon(32)));
-            _apps.Add(new App("OnScreenKeyboard", Icons.EditIcon(32)));
             _apps.Add(new App("WAVPlayer", Icons.AudioIcon(32)));
-            _apps.Add(new App("WebBrowser", Icons.NetworkIcon(32)));
-            _apps.Add(new App("Welcome", Icons.ApplicationsIcon(32)));
+            //_apps.Add(new App("Clock", Icons.CalendarIcon(32)));
+            //_apps.Add(new App("Monitor", Icons.DocumentIcon(32)));
+            //_apps.Add(new App("Lock", Icons.LockIcon(32)));
+            //_apps.Add(new App("nexIRC", Icons.ChatIcon(32)));
+            //_apps.Add(new App("IRCNetworks", Icons.NetworkIcon(32)));
+            //_apps.Add(new App("GUISamples", Icons.ApplicationsIcon(32)));
+            //_apps.Add(new App("OnScreenKeyboard", Icons.EditIcon(32)));
+            //_apps.Add(new App("WebBrowser", Icons.NetworkIcon(32)));
+            //_apps.Add(new App("Welcome", Icons.ApplicationsIcon(32)));
             // GXM apps from filesystem
-            _apps.Add(new App("Hello Demo", Icons.ApplicationsIcon(32)));
-            _apps.Add(new App("Minimal Demo", Icons.ApplicationsIcon(32)));
+            //_apps.Add(new App("Hello Demo", Icons.ApplicationsIcon(32)));
+            //_apps.Add(new App("Minimal Demo", Icons.ApplicationsIcon(32)));
         }
         /// <summary>
         /// Load
@@ -132,7 +132,7 @@ namespace guideXOS.OS {
                         case "ComputerFiles": _apps[i].AppObject = new ComputerFiles(300, 200); b = true; break;
                         case "DiskManager": _apps[i].AppObject = new DiskManager(400, 300); b = true; break;
                         case "DisplayOptions": _apps[i].AppObject = new DisplayOptions(200, 150, 800, 600); b = true; break;
-                        case "FirewallWindow": _apps[i].AppObject = new FirewallWindow(300, 200); b = true; break;
+                        case "Firewall": _apps[i].AppObject = new FirewallWindow(300, 200); b = true; break;
                         case "ImageViewer": 
                             if (Desktop.imageViewer != null) {
                                 Desktop.imageViewer.Visible = true;
