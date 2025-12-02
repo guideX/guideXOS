@@ -83,7 +83,7 @@ namespace guideXOS.Misc {
             //Only fixed size vhds are supported!
             Console.Write("[Initrd] Initrd: 0x");
             Console.WriteLine((Info->Mods[0]).ToString("x2"));
-            //Console.WriteLine("[Initrd] Initializing Ramdisk");
+            Console.WriteLine("[Initrd] Initializing Ramdisk");
             new Ramdisk((IntPtr)(Info->Mods[0]));
             // Initialize filesystem: Auto-detect FAT (12/16/32) or TAR
             new AutoFS();

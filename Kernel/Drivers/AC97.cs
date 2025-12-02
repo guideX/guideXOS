@@ -78,6 +78,7 @@ namespace guideXOS.Kernel.Drivers {
             Native.Out8((ushort)(NABM + 0x15), _index);
             Native.Out8((ushort)(NABM + 0x1B), 0x19);
             Audio.HasAudioDevice = true;
+            Console.WriteLine("[AC97] Audio Device Initialized");
         }
         /// <summary>
         /// On Interupt

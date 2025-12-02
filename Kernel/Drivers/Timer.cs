@@ -9,9 +9,9 @@ namespace guideXOS.Kernel.Drivers {
             HPET.Initialize();
 
             CPU_Clock = EstimateCPUSpeed();
-            //Console.WriteLine($"[Timer] CPU clock is {CPU_Clock / 1048576}mhz");
+            Console.WriteLine($"[Timer] CPU clock is {CPU_Clock / 1048576}mhz");
             Bus_Clock = LocalAPICTimer.EstimateBusSpeed();
-            //Console.WriteLine($"[Timer] Bus clock is {Bus_Clock / 1048576}mhz");
+            Console.WriteLine($"[Timer] Bus clock is {Bus_Clock / 1048576}mhz");
 
             LocalAPICTimer.StartTimer(1000, 0x20);
         }

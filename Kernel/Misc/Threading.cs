@@ -114,7 +114,7 @@ namespace guideXOS.Misc {
         public static void Terminate() {
             //Console.Write("Thread ");
             //Console.Write(Index.ToString());
-            //Console.WriteLine(" Has Exited");
+            Console.WriteLine(" Has Exited");
             Threads[Index].Terminated = true;
             Schedule_Next();
             Panic.Error("Termination Failed!");
@@ -124,7 +124,7 @@ namespace guideXOS.Misc {
         public static extern void Schedule_Next();
 
         public static void TestThread() {
-            //Console.WriteLine("Non-Loop Thread Test!");
+            Console.WriteLine("Non-Loop Thread Test!");
             return;
         }
 

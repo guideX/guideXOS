@@ -39,9 +39,9 @@ namespace guideXOS.Kernel.Drivers {
             req->Length = (ushort)sizeof(Desc);
             bool b = USB.SendAndReceive(device, req, desc, null);
             if (!b) {
-                //Console.WriteLine("[USB Hub] Can't get Hub descriptor");
+                Console.WriteLine("[USB Hub] Can't get Hub descriptor");
             }
-            //Console.WriteLine($"[USB Hub] This hub has {desc->PortCount} ports");
+            Console.WriteLine($"[USB Hub] This hub has {desc->PortCount} ports");
             for (int i = 0; i < desc->PortCount; i++) {
                 (*req).Clean();
                 req->RequestType = 0x23;
@@ -69,7 +69,7 @@ namespace guideXOS.Kernel.Drivers {
                     req->Length = sizeof(uint);
                     b = USB.SendAndReceive(device, req, &status, null);
                     if (!b) {
-                        //Console.WriteLine($"[USB Hub] Can't get Hub port {i} status");
+                        Console.WriteLine($"[USB Hub] Can't get Hub port {i} status");
                         return;
                     }
                     if (status != 0) break;

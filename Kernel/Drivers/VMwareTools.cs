@@ -48,7 +48,7 @@ namespace guideXOS.Kernel.Drivers {
         public static void Initialize() {
             if (!(Available = is_vmware_backdoor())) return;
 
-            //Console.WriteLine("[VMware tools] Initializing VMware tools");
+            Console.WriteLine("[VMware tools] Initializing VMware tools");
 
             mouse_absolute();
 

@@ -37,7 +37,7 @@ namespace guideXOS.Kernel.Drivers {
             Native.Out8(DataPort, 0x65); // Enable keyboard interrupt
             Native.Hlt();
             
-            //Console.WriteLine("[PS2KBD] PS/2 Keyboard initialized");
+            Console.WriteLine("[PS2KBD] PS/2 Keyboard initialized");
         }
         
         /// <summary>

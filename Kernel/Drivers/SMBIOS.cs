@@ -99,7 +99,7 @@ namespace guideXOS.Kernel.Drivers {
             SMBIOSEntryPoint* entry = (SMBIOSEntryPoint*)p;
 
             //Console.Write("[SMBIOS] SMBIOS Version: ");
-            //Console.WriteLine(entry->MajorVersion.ToString());
+            Console.WriteLine(entry->MajorVersion.ToString());
 
             p = (byte*)entry->TableAddress;
             while ((uint)p < (entry->TableAddress + entry->TableLength)) {
@@ -118,7 +118,7 @@ namespace guideXOS.Kernel.Drivers {
                         //Console.Write("Mhz ");
                         //Console.Write("Number of Core: ");
                         //Console.Write(((ulong)pinfo->CoreCount).ToString());
-                        //Console.WriteLine();
+                        Console.WriteLine();
                         break;
                 }
 

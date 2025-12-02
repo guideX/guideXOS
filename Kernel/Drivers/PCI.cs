@@ -1,3 +1,4 @@
+using guideXOS.Misc;
 using System.Collections.Generic;
 namespace guideXOS.Kernel.Drivers {
     public class PCIDevice {
@@ -80,7 +81,7 @@ namespace guideXOS.Kernel.Drivers {
 
             //Console.Write("[PCI] PCI Initialized. ");
             //Console.Write(((ulong)Devices.Count).ToString());
-            //Console.WriteLine(" Devices");
+            Console.WriteLine(" Devices");
         }
 
         public static void CheckBus(ushort Bus) {
@@ -112,7 +113,7 @@ namespace guideXOS.Kernel.Drivers {
 
                 device.DeviceID = ReadRegister16(device.Bus, device.Slot, device.Function, 2);
 
-                //Console.WriteLine($"[PCI {device.Bus}:{device.Slot}:{device.Function}] {VendorID.GetName(device.VendorID)} {ClassID.GetName(device.ClassID)}");
+                Console.WriteLine($"[PCI {device.Bus}:{device.Slot}:{device.Function}] {VendorID.GetName(device.VendorID)} {ClassID.GetName(device.ClassID)}");
 
                 Devices.Add(device);
 

@@ -17,7 +17,7 @@ namespace guideXOS.Kernel.Drivers {
             ScanPorts(Channels.Primary);
             ScanPorts(Channels.Secondary);
             //if (Ports.Count == 0)
-            //Console.WriteLine("[IDE] IDE controller Failed to Initialize");
+            Console.WriteLine("[IDE] IDE controller Failed to Initialize");
         }
         /// <summary>
         /// Channels

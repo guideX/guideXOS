@@ -333,7 +333,7 @@ unsafe class Program {
         //It freezes here too
         //WindowManager.EnablePerfTracking();
 
-        //Console.WriteLine("Draw Start");
+        Console.WriteLine("Draw Start");
         int lastMouseX = Control.MousePosition.X;
         int lastMouseY = Control.MousePosition.Y;
         ulong lastMoveTick = Timer.Ticks;
