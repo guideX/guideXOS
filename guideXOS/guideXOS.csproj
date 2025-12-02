@@ -43,6 +43,8 @@
 		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\NativeLib.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\NativeLib.lib')" />
 		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\LibC.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\LibC.lib')" />
 		<NativeLibrary Include="$(MSBuildStartupDirectory)\x64\Debug\Doom.lib" Condition="Exists('$(MSBuildStartupDirectory)\x64\Debug\Doom.lib')" />
+		<!-- CPUID object file for CPU feature detection - using safe pointer-based version -->
+		<NativeLibrary Include="$(MSBuildProjectDirectory)\cpuid_safe.obj" Condition="Exists('$(MSBuildProjectDirectory)\cpuid_safe.obj')" />
 	</ItemGroup>
 
 	<ItemGroup>
