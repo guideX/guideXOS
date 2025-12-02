@@ -1,110 +1,76 @@
+// Alternative CPUID implementation using explicit pointers
+// Use this if the struct-return version causes crashes
+
 using System.Runtime.InteropServices;
 
 namespace guideXOS.Misc {
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    internal struct CPUID {
-        public uint EAX;
-        public uint EBX;
-        public uint ECX;
-        public uint EDX;
-    }
+    // Note: CPUID struct is already defined in CPUID.cs - we reuse it here
     
-    /// <summary>
-    /// CPU feature detection helper
-    /// </summary>
-    internal static class CPUIDHelper {
+    internal static unsafe class CPUIDHelperSafe {
+        // Safe version - explicitly pass pointer
         [DllImport("*")]
-        private static extern CPUID cpuid(uint leaf, uint subleaf);
+        private static extern void cpuid_safe(CPUID* result, uint leaf, uint subleaf);
         
         [DllImport("*")]
         private static extern bool cpuid_supported();
         
-        /// <summary>
-        /// Check if CPUID instruction is supported
-        /// </summary>
+        private static CPUID CallCPUID(uint leaf, uint subleaf) {
+            CPUID result;
+            cpuid_safe(&result, leaf, subleaf);
+            return result;
+        }
+        
         public static bool IsCPUIDSupported() {
             return cpuid_supported();
         }
         
-        /// <summary>
-        /// Check if CPU supports SSE (Streaming SIMD Extensions)
-        /// CPUID.1:EDX.SSE[bit 25]
-        /// </summary>
         public static bool HasSSE() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.EDX & (1u << 25)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports SSE2
-        /// CPUID.1:EDX.SSE2[bit 26]
-        /// </summary>
         public static bool HasSSE2() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.EDX & (1u << 26)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports SSE3
-        /// CPUID.1:ECX.SSE3[bit 0]
-        /// </summary>
         public static bool HasSSE3() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.ECX & (1u << 0)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports AVX (Advanced Vector Extensions)
-        /// CPUID.1:ECX.AVX[bit 28]
-        /// </summary>
         public static bool HasAVX() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.ECX & (1u << 28)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports APIC
-        /// CPUID.1:EDX.APIC[bit 9]
-        /// </summary>
         public static bool HasAPIC() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.EDX & (1u << 9)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports PAE (Physical Address Extension)
-        /// CPUID.1:EDX.PAE[bit 6]
-        /// </summary>
         public static bool HasPAE() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.EDX & (1u << 6)) != 0;
         }
         
-        /// <summary>
-        /// Check if CPU supports FXSAVE/FXRSTOR
-        /// CPUID.1:EDX.FXSR[bit 24]
-        /// </summary>
         public static bool HasFXSR() {
             if (!IsCPUIDSupported()) return false;
-            var info = cpuid(1, 0);
+            var info = CallCPUID(1, 0);
             return (info.EDX & (1u << 24)) != 0;
         }
         
-        /// <summary>
-        /// Get CPU vendor string (GenuineIntel, AuthenticAMD, etc.)
-        /// </summary>
         public static string GetVendorString() {
             if (!IsCPUIDSupported()) return "Unknown";
             
-            var info = cpuid(0, 0);
+            var info = CallCPUID(0, 0);
             
-            // Build vendor string from EBX, EDX, ECX (in that order)
             char[] vendor = new char[12];
             
             // EBX
@@ -128,18 +94,12 @@ namespace guideXOS.Misc {
             return new string(vendor);
         }
         
-        /// <summary>
-        /// Get maximum supported CPUID leaf
-        /// </summary>
         public static uint GetMaxLeaf() {
             if (!IsCPUIDSupported()) return 0;
-            var info = cpuid(0, 0);
+            var info = CallCPUID(0, 0);
             return info.EAX;
         }
         
-        /// <summary>
-        /// Print CPU features to console
-        /// </summary>
         public static void PrintCPUInfo() {
             if (!IsCPUIDSupported()) {
                 Console.WriteLine("[CPU] CPUID not supported");
