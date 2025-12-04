@@ -11,6 +11,21 @@ namespace guideXOS.FS {
         /// <summary>
         /// Constructor
         /// </summary>
+        public AutoFS(Disk disk) {
+            // Peek at sector 0
+            var buf = new byte[SectorSize];
+            fixed (byte* p = buf) disk.Read(0, 1, p);
+            if (LooksLikeTar(buf)) {
+                _impl = new TarFS(disk);
+            } else if (LooksLikeFat(buf)) {
+                _impl = new FAT(disk);
+            } else if (LooksLikeExt(disk)) {
+                _impl = new EXT2(disk);
+            } else {
+                // Fallback to TarFS for backward compatibility
+                _impl = new TarFS(disk);
+            }
+        }
         public AutoFS() {
             // Peek at sector 0
             var buf = new byte[SectorSize];
@@ -19,7 +34,7 @@ namespace guideXOS.FS {
                 _impl = new TarFS();
             } else if (LooksLikeFat(buf)) {
                 _impl = new FAT();
-            } else if (LooksLikeExt()) {
+            } else if (LooksLikeExt(buf)) {
                 _impl = new EXT2();
             } else {
                 // Fallback to TarFS for backward compatibility
@@ -62,6 +77,20 @@ namespace guideXOS.FS {
             // Reserved sectors at least 1
             if (rsvdSec == 0) return false;
             return true;
+        }
+
+        private static bool LooksLikeExt(Disk disk)
+        {
+            var buf = new byte[SectorSize * 3];
+            fixed (byte* p = buf) disk.Read(0, 3, p);
+            return LooksLikeExt(buf);
+        }
+
+        private static bool LooksLikeExt(byte[] buf)
+        {
+            // ext magic number 0x53EF at offset 0x38 in superblock (which is at 1024 bytes from start)
+            if (buf.Length < 2048) return false;
+            return buf[1024 + 0x38] == 0x53 && buf[1024 + 0x39] == 0xEF;
         }
         /// <summary>
         /// Get Files

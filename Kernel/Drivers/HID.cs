@@ -13,21 +13,74 @@ namespace guideXOS.Kernel.Drivers {
             Keyboard = null;
             _usbRequest = (USBRequest*)Allocator.Allocate((ulong)sizeof(USBRequest));
         }
-        public static bool GetHIDPacket(USBDevice device, uint devicedesc) {
-            (*_usbRequest).Clean(); _usbRequest->Request = 1; _usbRequest->RequestType = 0xA1; _usbRequest->Index = 0; _usbRequest->Length = 3; _usbRequest->Value = 0x0100; bool res = USB.SendAndReceive(device, _usbRequest, (void*)devicedesc, device.Parent); return res;
+        public static bool GetHIDPacket(USBDevice device, void* buffer, ushort length) {
+            (*_usbRequest).Clean(); 
+            _usbRequest->Request = 1; // GET_REPORT
+            _usbRequest->RequestType = 0xA1; // Host-to-device, Class, Interface
+            _usbRequest->Index = device.Interface; 
+            _usbRequest->Length = length; 
+            _usbRequest->Value = 0x0100; // Input Report, Report ID 0
+            bool res = USB.SendAndReceive(device, _usbRequest, buffer, device.Parent); 
+            return res;
         }
         public static void GetKeyboard(USBDevice device, out byte ScanCode, out ConsoleKey Key) {
-            Key = None; ScanCode = 0; byte* desc = stackalloc byte[10]; bool res = GetHIDPacket(device, (uint)desc);
-            if (res) { if (desc[2] != 0) { ScanCode = desc[2]; if (ScanCode < ConsoleKeys.Length) Key = ConsoleKeys[ScanCode]; } }
+            Key = None; ScanCode = 0; 
+            byte* desc = stackalloc byte[8]; // Standard boot keyboard report is 8 bytes
+            bool res = GetHIDPacket(device, desc, 8);
+            if (res) { 
+                // desc[0] is modifier keys
+                // desc[1] is reserved
+                // desc[2]..desc[7] are keycodes
+                if (desc[2] != 0) { 
+                    ScanCode = desc[2]; 
+                    if (ScanCode < ConsoleKeys.Length) 
+                        Key = ConsoleKeys[ScanCode]; 
+                } 
+            }
         }
         public static void GetMouse(USBDevice device, out sbyte AxisX, out sbyte AxisY, out MouseButtons buttons) {
-            AxisX = 0; AxisY = 0; buttons = MouseButtons.None; byte* desc = stackalloc byte[10]; bool res = GetHIDPacket(device, (uint)desc);
-            if (res) { AxisX = (sbyte)desc[1]; AxisY = (sbyte)desc[2]; if (desc[0] & 0x01) buttons |= MouseButtons.Left; if (desc[0] & 0x02) buttons |= MouseButtons.Right; if (desc[0] & 0x04) buttons |= MouseButtons.Middle; }
+            AxisX = 0; AxisY = 0; buttons = MouseButtons.None; 
+            byte* desc = stackalloc byte[4]; // Standard boot mouse report is 3 or 4 bytes
+            bool res = GetHIDPacket(device, desc, 4);
+            if (res) { 
+                AxisX = (sbyte)desc[1]; 
+                AxisY = (sbyte)desc[2]; 
+                if ((desc[0] & 0x01) != 0) buttons |= MouseButtons.Left; 
+                if ((desc[0] & 0x02) != 0) buttons |= MouseButtons.Right; 
+                if ((desc[0] & 0x04) != 0) buttons |= MouseButtons.Middle; 
+            }
         }
-        public static void Initialize(USBDevice device) { if (device.Protocol == 1) { USB.NumDevice++; InitializeKeyboard(device); } else if (device.Protocol == 2) { USB.NumDevice++; InitializeMouse(device); } }
-        static void InitializeMouse(USBDevice device) { Mouse = device; }
+        public static void Initialize(USBDevice device) { 
+            if (device.Protocol == 1) { // Keyboard
+                USB.NumDevice++; 
+                InitializeKeyboard(device); 
+            } else if (device.Protocol == 2) { // Mouse
+                USB.NumDevice++; 
+                InitializeMouse(device); 
+            } 
+        }
+        static void InitializeMouse(USBDevice device) { 
+            Mouse = device; 
+            // Set Idle rate to 0 (infinite) to get reports only when state changes
+            (*_usbRequest).Clean();
+            _usbRequest->Request = 0x0A; // SET_IDLE
+            _usbRequest->RequestType = 0x21; // Device-to-host, Class, Interface
+            _usbRequest->Value = 0; // Duration = 0 (infinite)
+            _usbRequest->Index = device.Interface;
+            _usbRequest->Length = 0;
+            USB.SendAndReceive(device, _usbRequest, null, device.Parent);
+        }
         static void InitializeKeyboard(USBDevice device) {
             Keyboard = device;
+            // Set Idle rate to 0 (infinite)
+            (*_usbRequest).Clean();
+            _usbRequest->Request = 0x0A; // SET_IDLE
+            _usbRequest->RequestType = 0x21;
+            _usbRequest->Value = 0;
+            _usbRequest->Index = device.Interface;
+            _usbRequest->Length = 0;
+            USB.SendAndReceive(device, _usbRequest, null, device.Parent);
+
             // Build a HID usage -> ConsoleKey table large enough for arrow keys, etc.
             ConsoleKeys = new ConsoleKey[256];
             for (int i = 0; i < ConsoleKeys.Length; i++) ConsoleKeys[i] = None;

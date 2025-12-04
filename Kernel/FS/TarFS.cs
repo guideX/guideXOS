@@ -7,6 +7,18 @@ namespace guideXOS.FS {
     /// Tar FS
     /// </summary>
     internal unsafe class TarFS : FileSystem {
+        private Disk _disk;
+
+        public TarFS(Disk disk)
+        {
+            _disk = disk;
+        }
+
+        public TarFS()
+        {
+            _disk = Disk.Instance;
+        }
+
         /// <summary>
         /// Posix Tar Header
         /// </summary>
@@ -96,7 +108,7 @@ namespace guideXOS.FS {
             posix_tar_header hdr;
             posix_tar_header* ptr = &hdr;
             List<FileInfo> list = new();
-            while (Disk.Instance.Read(sec, 1, (byte*)ptr) && hdr.name[0]) {
+            while (_disk.Read(sec, 1, (byte*)ptr) && hdr.name[0]) {
                 sec++;
                 ulong size = mystrtoul(hdr.size, null, 8);
                 string name = string.FromASCII((nint)hdr.name, StringHelper.StringLength(hdr.name) - (hdr.name[StringHelper.StringLength(hdr.name) - 1] == '/' ? 1 : 0));
@@ -137,7 +149,7 @@ namespace guideXOS.FS {
                 if (list[i].Name.Equals(fname)) {
                     buffer = new byte[(uint)SizeToSec(list[i].Param1) * 512];
                     fixed (byte* ptr = buffer) {
-                        Disk.Instance.Read(list[i].Param0, (uint)SizeToSec(list[i].Param1), ptr);
+                        _disk.Read(list[i].Param0, (uint)SizeToSec(list[i].Param1), ptr);
                     }
                     buffer.Length = (int)list[i].Param1;
                     //Disposing

@@ -77,7 +77,8 @@ namespace guideXOS.FS {
         }
 
         // Runtime fields
-        private Disk disk => Disk.Instance;
+        private Disk _disk;
+        private Disk disk => _disk ?? Disk.Instance;
         private FatType _type;
         private ushort _bytesPerSec;
         private byte _secPerClus;
@@ -97,6 +98,46 @@ namespace guideXOS.FS {
         private byte[][] _cacheValues;
         private int _cacheCount;
         private int _lruHead; // simple circular buffer for LRU
+
+        public FAT(Disk disk)
+        {
+            this._disk = disk;
+            // Initialize cache arrays
+            _cacheKeys = new ulong[CacheCapacity];
+            _cacheValues = new byte[CacheCapacity][];
+            _cacheCount = 0;
+            _lruHead = 0;
+
+            // Read boot sector
+            var sec0 = ReadSectorsCached(0, 1);
+            fixed (byte* p = sec0)
+            {
+                BPB_Common* bpb = (BPB_Common*)p;
+                _bytesPerSec = bpb->BytsPerSec;
+                _secPerClus = bpb->SecPerClus;
+                _rsvdSecCnt = bpb->RsvdSecCnt;
+                _numFATs = bpb->NumFATs;
+                uint totSec = bpb->TotSec16 != 0 ? bpb->TotSec16 : bpb->TotSec32;
+                uint fatsz = bpb->FATSz16;
+                if (fatsz == 0)
+                {
+                    BPB_FAT32* bpb32 = (BPB_FAT32*)(p + 0x24);
+                    fatsz = bpb32->FATSz32;
+                    _rootCluster = bpb32->RootClus;
+                }
+                _FATSz = fatsz;
+                uint rootEntCnt = bpb->RootEntCnt;
+                _rootDirSectors = (uint)((rootEntCnt * 32 + (_bytesPerSec - 1)) / _bytesPerSec);
+                uint dataSec = totSec - (uint)(_rsvdSecCnt + (_numFATs * fatsz) + _rootDirSectors);
+                uint countOfClusters = dataSec / _secPerClus;
+                _clusterCount = countOfClusters;
+                _type = countOfClusters < 4085 ? FatType.FAT12 : (countOfClusters < 65525 ? FatType.FAT16 : FatType.FAT32);
+                _fatStart = _rsvdSecCnt;
+                _firstDataSector = (uint)(_rsvdSecCnt + (_numFATs * fatsz) + _rootDirSectors);
+                _firstRootDirSector = (uint)(_rsvdSecCnt + (_numFATs * fatsz));
+                if (_type != FatType.FAT32) _rootCluster = 0; // not used
+            }
+        }
 
         public FAT() {
             // Initialize cache arrays

@@ -31,6 +31,10 @@ namespace guideXOS.Misc {
             // Boot splash init
             BootSplash.Initialize("Team Nexgen", "guideXOS", "Version: 0.2");
             Console.Setup();
+            
+            // Detect and log architecture
+            DetectArchitecture();
+            
             IDT.Disable();
             GDT.Initialise();
             {
@@ -43,7 +47,13 @@ namespace guideXOS.Misc {
             Interrupts.Initialize();
             IDT.Enable();
             SSE.enable_sse();
-            //AVX.init_avx();
+            
+            // Enable AVX if supported - COMMENTED OUT: CPUID native functions not yet implemented
+            // if (CPUIDHelper.IsCPUIDSupported() && CPUIDHelper.HasAVX()) {
+            //     Console.WriteLine("[CPU] AVX supported - enabling");
+            //     // AVX.init_avx();  // Uncomment when AVX initialization is implemented
+            // }
+            
             ACPI.Initialize();
 #if UseAPIC
             PIC.Disable();
@@ -80,6 +90,68 @@ namespace guideXOS.Misc {
             BootSplash.Cleanup();
 
             KMain();
+        }
+
+        /// <summary>
+        /// Detect and validate system architecture
+        /// </summary>
+        private static void DetectArchitecture() {
+            Console.WriteLine("=== Architecture Detection ===");
+            
+            // 1. Pointer size check
+            int ptrSize = sizeof(nint);
+            Console.WriteLine($"[ARCH] Pointer Size: {ptrSize} bytes ({(ptrSize == 8 ? "64-bit" : ptrSize == 4 ? "32-bit" : "Unknown")})");
+            
+            // 2. CPUID support check - COMMENTED OUT: Native cpuid functions not yet implemented
+            // When you implement cpuid.cpp and link it, uncomment this section:
+            /*
+            if (CPUIDHelper.IsCPUIDSupported()) {
+                Console.WriteLine("[ARCH] CPUID: Supported");
+                
+                // Print CPU info
+                CPUIDHelper.PrintCPUInfo();
+                
+                // Check for Long Mode (AMD64/x86-64)
+                if (CPUIDHelper.GetMaxLeaf() >= 0x80000001) {
+                    bool probablyLongMode = (ptrSize == 8);
+                    Console.WriteLine($"[ARCH] Long Mode (64-bit): {(probablyLongMode ? "YES" : "NO")}");
+                }
+            } else {
+                Console.WriteLine("[ARCH] CPUID: Not supported");
+            }
+            */
+            
+            // Simplified detection based on pointer size
+            if (ptrSize == 8) {
+                Console.WriteLine("[ARCH] Running in 64-bit mode (AMD64)");
+            } else if (ptrSize == 4) {
+                Console.WriteLine("[ARCH] Running in 32-bit mode");
+            }
+            
+            // 3. Test pointer arithmetic integrity
+            TestPointerIntegrity();
+            
+            Console.WriteLine("=== Architecture Detection Complete ===");
+        }
+        
+        /// <summary>
+        /// Test that pointer arithmetic works correctly (no truncation)
+        /// </summary>
+        private static void TestPointerIntegrity() {
+            if (sizeof(nint) == 8) {
+                // Test 64-bit pointer handling
+                ulong testValue = 0x123456789ABCDEF0UL;
+                void* testPtr = (void*)testValue;
+                ulong recovered = (ulong)testPtr;
+                
+                if (recovered == testValue) {
+                    Console.WriteLine("[ARCH] Pointer integrity: PASS (64-bit pointers working)");
+                } else {
+                    Panic.Error($"Pointer truncation detected! Expected 0x{testValue:X16}, got 0x{recovered:X16}");
+                }
+            } else {
+                Console.WriteLine("[ARCH] Pointer integrity: SKIP (32-bit mode)");
+            }
         }
 
         [DllImport("*")]

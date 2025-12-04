@@ -46,7 +46,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMWareSVGAII.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Drivers\VMwareTools.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)FS\AutoFS.Ext.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\CloudFS.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\Disk.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FS\EXT2.cs" />
@@ -60,6 +59,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Helpers\StringHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Kbd2Mouse.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\Allocator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Misc\ArchTest.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\ASC16.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\Audio.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Misc\BitFont.cs" />

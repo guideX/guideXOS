@@ -16,7 +16,8 @@ namespace guideXOS.FS {
         private const ushort S_IFDIR = 0x4000;
         private const ushort S_IFREG = 0x8000;
 
-        private Disk disk => Disk.Instance;
+        private Disk _disk;
+        private Disk disk => _disk ?? Disk.Instance;
 
         private uint _blockSize;
         private uint _inodesPerGroup;
@@ -27,6 +28,38 @@ namespace guideXOS.FS {
         private uint _totalBlocks;
         private uint _groupCount;
         private uint[] _inodeTableBlock; // per group
+
+        public EXT2(Disk disk)
+        {
+            _disk = disk;
+            // Read superblock at byte offset 1024 (LBA +2 for 512B sectors)
+            var sb = ReadBytes(2048, 1024); // read 1024 bytes from 1024 offset
+            ushort magic = ReadU16(sb, 0x38);
+            if (magic != EXT_MAGIC) Panic.Error("EXT2: Invalid superblock magic");
+
+            _totalInodes = ReadU32(sb, 0x00);
+            _totalBlocks = ReadU32(sb, 0x04);
+            _firstDataBlock = ReadU32(sb, 0x14);
+            uint logBlockSize = ReadU32(sb, 0x18);
+            _blockSize = 1024u << (int)logBlockSize;
+            _blocksPerGroup = ReadU32(sb, 0x20);
+            _inodesPerGroup = ReadU32(sb, 0x28);
+            _inodeSize = ReadU16(sb, 0x58);
+            if (_inodeSize == 0) _inodeSize = 128; // old rev
+
+            _groupCount = DivRoundUp(_totalBlocks - _firstDataBlock, _blocksPerGroup);
+
+            // Read group descriptor table. For 1KiB blocks it starts at block 2, otherwise at block 1
+            uint gdtBlock = _blockSize == 1024 ? 2u : 1u;
+            int gdtBytes = (int)(_groupCount * 32); // ext2/3 32B descriptors
+            var gdt = ReadBlockRange(gdtBlock, (uint)DivRoundUp((uint)gdtBytes, _blockSize));
+            _inodeTableBlock = new uint[_groupCount];
+            for (uint i = 0; i < _groupCount; i++)
+            {
+                int off = (int)(i * 32);
+                _inodeTableBlock[i] = ReadU32(gdt, off + 8); // bg_inode_table
+            }
+        }
 
         public EXT2() {
             // Read superblock at byte offset 1024 (LBA +2 for 512B sectors)

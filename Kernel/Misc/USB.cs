@@ -26,6 +26,7 @@ namespace guideXOS.Misc {
         public uint Localoutringoffset;
         internal int Port;
         internal USBDevice Parent;
+        public ushort Interface;
     }
 
     [StructLayout(LayoutKind.Sequential, Pack = 1)]

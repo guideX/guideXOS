@@ -59,6 +59,28 @@ namespace guideXOS.DefaultApps {
         private bool _searchFocus = false;
         private byte _lastScan; private bool _keyDown;
 
+        private FileSystem _fs;
+        private List<DriveInfo> _drives;
+
+        public ComputerFiles(int x, int y, int w, int h, FileSystem fs, string driveName) : base(x, y, w, h)
+        {
+            Title = "Computer Files - " + driveName;
+            _fs = fs;
+            _showDrives = false;
+            _currentPath = "";
+
+            LoadIcons();
+            _entriesDirty = true;
+            IsResizable = true;
+            ShowInTaskbar = true;
+            ShowMaximize = true;
+            ShowMinimize = true;
+            ShowTombstone = true;
+            Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
+
+            PushHistory("");
+        }
+
         public ComputerFiles(int X, int Y, int W = 640, int H = 480) : base(X, Y, W, H) {
             Title = "Computer Files";
             LoadIcons();
@@ -72,6 +94,8 @@ namespace guideXOS.DefaultApps {
             //ShowRestore = true;
             ShowTombstone = true;
             Keyboard.OnKeyChanged += Keyboard_OnKeyChanged;
+            RefreshDrives();
+            PushHistory(null);
         }
 
         private void Keyboard_OnKeyChanged(object sender, ConsoleKeyInfo key) {
@@ -103,6 +127,37 @@ namespace guideXOS.DefaultApps {
             try { _iconDoc = Icons.DocumentIcon(px); } catch { _iconDoc = Icons.DocumentIcon(32); }
         }
 
+        private void RefreshDrives()
+        {
+            _drives = new List<DriveInfo>();
+            _drives.Add(new DriveInfo
+            {
+                Name = "Hard Disk",
+                Type = DriveInfo.DriveType.HardDisk,
+                IsReady = true,
+                FileSystem = new AutoFS()
+            });
+
+            var usbDevices = USBStorage.GetAll();
+            for (int i = 0; i < usbDevices.Length; i++)
+            {
+                var dev = usbDevices[i];
+                var disk = USBMSC.TryOpenDisk(dev);
+                if (disk != null && disk.IsReady)
+                {
+                    _drives.Add(new DriveInfo
+                    {
+                        Name = "USB Drive " + (i + 1),
+                        Type = DriveInfo.DriveType.USB,
+                        TotalSize = disk.TotalBlocks * disk.LogicalBlockSize,
+                        IsReady = true,
+                        Tag = dev,
+                        FileSystem = new AutoFS(disk)
+                    });
+                }
+            }
+        }
+
         private void ClearEntriesCache() {
             if (_entriesCache != null) {
                 for (int i = 0; i < _entriesCache.Count; i++) _entriesCache[i].Dispose();
@@ -120,7 +175,14 @@ namespace guideXOS.DefaultApps {
             string query = _currentPath;
             if (query == null) query = ""; // drives/root
             Busy.Push();
-            _entriesCache = File.GetFiles(query);
+            if (_fs != null)
+            {
+                _entriesCache = _fs.GetFiles(query);
+            }
+            else
+            {
+                _entriesCache = File.GetFiles(query);
+            }
             Busy.Pop();
             _entriesCacheFor = _currentPath;
             _entriesDirty = false;
@@ -165,6 +227,12 @@ namespace guideXOS.DefaultApps {
             if (_currentPath == null) return;
             if (_currentPath.Length == 0) {
                 _showDrives = true;
+                if (_fs != null)
+                {
+                    // This is a drive-specific window, going "up" from root should not show all drives.
+                    // Maybe close it or do nothing. For now, do nothing.
+                    return;
+                }
                 PushHistory(null);
                 _scroll = 0;
                 MarkEntriesDirty();
@@ -341,11 +409,34 @@ namespace guideXOS.DefaultApps {
                 // Content clicks (right grid)
                 int pad = CurrentPad();
                 if (_showDrives) {
-                    // Single drive tile
-                    int tile = (_iconFolder != null ? _iconFolder.Height : 48) + WindowManager.font.FontSize + pad;
-                    int rowX = X + leftW + 8; int rowY = contentY; int rowW = contentW - leftW;
-                    if (mx >= rowX && mx <= rowX + rowW && my >= rowY && my <= rowY + tile) {
-                        _showDrives = false; _currentPath = ""; PushHistory(_currentPath); _scroll = 0; MarkEntriesDirty(); return;
+                    int icon = _iconFolder != null ? _iconFolder.Width : 48;
+                    int tileW = icon + pad * 2;
+                    int tileH = icon + WindowManager.font.FontSize + pad;
+                    int rcX = X + leftW + 8;
+                    int rcW = contentW - leftW - 8;
+                    int cols = tileW > 0 ? rcW / tileW : 1;
+                    if (cols < 1) cols = 1;
+
+                    for (int i = 0; i < _drives.Count; i++)
+                    {
+                        int gridX = i % cols;
+                        int gridY = i / cols;
+                        int gx = rcX + gridX * tileW + pad;
+                        int gy = contentY + gridY * tileH + pad - _scroll;
+
+                        if (gy + tileH < contentY || gy > contentY + contentH) continue;
+
+                        if (mx >= gx && mx <= gx + icon && my >= gy && my <= gy + icon)
+                        {
+                            var drive = _drives[i];
+                            if (drive.FileSystem != null)
+                            {
+                                var cf = new ComputerFiles(X + 20, Y + 20, 540, 400, drive.FileSystem, drive.Name);
+                                WindowManager.MoveToEnd(cf);
+                                cf.Visible = true;
+                            }
+                            return;
+                        }
                     }
                 } else {
                     EnsureEntries(); var list = _entriesCache; if (list == null) return;
@@ -431,8 +522,15 @@ namespace guideXOS.DefaultApps {
         private int GetTotalContentHeight(int contentW) {
             int pad = CurrentPad();
             if (_showDrives) {
-                int icon = _iconFolder != null ? _iconFolder.Width : 48; int tileH = icon + WindowManager.font.FontSize + pad;
-                return tileH;
+                if (_drives == null) return 0;
+                int icon = _iconFolder != null ? _iconFolder.Width : 48;
+                int tileWLocal = icon + pad * 2;
+                int tileH = icon + WindowManager.font.FontSize + pad;
+                int colsLocal = tileWLocal > 0 ? contentW / tileWLocal : 1;
+                if (colsLocal < 1) colsLocal = 1;
+                int rowsLocal = (_drives.Count + colsLocal - 1) / colsLocal;
+                if (rowsLocal < 1) rowsLocal = 1;
+                return rowsLocal * tileH;
             }
             EnsureEntries();
             var list = _entriesCache;
@@ -529,13 +627,35 @@ namespace guideXOS.DefaultApps {
 
             int pad = CurrentPad();
             if (_showDrives) {
-                // Single drive tile (root of current FS)
+                if (_drives == null) RefreshDrives();
+                if (_drives == null) return;
+
                 int icon = _iconFolder != null ? _iconFolder.Width : 48;
+                int tileW = icon + pad * 2;
                 int tileH = icon + WindowManager.font.FontSize + pad;
-                int cx = rcX + (rcW - icon) / 2;
-                int cy = contentY + 12 - _scroll;
-                if (_iconFolder != null) Framebuffer.Graphics.DrawImage(cx, cy, _iconFolder);
-                WindowManager.font.DrawString(cx - 24, cy + icon + 6, "Root");
+                int cols = tileW > 0 ? rcW / tileW : 1;
+                if (cols < 1) cols = 1;
+
+                for (int i = 0; i < _drives.Count; i++)
+                {
+                    var drive = _drives[i];
+                    int gridX = i % cols;
+                    int gridY = i / cols;
+                    int gx = rcX + gridX * tileW + pad;
+                    int gy = contentY + gridY * tileH + pad - _scroll;
+
+                    if (gy + tileH < contentY || gy > contentY + contentH) continue;
+
+                    System.Drawing.Image driveIcon = _iconFolder; // Default
+                    if (drive.Type == DriveInfo.DriveType.USB)
+                    {
+                        // Later, we can have a specific USB icon
+                        driveIcon = _iconFolder;
+                    }
+
+                    if (driveIcon != null) Framebuffer.Graphics.DrawImage(gx, gy, driveIcon);
+                    WindowManager.font.DrawString(gx, gy + icon + 6, drive.Name, tileW - pad, WindowManager.font.FontSize);
+                }
             } else {
                 EnsureEntries(); var list = _entriesCache; if (list != null) {
                     int icon = _iconFolder != null ? _iconFolder.Width : 48; int tileW = icon + pad * 2; int tileH = icon + WindowManager.font.FontSize + pad; int cols = tileW > 0 ? rcW / tileW : 1; if (cols < 1) cols = 1;
@@ -572,6 +692,15 @@ namespace guideXOS.DefaultApps {
             
             // Clean up cached entries
             ClearEntriesCache();
+
+            if (_drives != null)
+            {
+                for (int i = 0; i < _drives.Count; i++)
+                {
+                    _drives[i].Dispose();
+                }
+                _drives.Dispose();
+            }
             
             base.Dispose();
         }

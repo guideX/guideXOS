@@ -6,12 +6,17 @@
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<BaseOutputPath>..\bin</BaseOutputPath>
 
+		<!-- Explicitly target x64 architecture for AMD64 compatibility -->
+		<PlatformTarget>x64</PlatformTarget>
+		<RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+		<Prefer32Bit>false</Prefer32Bit>
+
 		<Optimize>true</Optimize>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 		<ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
 
-		<DefineConstants>Kernel;UseAPIC;NETWORK</DefineConstants>
+		<DefineConstants>Kernel;UseAPIC;NETWORK;X64</DefineConstants>
 
 		<IlcSystemModule>guideXOS</IlcSystemModule>
 		<EntryPointSymbol>Entry</EntryPointSymbol>
@@ -93,6 +98,21 @@
 		<Delete Files="$(LoaderPath)" />
 		<Delete Files="$(MSBuildStartupDirectory)\Tools\trampoline.o" />
 		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\mkisofs.exe&quot; -relaxed-filenames -J -R -o &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).iso&quot; -b boot/grub/i386-pc/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table &quot;$(MSBuildStartupDirectory)\Tools\grub2&quot;" />
+	</Target>
+
+	<Target Name="BuildUEFI_ISO" AfterTargets="Publish" Condition="'$(SkipISO)'!='true'">
+		<PropertyGroup>
+			<RamdiskPath>$(MSBuildStartupDirectory)\Tools\grub2\boot\ramdisk.tar</RamdiskPath>
+			<RamdiskTemp>$(MSBuildStartupDirectory)\Tools\grub2\boot\ramdisk.new.tar</RamdiskTemp>
+			<LoaderPath>$(MSBuildProjectDirectory)\$(NativeOutputPath)loader.o</LoaderPath>
+			<KernelPath>$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName)$(NativeBinaryExt)</KernelPath>
+			<KernelBin>$(MSBuildStartupDirectory)\Tools\grub2\boot\kernel.bin</KernelBin>
+			<EfiImage>$(MSBuildStartupDirectory)\Tools\grub2\efi.img</EfiImage>
+		</PropertyGroup>
+		<!-- Create UEFI image -->
+		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\create_uefi_img.bat&quot;" />
+		<!-- Create hybrid ISO -->
+		<Exec Command="&quot;$(MSBuildStartupDirectory)\Tools\mkisofs.exe&quot; -relaxed-filenames -J -R -o &quot;$(MSBuildProjectDirectory)\$(NativeOutputPath)$(TargetName).iso&quot; -b boot/grub/i386-pc/eltorito.img -no-emul-boot -boot-load-size 4 -boot-info-table -eltorito-alt-boot -e &quot;$(EfiImage)&quot; -no-emul-boot &quot;$(MSBuildStartupDirectory)\Tools\grub2&quot;" />
 	</Target>
 
 	<Target Name="RunQemu" AfterTargets="BuildISO" Condition="$(vm) == 'qemu'">

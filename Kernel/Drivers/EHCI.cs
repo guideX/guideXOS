@@ -1,13 +1,15 @@
 using guideXOS.Misc;
+using System;
 using System.Runtime.InteropServices;
 namespace guideXOS.Kernel.Drivers {
     /// <summary>
     /// The Enhanced Host Controller Interface (EHCI) specification describes the register-level interface for a host controller for the Universal Serial Bus (USB)
     /// </summary>
     public static unsafe class EHCI {
-        public static uint BaseAddr;
-        public static uint CMDReg;
-        public static uint AsyncListReg;
+        // Changed from uint to nuint for proper 64-bit support
+        public static nuint BaseAddr;
+        public static nuint CMDReg;
+        public static nuint AsyncListReg;
         public static byte AvailablePorts;
         public const int FrameSize = 1024;
         public static void Initialize() {
@@ -50,20 +52,20 @@ namespace guideXOS.Kernel.Drivers {
                     }
                 }
             }
-            CMDReg = BaseAddr + 0x00;
-            AsyncListReg = BaseAddr + 0x18;
+            CMDReg = BaseAddr + (nuint)0x00;
+            AsyncListReg = BaseAddr + (nuint)0x18;
             uint default_cmd = *(uint*)CMDReg;
             if (default_cmd & 1) {
                 Console.WriteLine("[EHCI] Stopping this controller");
                 *(uint*)CMDReg &= ~1u;
-                while (1) {
+                while (true) {
                     if ((*(uint*)CMDReg & 1) == 0) {
                         break;
                     }
                 }
             }
             *(uint*)CMDReg |= 2;
-            while (1) {
+            while (true) {
                 Console.WriteLine("[EHCI] Waitting for controller ready");
                 if ((*(uint*)CMDReg & 2) == 0) {
                     break;
@@ -73,11 +75,12 @@ namespace guideXOS.Kernel.Drivers {
             for (int i = 0; i < FrameSize; i++) {
                 framelist[i] |= 1;
             }
-            *(uint*)(BaseAddr + 0x08) = 0;
-            *(uint*)(BaseAddr + 0x10) = 0;
-            *(uint*)(BaseAddr + 0x14) = (uint)&framelist;
+            *(uint*)(BaseAddr + (nuint)0x08) = 0;
+            *(uint*)(BaseAddr + (nuint)0x10) = 0;
+            // Fixed: Use proper pointer cast for 64-bit
+            *(nuint*)(BaseAddr + (nuint)0x14) = (nuint)framelist;
             *(uint*)CMDReg |= 0x400001;
-            *(uint*)(BaseAddr + 0x40) |= 1;
+            *(uint*)(BaseAddr + (nuint)0x40) |= 1;
             ScanPorts();
             Console.WriteLine("[EHCI] EHCI controller initialized");
         }
@@ -154,11 +157,12 @@ namespace guideXOS.Kernel.Drivers {
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct TD {
-            public uint NextLink;
-            public uint AltLink;
+            // Changed to nuint for proper pointer-sized fields
+            public nuint NextLink;
+            public nuint AltLink;
             public uint Token;
-            public fixed uint Buffer[5];
-            public fixed uint ExtendedBuffer[5];
+            public fixed ulong Buffer[5];  // Changed to ulong to hold 64-bit pointers
+            public fixed ulong ExtendedBuffer[5];
 
             public void Clean() {
                 fixed (void* p = &this)
@@ -168,18 +172,16 @@ namespace guideXOS.Kernel.Drivers {
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         public struct QH {
-            public uint HorizontalLink;
-
+            // Changed to nuint for proper pointer-sized fields
+            public nuint HorizontalLink;
             public uint Characteristics;
             public uint Capabilities;
-
-            public uint CurrentLink;
-            public uint NextLink;
-            public uint AltLink;
-
+            public nuint CurrentLink;
+            public nuint NextLink;
+            public nuint AltLink;
             public uint Token;
-            public fixed uint Buffer[5];
-            public fixed uint ExtendedBuffer[5];
+            public fixed ulong Buffer[5];  // Changed to ulong to hold 64-bit pointers
+            public fixed ulong ExtendedBuffer[5];
 
             public void Clean() {
                 fixed (void* p = &this)
@@ -208,19 +210,20 @@ namespace guideXOS.Kernel.Drivers {
             td->Token |= 3 << 10;
             td->Token |= 8 << 16;
             td->Token |= 1 << 7;
-            td->NextLink = cmd->Length ? (uint)trans : (uint)sts;
+            // Fixed: Use nuint cast instead of uint
+            td->NextLink = cmd->Length ? (nuint)trans : (nuint)sts;
             td->AltLink = 1;
-            *td->Buffer = (uint)cmd;
+            td->Buffer[0] = (ulong)(nuint)cmd;  // Fixed pointer cast
 
             if (cmd->Length) {
-                trans->NextLink = (uint)sts;
+                trans->NextLink = (nuint)sts;
                 trans->AltLink = 1;
                 trans->Token |= (uint)(cmd->Length << 16);
                 trans->Token |= 1u << 31;
                 trans->Token |= 1 << 7;
                 trans->Token |= 1 << 8;
                 trans->Token |= 0x3 << 10;
-                *trans->Buffer = (uint)buffer;
+                trans->Buffer[0] = (ulong)(nuint)buffer;  // Fixed pointer cast
             }
 
             sts->NextLink = 1;
@@ -230,11 +233,10 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 1 << 7;
             sts->Token |= 0x3 << 10;
 
-
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)td;
-            qh1->HorizontalLink = ((uint)qh) | 2;
-            qh1->CurrentLink = (uint)qh2;
+            qh1->NextLink = (nuint)td;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
+            qh1->CurrentLink = (nuint)qh2;
             qh1->Characteristics |= 1 << 14;
             qh1->Characteristics |= 64 << 16;
             qh1->Characteristics |= 2 << 12;
@@ -243,7 +245,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -251,21 +253,19 @@ namespace guideXOS.Kernel.Drivers {
             if (speed != 2 && parent != null) {
                 qh->Capabilities |= (uint)(parent.Port << 23);
                 qh->Capabilities |= (uint)(parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(parent.Port << 23);
                 qh1->Capabilities |= (uint)(parent.Address << 16);
-
                 qh2->Capabilities |= (uint)(parent.Port << 23);
                 qh2->Capabilities |= (uint)(parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte res = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
 
             if (res == 0) {
                 return false;
@@ -289,13 +289,13 @@ namespace guideXOS.Kernel.Drivers {
             cmd->Length = 0;
             cmd->Value = addr;
 
-            trans->NextLink = (uint)sts;
+            trans->NextLink = (nuint)sts;
             trans->AltLink = 1;
             trans->Token |= 8 << 16;
             trans->Token |= 1 << 7;
             trans->Token |= 0x2 << 8;
             trans->Token |= 0x3 << 10;
-            *trans->Buffer = (uint)cmd;
+            trans->Buffer[0] = (ulong)(nuint)cmd;  // Fixed pointer cast
 
             sts->NextLink = 1;
             sts->AltLink = 1;
@@ -305,8 +305,8 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 0x3 << 10;
 
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)trans;
-            qh1->HorizontalLink = ((uint)qh) | 2;
+            qh1->NextLink = (nuint)trans;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
             qh1->CurrentLink = 0;
             qh1->Characteristics |= 1 << 14;
             qh1->Characteristics |= 64 << 16;
@@ -315,7 +315,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -323,21 +323,19 @@ namespace guideXOS.Kernel.Drivers {
             if (speed != 2 && parent != null) {
                 qh->Capabilities |= (uint)(parent.Port << 23);
                 qh->Capabilities |= (uint)(parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(parent.Port << 23);
                 qh1->Capabilities |= (uint)(parent.Address << 16);
-
                 qh2->Capabilities |= (uint)(parent.Port << 23);
                 qh2->Capabilities |= (uint)(parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte lsts = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
             return lsts;
         }
 
@@ -394,18 +392,18 @@ namespace guideXOS.Kernel.Drivers {
             td->Token |= 3 << 10;
             td->Token |= (uint)(size << 16);
             td->Token |= 1 << 7;
-            td->NextLink = (uint)trans;
+            td->NextLink = (nuint)trans;
             td->AltLink = 1;
-            *td->Buffer = (uint)cmd;
+            td->Buffer[0] = (ulong)(nuint)cmd;  // Fixed pointer cast
 
-            trans->NextLink = (uint)sts;
+            trans->NextLink = (nuint)sts;
             trans->AltLink = 1;
             trans->Token |= (uint)(size << 16);
             trans->Token |= 1u << 31;
             trans->Token |= 1 << 7;
             trans->Token |= 1 << 8;
             trans->Token |= 0x3 << 10;
-            *trans->Buffer = (uint)buffer;
+            trans->Buffer[0] = (ulong)(nuint)buffer;  // Fixed pointer cast
 
             sts->NextLink = 1;
             sts->AltLink = 1;
@@ -414,11 +412,10 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 1 << 7;
             sts->Token |= 0x3 << 10;
 
-
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)td;
-            qh1->HorizontalLink = ((uint)qh) | 2;
-            qh1->CurrentLink = (uint)qh2;
+            qh1->NextLink = (nuint)td;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
+            qh1->CurrentLink = (nuint)qh2;
             qh1->Characteristics |= 1 << 14;
             qh1->Characteristics |= 64 << 16;
             qh1->Characteristics |= 2 << 12;
@@ -427,7 +424,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -435,21 +432,19 @@ namespace guideXOS.Kernel.Drivers {
             if (speed != 2 && parent != null) {
                 qh->Capabilities |= (uint)(parent.Port << 23);
                 qh->Capabilities |= (uint)(parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(parent.Port << 23);
                 qh1->Capabilities |= (uint)(parent.Address << 16);
-
                 qh2->Capabilities |= (uint)(parent.Port << 23);
                 qh2->Capabilities |= (uint)(parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte result = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
             if (result == 0) {
                 return null;
             }
@@ -479,31 +474,31 @@ namespace guideXOS.Kernel.Drivers {
             td->Token |= 3 << 10;
             td->Token |= 8 << 16;
             td->Token |= 1 << 7;
-            td->NextLink = (uint)trans;
+            td->NextLink = (nuint)trans;
             td->AltLink = 1;
-            *td->Buffer = (uint)cmd;
+            td->Buffer[0] = (ulong)(nuint)cmd;  // Fixed pointer cast
             byte toggle = 0;
             toggle ^= 1;
 
-            trans->NextLink = (uint)sts;
+            trans->NextLink = (nuint)sts;
             trans->AltLink = 1;
             trans->Token |= (uint)(size << 16);
             trans->Token |= (uint)(toggle << 31);
             trans->Token |= 1 << 7;
             trans->Token |= 1 << 8;
             trans->Token |= 0x3 << 10;
-            *trans->Buffer = (uint)buffer;
+            trans->Buffer[0] = (ulong)(nuint)buffer;  // Fixed pointer cast
 
             toggle ^= 1;
 
-            trans1->NextLink = (uint)sts;
+            trans1->NextLink = (nuint)sts;
             trans1->AltLink = 1;
             trans1->Token |= (uint)(size << 16);
             trans1->Token |= (uint)(toggle << 31);
             trans1->Token |= 1 << 7;
             trans1->Token |= 1 << 8;
             trans1->Token |= 0x3 << 10;
-            *trans1->Buffer = ((uint)buffer) + 8;
+            trans1->Buffer[0] = ((ulong)(nuint)buffer) + 8;  // Fixed pointer arithmetic
 
             sts->NextLink = 1;
             sts->AltLink = 1;
@@ -512,11 +507,10 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 1 << 7;
             sts->Token |= 0x3 << 10;
 
-
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)td;
-            qh1->HorizontalLink = ((uint)qh) | 2;
-            qh1->CurrentLink = (uint)qh2;
+            qh1->NextLink = (nuint)td;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
+            qh1->CurrentLink = (nuint)qh2;
             qh1->Characteristics |= 1 << 14;
             qh1->Characteristics |= 64 << 16;
             qh1->Characteristics |= 2 << 12;
@@ -525,7 +519,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -533,21 +527,19 @@ namespace guideXOS.Kernel.Drivers {
             if (speed != 2 && parent != null) {
                 qh->Capabilities |= (uint)(parent.Port << 23);
                 qh->Capabilities |= (uint)(parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(parent.Port << 23);
                 qh1->Capabilities |= (uint)(parent.Address << 16);
-
                 qh2->Capabilities |= (uint)(parent.Port << 23);
                 qh2->Capabilities |= (uint)(parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte res = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
             if (res == 0) {
                 return null;
             }
@@ -570,13 +562,13 @@ namespace guideXOS.Kernel.Drivers {
             cmd->Length = 0;
             cmd->Value = config;
 
-            td->NextLink = (uint)sts;
+            td->NextLink = (nuint)sts;
             td->AltLink = 1;
             td->Token |= 8 << 16;
             td->Token |= 1 << 7;
             td->Token |= 0x2 << 8;
             td->Token |= 0x3 << 10;
-            *td->Buffer = (uint)cmd;
+            td->Buffer[0] = (ulong)(nuint)cmd;  // Fixed pointer cast
 
             sts->NextLink = 1;
             sts->AltLink = 1;
@@ -586,8 +578,8 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 0x3 << 10;
 
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)td;
-            qh1->HorizontalLink = ((uint)qh) | 2;
+            qh1->NextLink = (nuint)td;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
             qh1->CurrentLink = 0;
             qh1->Characteristics |= 1 << 14;
             qh1->Characteristics |= 64 << 16;
@@ -597,7 +589,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -605,21 +597,19 @@ namespace guideXOS.Kernel.Drivers {
             if (speed != 2 && parent != null) {
                 qh->Capabilities |= (uint)(parent.Port << 23);
                 qh->Capabilities |= (uint)(parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(parent.Port << 23);
                 qh1->Capabilities |= (uint)(parent.Address << 16);
-
                 qh2->Capabilities |= (uint)(parent.Port << 23);
                 qh2->Capabilities |= (uint)(parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte lstatus = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
             return lstatus;
         }
 
@@ -652,19 +642,19 @@ namespace guideXOS.Kernel.Drivers {
             sts->Token |= 1 << 7;   // active
             sts->Token |= 0x3 << 10; // error counter
 
-            td->NextLink = (uint)sts;
+            td->NextLink = (nuint)sts;
             td->AltLink = 1;
             td->Token |= (uint)(length << 16);
             td->Token |= (uint)((isIn ? 1 : 0) << 8); // DIR
             td->Token |= 1u << 31; // toggle
             td->Token |= 1 << 7;   // active
             td->Token |= 0x3 << 10;
-            *td->Buffer = (uint)buffer;
+            td->Buffer[0] = (ulong)(nuint)buffer;  // Fixed pointer cast
 
             // QH for device endpoint. We use conservative defaults for MPS.
             qh1->AltLink = 1;
-            qh1->NextLink = (uint)td;
-            qh1->HorizontalLink = ((uint)qh) | 2;
+            qh1->NextLink = (nuint)td;
+            qh1->HorizontalLink = ((nuint)qh) | (nuint)2;
             qh1->CurrentLink = 0;
             qh1->Characteristics |= 1 << 14;          // H
             qh1->Characteristics |= 64 << 16;         // MPS (64) - HS bulk is 512; 64 is safer default
@@ -674,7 +664,7 @@ namespace guideXOS.Kernel.Drivers {
 
             qh->AltLink = 1;
             qh->NextLink = 1;
-            qh->HorizontalLink = ((uint)qh1) | 2;
+            qh->HorizontalLink = ((nuint)qh1) | (nuint)2;
             qh->CurrentLink = 0;
             qh->Characteristics = 1 << 15;
             qh->Token = 0x40;
@@ -683,18 +673,17 @@ namespace guideXOS.Kernel.Drivers {
             if (dev.Speed != 2 && dev.Parent != null) {
                 qh->Capabilities |= (uint)(dev.Parent.Port << 23);
                 qh->Capabilities |= (uint)(dev.Parent.Address << 16);
-
                 qh1->Capabilities |= (uint)(dev.Parent.Port << 23);
                 qh1->Capabilities |= (uint)(dev.Parent.Address << 16);
             }
 
-            *(uint*)AsyncListReg = (uint)qh;
+            *(nuint*)AsyncListReg = (nuint)qh;
             *(uint*)CMDReg |= 0x20;
 
             byte res = WaitForComplete(sts);
 
             *(uint*)CMDReg &= ~0x20u;
-            *(uint*)AsyncListReg = 1;
+            *(nuint*)AsyncListReg = 1;
 
             return res != 0;
         }
@@ -708,7 +697,7 @@ namespace guideXOS.Kernel.Drivers {
             Console.WriteLine($"[EHCI] Next device address is {USB.DeviceAddr}");
 
             if (parent == null) {
-                uint reg_port = (uint)(BaseAddr + 0x44 + (port * 4));
+                nuint reg_port = BaseAddr + (nuint)(0x44 + (port * 4));
                 uint portinfo = *(uint*)reg_port;
 
                 *(uint*)reg_port |= 0x100;
@@ -719,7 +708,6 @@ namespace guideXOS.Kernel.Drivers {
 
                 if ((portinfo & 4) == 0) {
                     Console.WriteLine($"[EHCI] Port {port} Is not enabled");
-
                     device.Dispose();
                     return false;
                 }
@@ -728,7 +716,6 @@ namespace guideXOS.Kernel.Drivers {
             byte addr = SetDeviceAddr(USB.DeviceAddr, parent, device.Speed);
             if (addr == 0) {
                 Console.WriteLine($"[EHCI] Port {port} Failed to set device address");
-
                 device.Dispose();
                 return false;
             }
@@ -739,14 +726,12 @@ namespace guideXOS.Kernel.Drivers {
             byte* _desc = GetDesc(USB.DeviceAddr, 8, parent, device.Speed);
             if (_desc == 0) {
                 Console.WriteLine($"[EHCI] Port {port} Failed to get descriptor");
-
                 device.Dispose();
                 return false;
             }
 
             if (!(_desc[0] == 0x12 && _desc[1] == 0x1)) {
                 Console.WriteLine($"[EHCI] Port {port} Invalid magic number");
-
                 device.Dispose();
                 return false;
             }
@@ -756,25 +741,25 @@ namespace guideXOS.Kernel.Drivers {
             ConfigDesc* cdesc = (ConfigDesc*)GetConfig(USB.DeviceAddr, (byte)(sizeof(InterfaceDesc) + sizeof(ConfigDesc) + (sizeof(EndPoint) * 2)), parent, device.Speed);
             if (cdesc == 0) {
                 Console.WriteLine($"[EHCI] [ECHI] Port {port} Failed to get descriptor");
-
                 device.Dispose();
                 return false;
             }
-            InterfaceDesc* idesc = (InterfaceDesc*)(((uint)cdesc) + sizeof(ConfigDesc));
+            InterfaceDesc* idesc = (InterfaceDesc*)((nuint)cdesc + (nuint)sizeof(ConfigDesc));
             byte Class = idesc->InterfaceClass;
             byte SubClass = idesc->InterfaceSubClass;
             byte Protocol = idesc->InterfaceProtocol;
             device.Class = Class;
             device.SubClass = SubClass;
             device.Protocol = Protocol;
+            device.Interface = idesc->InterfaceNumber;
 
             if (idesc->NumEndpoints == 2) {
-                EndPoint* ep = (EndPoint*)(((uint)cdesc) + sizeof(ConfigDesc) + sizeof(InterfaceDesc));
-                EndPoint* ep1 = (EndPoint*)(((uint)cdesc) + sizeof(ConfigDesc) + sizeof(InterfaceDesc) + 7);
+                EndPoint* ep = (EndPoint*)((nuint)cdesc + (nuint)sizeof(ConfigDesc) + (nuint)sizeof(InterfaceDesc));
+                EndPoint* ep1 = (EndPoint*)((nuint)cdesc + (nuint)sizeof(ConfigDesc) + (nuint)sizeof(InterfaceDesc) + (nuint)7);
                 device.EndpointIn = (uint)(ep->EndpointAddress & 0x80 ? ep->EndpointAddress & 0xF : ep1->EndpointAddress & 0xF);
                 device.EndpointOut = (uint)((ep->EndpointAddress & 0x80) == 0 ? ep->EndpointAddress & 0xF : ep1->EndpointAddress & 0xF);
             } else if (idesc->NumEndpoints == 1) {
-                EndPoint* ep = (EndPoint*)(((uint)cdesc) + sizeof(ConfigDesc) + sizeof(InterfaceDesc));
+                EndPoint* ep = (EndPoint*)((nuint)cdesc + (nuint)sizeof(ConfigDesc) + (nuint)sizeof(InterfaceDesc));
                 device.EndpointIn = (uint)(ep->EndpointAddress & 0xF);
             }
 
@@ -787,7 +772,6 @@ namespace guideXOS.Kernel.Drivers {
             byte config_res = SetConfig(USB.DeviceAddr, 1, parent, device.Speed);
             if (config_res == 0) {
                 Console.WriteLine($"[EHCI] Port {port} failed to set configuration");
-
                 device.Dispose();
                 return false;
             }
@@ -804,7 +788,7 @@ namespace guideXOS.Kernel.Drivers {
             USB.Reset();
 
             for (int i = 0; i < AvailablePorts; i++) {
-                uint reg_port = (uint)(BaseAddr + 0x44 + (i * 4));
+                nuint reg_port = BaseAddr + (nuint)(0x44 + (i * 4));
                 Console.WriteLine($"[EHCI] Port {i} {((*(uint*)reg_port & 3)?"Present" : "Not present")} ");
                 if (*(uint*)reg_port & 3) {
                     USB.InitPort(i, null, 2, 2);
