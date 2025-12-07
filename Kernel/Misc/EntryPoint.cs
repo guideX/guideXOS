@@ -89,6 +89,10 @@ namespace guideXOS.Misc {
             // Cleanup boot splash resources before transitioning to desktop
             BootSplash.Cleanup();
 
+            // Record boot time for uptime tracking
+            guideXOS.DockableWidgets.Uptime.BootTimeTicks = Timer.Ticks;
+
+
             KMain();
         }
 
@@ -101,7 +105,7 @@ namespace guideXOS.Misc {
             // 1. Pointer size check
             int ptrSize = sizeof(nint);
             Console.WriteLine($"[ARCH] Pointer Size: {ptrSize} bytes ({(ptrSize == 8 ? "64-bit" : ptrSize == 4 ? "32-bit" : "Unknown")})");
-            
+
             // 2. CPUID support check - COMMENTED OUT: Native cpuid functions not yet implemented
             // When you implement cpuid.cpp and link it, uncomment this section:
             /*
@@ -120,20 +124,20 @@ namespace guideXOS.Misc {
                 Console.WriteLine("[ARCH] CPUID: Not supported");
             }
             */
-            
+
             // Simplified detection based on pointer size
             if (ptrSize == 8) {
                 Console.WriteLine("[ARCH] Running in 64-bit mode (AMD64)");
             } else if (ptrSize == 4) {
                 Console.WriteLine("[ARCH] Running in 32-bit mode");
             }
-            
+
             // 3. Test pointer arithmetic integrity
             TestPointerIntegrity();
-            
+
             Console.WriteLine("=== Architecture Detection Complete ===");
         }
-        
+
         /// <summary>
         /// Test that pointer arithmetic works correctly (no truncation)
         /// </summary>

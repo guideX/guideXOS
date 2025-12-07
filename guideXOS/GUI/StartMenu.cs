@@ -274,7 +274,8 @@ namespace guideXOS.GUI {
                     // Computer Files
                     int fh = Icons.FolderIcon(32).Height;
                     int fw = Icons.FolderIcon(32).Width;
-                    if (mx >= rcX && mx <= rcX + fw && my >= iy && my <= iy + fh) {
+                    // Make entire row clickable, not just icon
+                    if (mx >= rcX && mx <= rcX + rcW && my >= iy && my <= iy + fh) {
                         // open Computer Files window
                         var cf = new ComputerFiles(300, 200, 540, 380);
                         WindowManager.MoveToEnd(cf);
@@ -285,7 +286,8 @@ namespace guideXOS.GUI {
                     iy += fh + 16;
                     // Disk Manager
                     int dwh = Icons.FolderIcon(32).Height; int dww = Icons.FolderIcon(32).Width;
-                    if (mx >= rcX && mx <= rcX + dww && my >= iy && my <= iy + dwh) {
+                    // Make entire row clickable, not just icon
+                    if (mx >= rcX && mx <= rcX + rcW && my >= iy && my <= iy + dwh) {
                         var dm = new DiskManager(340, 260);
                         WindowManager.MoveToEnd(dm);
                         dm.Visible = true;
@@ -295,7 +297,8 @@ namespace guideXOS.GUI {
                     iy += dwh + 16;
                     // Console
                     int cwh = Icons.DocumentIcon(32).Height; int cww = Icons.DocumentIcon(32).Width;
-                    if (mx >= rcX && mx <= rcX + cww && my >= iy && my <= iy + cwh) {
+                    // Make entire row clickable, not just icon
+                    if (mx >= rcX && mx <= rcX + rcW && my >= iy && my <= iy + cwh) {
                         // Recreate console if it doesn't exist or was disposed
                         if (Program.FConsole == null || !Program.FConsole.Visible) {
                             if (Program.FConsole == null) {
@@ -311,13 +314,15 @@ namespace guideXOS.GUI {
                     // Recent Documents (toggle popup)
                     int iconW = Icons.DocumentIcon(32).Width;
                     int iconH = Icons.DocumentIcon(32).Height;
-                    if (mx >= rcX && mx <= rcX + iconW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; _frameDirty = true; return; }
+                    // Make entire row clickable, not just icon
+                    if (mx >= rcX && mx <= rcX + rcW && my >= iy && my <= iy + iconH) { _docsPopupVisible = !_docsPopupVisible; _frameDirty = true; return; }
 
                     // USB Files entry (only if at least one USB MSC device is present)
                     iy += iconH + 16;
                     if (Kernel.Drivers.USBStorage.Count > 0) {
                         int ux = rcX; int uy = iy; int uw = Icons.FolderIcon(32).Width; int uh = Icons.FolderIcon(32).Height;
-                        if (mx >= ux && mx <= ux + uw && my >= uy && my <= uy + uh) {
+                        // Make entire row clickable, not just icon
+                        if (mx >= rcX && mx <= rcX + rcW && my >= uy && my <= uy + uh) {
                             var dev = Kernel.Drivers.USBStorage.GetFirst();
                             if (dev != null) {
                                 var disk = Kernel.Drivers.USBMSC.TryOpenDisk(dev);
@@ -332,7 +337,8 @@ namespace guideXOS.GUI {
                         }
                         // Provide a second entry for a list view of all USB drives
                         int ux2 = rcX; int uy2 = iy + uh + 12; int uw2 = uw; int uh2 = uh;
-                        if (mx >= ux2 && mx <= ux2 + uw2 && my >= uy2 && my <= uy2 + uh2) {
+                        // Make entire row clickable, not just icon
+                        if (mx >= rcX && mx <= rcX + rcW && my >= uy2 && my <= uy2 + uh2) {
                             var list = new USBDrives(rcX - 280, rcY + 40, 420, 360);
                             WindowManager.MoveToEnd(list);
                             list.Visible = true;

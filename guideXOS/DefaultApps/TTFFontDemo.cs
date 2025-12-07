@@ -25,7 +25,7 @@ namespace guideXOS.DefaultApps {
         
         private void LoadTTFFonts() {
             try {
-                Console.WriteLine("[TTF Demo] Loading Roboto fonts...");
+                //Console.WriteLine("[TTF Demo] Loading Roboto fonts...");
                 
                 // Try to load Roboto-Regular.ttf at different sizes
                 byte[] robotoData = File.ReadAllBytes("Fonts/roboto/Roboto-Regular.ttf");
@@ -35,14 +35,14 @@ namespace guideXOS.DefaultApps {
                     _ttfFont16 = new TrueTypeFont(robotoData, 16);
                     _ttfFont24 = new TrueTypeFont(robotoData, 24);
                     _fontsLoaded = true;
-                    Console.WriteLine("[TTF Demo] Successfully loaded Roboto fonts!");
+                    //Console.WriteLine("[TTF Demo] Successfully loaded Roboto fonts!");
                 } else {
                     _errorMessage = "Could not read Roboto-Regular.ttf";
-                    Console.WriteLine("[TTF Demo] Error: " + _errorMessage);
+                    //Console.WriteLine("[TTF Demo] Error: " + _errorMessage);
                 }
             } catch {
                 _errorMessage = "Error loading TTF fonts";
-                Console.WriteLine("[TTF Demo] Error: " + _errorMessage);
+                //Console.WriteLine("[TTF Demo] Error: " + _errorMessage);
             }
         }
         

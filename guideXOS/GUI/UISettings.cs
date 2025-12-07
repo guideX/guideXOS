@@ -9,7 +9,7 @@ namespace guideXOS.GUI {
         public static bool UpdateAnimations = true; // enable animation updates during draw calls
 
         // Window slide animations (minimize/restore)
-        public static bool EnableWindowSlideAnimations = false;
+        public static bool EnableWindowSlideAnimations = true;
         public static int WindowSlideDurationMs = 220;
         
         // Animation overlay effects
@@ -78,10 +78,10 @@ namespace guideXOS.GUI {
         
         // Touchpad-specific settings (for laptop touchpads on real hardware)
         public static bool EnableTouchpadFiltering = true; // enable touchpad noise filtering and debouncing
-        public static float TouchpadSensitivity = 0.15f; // touchpad sensitivity multiplier (0.1-1.0, lower = slower)
-        public static int TouchpadNoiseThreshold = 2; // ignore movements smaller than this (reduces jitter)
-        public static int TouchpadMaxDelta = 50; // maximum movement per packet (prevents cursor jumping)
-        public static int TouchpadButtonDebounce = 2; // packets required before registering click (prevents phantom clicks)
+        public static float TouchpadSensitivity = 0.08f; // touchpad sensitivity multiplier (0.05-1.0, lower = slower, reduced for better control)
+        public static int TouchpadNoiseThreshold = 4; // ignore movements smaller than this (reduces jitter, increased to filter more noise)
+        public static int TouchpadMaxDelta = 20; // maximum movement per packet (prevents cursor jumping, reduced to prevent corner jumps)
+        public static int TouchpadButtonDebounce = 3; // packets required before registering click (prevents phantom clicks, increased for stability)
         
         // Resize settings
         public static int ResizeGripSize = 16; // size of resize grip in pixels
@@ -280,6 +280,7 @@ namespace guideXOS.GUI {
         // ===== BACKGROUND SETTINGS =====
         // Background rotation settings
         public static bool EnableAutoBackgroundRotation = false;
+        public static bool EnableRandomBackgroundOnStartup = true; // randomly choose a single background on startup (ignored if EnableAutoBackgroundRotation is true)
         public static int BackgroundRotationIntervalMinutes = 5; // 5 minutes default
         public static bool EnableBackgroundFadeTransition = true;
         public static int BackgroundFadeDurationMs = 1000; // 1 second fade

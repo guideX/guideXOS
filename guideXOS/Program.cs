@@ -307,6 +307,14 @@ unsafe class Program {
         monitorWidget.Visible = false; // Don't show standalone - will be in container
         WindowManager.MoveToEnd(monitorWidget);
 
+        // Create uptime widget to show system uptime
+        var uptimeWidget = new guideXOS.DockableWidgets.Uptime(
+            perfWidget.X,  // Same X position as other widgets
+            perfWidget.Y + perfWidget.Height + clockWidget.PreferredHeight + 20  // Below clock widget
+        );
+        uptimeWidget.Visible = false; // Don't show standalone - will be in container
+        WindowManager.MoveToEnd(uptimeWidget);
+
         // Create a container and dock all widgets together
         var widgetContainer = new WidgetContainer(
             Framebuffer.Width - 220,  // Position more to the left (was -160)
@@ -315,6 +323,7 @@ unsafe class Program {
         widgetContainer.AddWidget(perfWidget);
         widgetContainer.AddWidget(clockWidget);
         widgetContainer.AddWidget(monitorWidget);
+        widgetContainer.AddWidget(uptimeWidget);
         widgetContainer.Visible = true;
         WindowManager.MoveToEnd(widgetContainer);
 

@@ -85,6 +85,10 @@ namespace guideXOS.Misc {
             y += 10;
             DrawControlRegisters(ref y, leftMargin, lineHeight);
             
+            // Draw timing analysis
+            y += 10;
+            DrawTimingAnalysis(ref y, leftMargin, lineHeight, vector);
+            
             // Draw footer
             DrawFooter();
             
@@ -181,6 +185,29 @@ namespace guideXOS.Misc {
                         };
                         
                         DrawText(x + 20, y, "Segment: " + table + "[" + selectorIndex + "]  |  External: " + external, 0xFFFFFFFF);
+                        y += lineHeight;
+                        
+                        // Additional GPF troubleshooting info
+                        DrawText(x + 20, y, "Common Causes:", 0xFFFFFF00);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Invalid segment selector in GDT/IDT/LDT", 0xFFCCCCCC);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Access violation (privilege/limit check)", 0xFFCCCCCC);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Invalid descriptor type for operation", 0xFFCCCCCC);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Writing to read-only segment", 0xFFCCCCCC);
+                        y += lineHeight;
+                        
+                        // Check if error code is 0 (often NULL selector)
+                        if (errorCode == 0) {
+                            DrawText(x + 20, y, "NOTE: Error code 0 may indicate NULL selector usage", 0xFFFF8888);
+                            y += lineHeight;
+                        }
+                    } else {
+                        DrawText(x + 20, y, "No error code - likely instruction-related GPF", 0xFFFF8888);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "Possible: Invalid opcode, privilege violation, or bad operand", 0xFFCCCCCC);
                         y += lineHeight;
                     }
                     break;
@@ -324,8 +351,24 @@ namespace guideXOS.Misc {
             DrawSectionHeader(x, ref y, "SYSTEM INFORMATION", lineHeight);
             
             try {
-                DrawText(x + 20, y, $"CPU: {SMP.ThisCPU} (SMP)  |  Ticks: {Timer.Ticks}  |  Uptime: ~{Timer.Ticks / 1000}s", 0xFFFFFFFF);
+                ulong ticks = Timer.Ticks;
+                ulong uptimeSeconds = ticks / 1000;
+                ulong minutes = uptimeSeconds / 60;
+                ulong seconds = uptimeSeconds % 60;
+                
+                DrawText(x + 20, y, $"CPU: {SMP.ThisCPU} (SMP)  |  Ticks: {ticks}  |  Uptime: {minutes}m {seconds}s", 0xFFFFFFFF);
                 y += lineHeight;
+                
+                // Timing analysis - check if crash happens at regular intervals
+                if (uptimeSeconds > 300) {
+                    DrawText(x + 20, y, "TIMING NOTE: Crash after 5+ minutes - check for:", 0xFFFFFF00);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "- Timer overflow issues, memory leaks, or background tasks", 0xFFCCCCCC);
+                    y += lineHeight;
+                } else if (uptimeSeconds > 60 && uptimeSeconds < 120) {
+                    DrawText(x + 20, y, "TIMING NOTE: Crash in 1-2 minute range - check initialization", 0xFFFFFF00);
+                    y += lineHeight;
+                }
                 
                 DrawText(x + 20, y, $"Framebuffer: {Framebuffer.Width}x{Framebuffer.Height} pixels", 0xFFFFFFFF);
                 y += lineHeight;
@@ -347,8 +390,67 @@ namespace guideXOS.Misc {
             }
         }
         
+        private static void DrawTimingAnalysis(ref int y, int x, int lineHeight, int vector) {
+            DrawSectionHeader(x, ref y, "TIMING & PATTERN ANALYSIS", lineHeight);
+            
+            try {
+                ulong ticks = Timer.Ticks;
+                ulong uptimeSeconds = ticks / 1000;
+                
+                // Analyze crash timing patterns
+                if (uptimeSeconds >= 290 && uptimeSeconds <= 350) {
+                    DrawText(x + 20, y, "PATTERN DETECTED: Crash at ~5-6min mark (" + uptimeSeconds + "s)", 0xFFFF0000);
+                    y += lineHeight;
+                    DrawText(x + 20, y, "This timing suggests (pre-existing issue):", 0xFFFFFF00);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "1. BackgroundRotationManager interval (~5 min default)", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "2. Cached icon refresh (Program.cs, 5 min interval)", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "3. Timer tick overflow or counter rollover", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "4. Memory leak from Image disposal issue", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "5. ThreadPool stack corruption after 330k interrupts", 0xFFCCCCCC);
+                    y += lineHeight;
+                    
+                    if (vector == 13) {
+                        DrawText(x + 20, y, "GPF at this timing: Likely memory/pointer corruption", 0xFFFF8888);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Image.Dispose not freeing memory correctly", 0xFFCCCCCC);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Background rotation PNG loading/disposal issue", 0xFFCCCCCC);
+                        y += lineHeight;
+                        DrawText(x + 40, y, "- Desktop icon cache refresh corrupting heap", 0xFFCCCCCC);
+                        y += lineHeight;
+                    }
+                    
+                    DrawText(x + 20, y, "IMMEDIATE CHECKS (PRE-EXISTING BUG):", 0xFFFFFF00);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "- Program.cs: Icon cache refresh at 5min", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "- BackgroundRotationManager: PNG load/dispose cycle", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "- Image.cs: Dispose() implementation", 0xFFCCCCCC);
+                    y += lineHeight;
+                    DrawText(x + 40, y, "- Allocator: Heap corruption from leak", 0xFFCCCCCC);
+                    y += lineHeight;
+                } else if (uptimeSeconds < 60) {
+                    DrawText(x + 20, y, "Early crash (< 1 min) - likely initialization issue", 0xFFFFFF00);
+                    y += lineHeight;
+                } else {
+                    DrawText(x + 20, y, "Crash at " + uptimeSeconds + "s - not the typical 5min pattern", 0xFFFFFFFF);
+                    y += lineHeight;
+                }
+                
+            } catch {
+                DrawText(x + 20, y, "Timing analysis unavailable", 0xFF888888);
+                y += lineHeight;
+            }
+        }
+        
         private static void DrawControlRegisters(ref int y, int x, int lineHeight) {
-            DrawSectionHeader(x, ref y, "CONTROL REGISTERS", lineHeight);
+            DrawSectionHeader(x, ref y, "CONTROL REGISTERS & MEMORY STATE", lineHeight);
             
             try {
                 ulong cr2 = Native.ReadCR2();
@@ -361,6 +463,22 @@ namespace guideXOS.Misc {
                 
                 DrawText(x + 20, y, "GDTR: Base=0x" + GDT.gdtr.Base.ToString("X16") + "  Limit=0x" + GDT.gdtr.Limit.ToString("X4"), 0xFFFFFFFF);
                 y += lineHeight;
+                
+                // Memory allocator info
+                try {
+                    DrawText(x + 20, y, "Heap Base: 0x20000000 (512MB region)", 0xFFFFFFFF);
+                    y += lineHeight;
+                } catch {
+                    // Ignore if unavailable
+                }
+                
+                // ThreadPool info if available
+                try {
+                    DrawText(x + 20, y, "ThreadPool: Check for corrupted thread state or stack overflow", 0xFFFFFF00);
+                    y += lineHeight;
+                } catch {
+                    // Ignore if unavailable
+                }
                 
             } catch {
                 DrawText(x + 20, y, "Control register info unavailable", 0xFF888888);
@@ -389,14 +507,19 @@ namespace guideXOS.Misc {
         }
         
         private static void DrawFooter() {
-            int footerY = Framebuffer.Height - 60;
+            int footerY = Framebuffer.Height - 120;
             int width = Framebuffer.Width;
-            int height = 60;
+            int height = 120;
             Framebuffer.Graphics.FillRectangle(0, footerY, width, height, 0xFF0000AA);
             
             DrawText(20, footerY + 5, "A critical error has occurred and the system has been halted.", 0xFFFFFFFF);
             DrawText(20, footerY + 23, "Please save this information and report it to the developers.", 0xFFFFFFFF);
             DrawText(20, footerY + 41, "Press RESET button or power cycle to restart the system.", 0xFFFFFFFF);
+            
+            // Extended troubleshooting details
+            DrawText(20, footerY + 65, "TROUBLESHOOTING:", 0xFFFFFF00);
+            DrawText(20, footerY + 83, "- Check for memory corruption or invalid pointer access", 0xFFCCCCCC);
+            DrawText(20, footerY + 101, "- Review recent code changes and driver initialization", 0xFFCCCCCC);
         }
         
         private static void DrawText(int x, int y, string text, uint color) {

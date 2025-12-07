@@ -33,22 +33,31 @@ namespace guideXOS.GUI {
             _lastRotationTick = Timer.Ticks;
             _initialized = true;
             
-            // Load first background immediately if auto-rotation is enabled and we have backgrounds
-            if (UISettings.EnableAutoBackgroundRotation && _backgroundPaths.Count > 0) {
+            // Load background on startup
+            if (_backgroundPaths.Count > 0) {
+                int selectedIndex = 0;
+                
+                // Choose random background if enabled and auto-rotation is disabled
+                if (!UISettings.EnableAutoBackgroundRotation && UISettings.EnableRandomBackgroundOnStartup) {
+                    // Use pseudo-random based on current tick count
+                    selectedIndex = (int)(Timer.Ticks % (ulong)_backgroundPaths.Count);
+                }
+                // Otherwise use first background (index 0) for auto-rotation or when random is disabled
+                
                 try {
-                    byte[] data = File.ReadAllBytes(_backgroundPaths[0]);
+                    byte[] data = File.ReadAllBytes(_backgroundPaths[selectedIndex]);
                     if (data != null) {
                         var img = new PNG(data);
                         var resized = img.ResizeImage(Framebuffer.Width, Framebuffer.Height);
                         img.Dispose();
                         
-                        // Replace gradient with first background
+                        // Replace gradient with selected background
                         if (Program.Wallpaper != null) Program.Wallpaper.Dispose();
                         Program.Wallpaper = resized;
-                        _currentIndex = 0;
+                        _currentIndex = selectedIndex;
                     }
                 } catch {
-                    // Failed to load first background, keep gradient
+                    // Failed to load background, keep gradient
                 }
             }
         }

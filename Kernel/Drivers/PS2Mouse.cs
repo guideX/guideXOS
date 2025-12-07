@@ -171,22 +171,32 @@ namespace guideXOS.Kernel.Drivers {
 
                 // Apply touchpad filtering if enabled
                 if (EnableTouchpadFiltering) {
-                    // Clamp extreme values (touchpad noise can cause huge jumps)
+                    // FIRST: Clamp extreme values BEFORE any other processing (touchpad noise can cause huge jumps)
                     aX = Math.Clamp(aX, -MaxDeltaPerPacket, MaxDeltaPerPacket);
                     aY = Math.Clamp(aY, -MaxDeltaPerPacket, MaxDeltaPerPacket);
                     
-                    // Filter out noise (very small movements)
+                    // SECOND: Filter out noise (very small movements) - do this before scaling
                     if (Math.Abs(aX) < NoiseThreshold) aX = 0;
                     if (Math.Abs(aY) < NoiseThreshold) aY = 0;
                     
-                    // Apply touchpad sensitivity scaling
+                    // THIRD: Apply touchpad sensitivity scaling
                     aX = (int)(aX * TouchpadSensitivity);
                     aY = (int)(aY * TouchpadSensitivity);
+                    
+                    // FOURTH: Clamp again after scaling to ensure no overflow
+                    aX = Math.Clamp(aX, -MaxDeltaPerPacket, MaxDeltaPerPacket);
+                    aY = Math.Clamp(aY, -MaxDeltaPerPacket, MaxDeltaPerPacket);
                 }
 
                 // The 4th byte is the scroll wheel movement.
                 sbyte wheel = (sbyte)MData[3];
                 DeltaZ = wheel;
+
+                // Additional sanity check: if both deltas are at their maximum (likely corrupted packet), ignore movement
+                if (EnableTouchpadFiltering && Math.Abs(aX) >= MaxDeltaPerPacket && Math.Abs(aY) >= MaxDeltaPerPacket) {
+                    // This is likely a corrupted packet causing corner jumping, ignore it
+                    return;
+                }
 
                 // Update position with filtered deltas
                 Control.MousePosition.X = Math.Clamp(Control.MousePosition.X + aX, 0, Framebuffer.Width);

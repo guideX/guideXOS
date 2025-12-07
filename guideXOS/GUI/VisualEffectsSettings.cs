@@ -88,6 +88,7 @@ namespace guideXOS.GUI {
         
         // Background Rotation Tab (added to Visual Effects)
         private bool _enableAutoBackgroundRotation;
+        private bool _enableRandomBackgroundOnStartup;
         private int _backgroundRotationInterval;
         private bool _enableBackgroundFadeTransition;
         private int _backgroundFadeDuration;
@@ -126,6 +127,7 @@ namespace guideXOS.GUI {
             
             // Background Rotation
             _enableAutoBackgroundRotation = UISettings.EnableAutoBackgroundRotation;
+            _enableRandomBackgroundOnStartup = UISettings.EnableRandomBackgroundOnStartup;
             _backgroundRotationInterval = UISettings.BackgroundRotationIntervalMinutes;
             _enableBackgroundFadeTransition = UISettings.EnableBackgroundFadeTransition;
             _backgroundFadeDuration = UISettings.BackgroundFadeDurationMs;
@@ -345,6 +347,9 @@ namespace guideXOS.GUI {
             currentY += _lineHeight; // Skip subtitle
             
             if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableAutoBackgroundRotation = !_enableAutoBackgroundRotation; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableRandomBackgroundOnStartup = !_enableRandomBackgroundOnStartup; _btnClickLatch = true; return; }
             currentY += _lineHeight;
             
             // Background Rotation Interval slider
@@ -623,6 +628,9 @@ namespace guideXOS.GUI {
             DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableAutoBackgroundRotation, "Auto-Rotate Desktop Backgrounds");
             currentY += _lineHeight;
             
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableRandomBackgroundOnStartup, "Random Background on Startup (ignored if auto-rotate on)");
+            currentY += _lineHeight;
+            
             DrawSliderWithLabel(cx, currentY, contentY, contentH, "  Rotation Interval:", _backgroundRotationInterval, 1, 60, " min");
             currentY += _lineHeight;
             
@@ -885,7 +893,7 @@ namespace guideXOS.GUI {
         private int GetCurrentTabHeight() {
             switch (_currentTab) {
                 case 0: return _lineHeight * 9; // Animations
-                case 1: return _lineHeight * 16; // Visual Effects
+                case 1: return _lineHeight * 17; // Visual Effects (increased by 1 for new checkbox)
                 case 2: return _lineHeight * 13; // Window Rendering
                 case 3: return _lineHeight * 9; // Performance
                 case 4: return _lineHeight * 11; // Widgets
@@ -917,6 +925,7 @@ namespace guideXOS.GUI {
             
             // Background Rotation
             UISettings.EnableAutoBackgroundRotation = _enableAutoBackgroundRotation;
+            UISettings.EnableRandomBackgroundOnStartup = _enableRandomBackgroundOnStartup;
             UISettings.BackgroundRotationIntervalMinutes = _backgroundRotationInterval;
             UISettings.EnableBackgroundFadeTransition = _enableBackgroundFadeTransition;
             UISettings.BackgroundFadeDurationMs = _backgroundFadeDuration;
@@ -979,7 +988,8 @@ namespace guideXOS.GUI {
             _enableBlurCacheInvalidation = true;
             _enableBlurCacheDisposal = true;
             
-            _enableAutoBackgroundRotation = true;
+            _enableAutoBackgroundRotation = false;
+            _enableRandomBackgroundOnStartup = true;
             _backgroundRotationInterval = 5;
             _enableBackgroundFadeTransition = true;
             _backgroundFadeDuration = 1000;
