@@ -129,7 +129,7 @@ namespace guideXOS.Misc {
             switch (vector) {
                 case 14: // Page Fault
                     ulong pageFaultAddr = Native.ReadCR2();
-                    DrawText(x + 20, y, $"Faulting Address: 0x{pageFaultAddr:X16}", 0xFFFFFF00);
+                    DrawText(x + 20, y, "Faulting Address: 0x" + pageFaultAddr.ToString("X16"), 0xFFFFFF00);
                     y += lineHeight;
                     
                     if (pageFaultAddr < 0x1000) {
@@ -147,7 +147,7 @@ namespace guideXOS.Misc {
                         bool reserved = ((ec >> 3) & 1) != 0;
                         bool instructionFetch = ((ec >> 4) & 1) != 0;
                         
-                        DrawText(x + 20, y, $"Access: {(write ? "WRITE" : "READ")}  |  Mode: {(user ? "USER" : "KERNEL")}  |  Present: {present}", 0xFFFFFFFF);
+                        DrawText(x + 20, y, "Access: " + (write ? "WRITE" : "READ") + "  |  Mode: " + (user ? "USER" : "KERNEL") + "  |  Present: " + present, 0xFFFFFFFF);
                         y += lineHeight;
                         
                         if (reserved) {
@@ -165,7 +165,7 @@ namespace guideXOS.Misc {
                     DrawText(x + 20, y, "Type: General Protection Fault", 0xFFFF4444);
                     y += lineHeight;
                     if (hasErrorCode) {
-                        DrawText(x + 20, y, $"Error Code: 0x{errorCode:X16}", 0xFFFFFFFF);
+                        DrawText(x + 20, y, "Error Code: 0x" + errorCode.ToString("X16"), 0xFFFFFFFF);
                         y += lineHeight;
                         
                         bool external = (errorCode & 1) != 0;
@@ -180,7 +180,7 @@ namespace guideXOS.Misc {
                             _ => "Unknown"
                         };
                         
-                        DrawText(x + 20, y, $"Segment: {table}[{selectorIndex}]  |  External: {external}", 0xFFFFFFFF);
+                        DrawText(x + 20, y, "Segment: " + table + "[" + selectorIndex + "]  |  External: " + external, 0xFFFFFFFF);
                         y += lineHeight;
                     }
                     break;
@@ -204,17 +204,17 @@ namespace guideXOS.Misc {
             }
             
             // Instruction pointer
-            DrawText(x + 20, y, $"Instruction Pointer: 0x{interruptStack->rip:X16}  (CS: 0x{interruptStack->cs:X4})", 0xFFFFFFFF);
+            DrawText(x + 20, y, "Instruction Pointer: 0x" + interruptStack->rip.ToString("X16") + "  (CS: 0x" + interruptStack->cs.ToString("X4") + ")", 0xFFFFFFFF);
             y += lineHeight;
             
             int cpl = (int)(interruptStack->cs & 3);
-            DrawText(x + 20, y, $"Privilege Level: Ring {cpl} {(cpl == 0 ? "(Kernel)" : "(User)")}", 0xFFFFFFFF);
+            DrawText(x + 20, y, "Privilege Level: Ring " + cpl + " " + (cpl == 0 ? "(Kernel)" : "(User)"), 0xFFFFFFFF);
             y += lineHeight;
             
-            DrawText(x + 20, y, $"Stack Pointer: 0x{interruptStack->rsp:X16}  (SS: 0x{interruptStack->ss:X4})", 0xFFFFFFFF);
+            DrawText(x + 20, y, "Stack Pointer: 0x" + interruptStack->rsp.ToString("X16") + "  (SS: 0x" + interruptStack->ss.ToString("X4") + ")", 0xFFFFFFFF);
             y += lineHeight;
             
-            DrawText(x + 20, y, $"RFLAGS: 0x{interruptStack->rflags:X16}", 0xFFFFFFFF);
+            DrawText(x + 20, y, "RFLAGS: 0x" + interruptStack->rflags.ToString("X16"), 0xFFFFFFFF);
             y += lineHeight;
             
             DrawRFlagsBreakdown(x + 40, ref y, lineHeight, interruptStack->rflags);
@@ -227,42 +227,54 @@ namespace guideXOS.Misc {
             int col2X = x + 400;
             int startY = y;
             
+            // Validate pointer before dereferencing
+            if (regs == null) {
+                DrawText(col1X, y, "Register data unavailable (invalid pointer)", 0xFF888888);
+                y += lineHeight;
+                return;
+            }
+            
             // Column 1
-            DrawText(col1X, y, $"RAX: 0x{regs->rax:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RAX", regs->rax), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RBX: 0x{regs->rbx:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RBX", regs->rbx), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RCX: 0x{regs->rcx:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RCX", regs->rcx), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RDX: 0x{regs->rdx:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RDX", regs->rdx), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RSI: 0x{regs->rsi:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RSI", regs->rsi), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RDI: 0x{regs->rdi:X16}", 0xFFFFFFFF);
+            DrawText(col1X, y, FormatRegister("RDI", regs->rdi), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col1X, y, $"RBP: <not saved>", 0xFF888888);
+            DrawText(col1X, y, "RBP: <not saved>", 0xFF888888);
             y += lineHeight;
-            DrawText(col1X, y, $"RSP: 0x{interruptStack->rsp:X16}", 0xFFFFFF00);
+            DrawText(col1X, y, FormatRegister("RSP", interruptStack->rsp), 0xFFFFFF00);
             y += lineHeight;
             
             // Column 2
             y = startY;
-            DrawText(col2X, y, $"R8 : 0x{regs->r8:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R8 ", regs->r8), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R9 : 0x{regs->r9:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R9 ", regs->r9), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R10: 0x{regs->r10:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R10", regs->r10), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R11: 0x{regs->r11:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R11", regs->r11), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R12: 0x{regs->r12:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R12", regs->r12), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R13: 0x{regs->r13:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R13", regs->r13), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R14: 0x{regs->r14:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R14", regs->r14), 0xFFFFFFFF);
             y += lineHeight;
-            DrawText(col2X, y, $"R15: 0x{regs->r15:X16}", 0xFFFFFFFF);
+            DrawText(col2X, y, FormatRegister("R15", regs->r15), 0xFFFFFFFF);
             y += lineHeight;
+        }
+        
+        private static string FormatRegister(string name, ulong value) {
+            // Build hex string manually to avoid any interpolation issues
+            return name + ": 0x" + value.ToString("X16");
         }
         
         private static unsafe void DrawStackTrace(ref int y, int x, int lineHeight, IDT.InterruptReturnStack* interruptStack) {
@@ -277,7 +289,8 @@ namespace guideXOS.Misc {
                 try {
                     ulong val = stackPtr[i];
                     int offset = i * 8;
-                    string line = $"[RSP+0x{offset:X2}]: 0x{val:X16}";
+                    string offsetStr = offset.ToString();
+                    string line = "[RSP+0x" + (offset < 16 ? "0" : "") + offsetStr + "]: 0x" + val.ToString("X16");
                     
                     if (i < 8) {
                         DrawText(col1X, y, line, 0xFFCCCCCC);
@@ -289,7 +302,8 @@ namespace guideXOS.Misc {
                     }
                 } catch {
                     int offset = i * 8;
-                    string line = $"[RSP+0x{offset:X2}]: <invalid memory>";
+                    string offsetStr = offset.ToString();
+                    string line = "[RSP+0x" + (offset < 16 ? "0" : "") + offsetStr + "]: <invalid memory>";
                     
                     if (i < 8) {
                         DrawText(col1X, y, line, 0xFF888888);
@@ -338,14 +352,14 @@ namespace guideXOS.Misc {
             
             try {
                 ulong cr2 = Native.ReadCR2();
-                DrawText(x + 20, y, $"CR2 (Page Fault Address): 0x{cr2:X16}", 0xFFFFFFFF);
+                DrawText(x + 20, y, "CR2 (Page Fault Address): 0x" + cr2.ToString("X16"), 0xFFFFFFFF);
                 y += lineHeight;
                 
                 // IDT and GDT info
-                DrawText(x + 20, y, $"IDTR: Base=0x{IDT.idtr.Base:X16}  Limit=0x{IDT.idtr.Limit:X4}", 0xFFFFFFFF);
+                DrawText(x + 20, y, "IDTR: Base=0x" + IDT.idtr.Base.ToString("X16") + "  Limit=0x" + IDT.idtr.Limit.ToString("X4"), 0xFFFFFFFF);
                 y += lineHeight;
                 
-                DrawText(x + 20, y, $"GDTR: Base=0x{GDT.gdtr.Base:X16}  Limit=0x{GDT.gdtr.Limit:X4}", 0xFFFFFFFF);
+                DrawText(x + 20, y, "GDTR: Base=0x" + GDT.gdtr.Base.ToString("X16") + "  Limit=0x" + GDT.gdtr.Limit.ToString("X4"), 0xFFFFFFFF);
                 y += lineHeight;
                 
             } catch {

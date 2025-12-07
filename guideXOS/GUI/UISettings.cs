@@ -71,6 +71,18 @@ namespace guideXOS.GUI {
         public static bool EnableWindowFocusing = true; // enable window focus changes
         public static bool EnableMouseHitTesting = true; // enable IsUnderMouse checks
         
+        // Mouse responsiveness settings
+        public static bool EnableMouseAcceleration = false; // enable mouse acceleration (off for better raw input)
+        public static bool EnableRawMouseInput = true; // use raw PS/2 mouse input without smoothing
+        public static int MouseSensitivity = 100; // mouse sensitivity percentage (100 = default)
+        
+        // Touchpad-specific settings (for laptop touchpads on real hardware)
+        public static bool EnableTouchpadFiltering = true; // enable touchpad noise filtering and debouncing
+        public static float TouchpadSensitivity = 0.15f; // touchpad sensitivity multiplier (0.1-1.0, lower = slower)
+        public static int TouchpadNoiseThreshold = 2; // ignore movements smaller than this (reduces jitter)
+        public static int TouchpadMaxDelta = 50; // maximum movement per packet (prevents cursor jumping)
+        public static int TouchpadButtonDebounce = 2; // packets required before registering click (prevents phantom clicks)
+        
         // Resize settings
         public static int ResizeGripSize = 16; // size of resize grip in pixels
         public static int MinimumWindowWidth = 160; // minimum window width
@@ -267,7 +279,7 @@ namespace guideXOS.GUI {
         
         // ===== BACKGROUND SETTINGS =====
         // Background rotation settings
-        public static bool EnableAutoBackgroundRotation = true;
+        public static bool EnableAutoBackgroundRotation = false;
         public static int BackgroundRotationIntervalMinutes = 5; // 5 minutes default
         public static bool EnableBackgroundFadeTransition = true;
         public static int BackgroundFadeDurationMs = 1000; // 1 second fade

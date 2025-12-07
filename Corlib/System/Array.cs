@@ -2,11 +2,11 @@ using Internal.Runtime.CompilerHelpers;
 using Internal.Runtime.CompilerServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using guideXOS.Misc;
 
 namespace System {
     public abstract unsafe partial class Array {
-        [DllImport("*")]
-        private static extern void Panic(string message);
+        // Removed DLL import - using Panic.Error instead for detailed crash information
 
         internal int _numComponents;
 
@@ -31,11 +31,11 @@ namespace System {
         }
         public static void ForEach<T>(T[] array, Action<T> action) {
             if (array == null) {
-                Panic("Argument null");
+                Panic.Error("Array.ForEach: array parameter is null");
             }
 
             if (action == null) {
-                Panic("Argument out of range");
+                Panic.Error("Array.ForEach: action parameter is null");
             }
 
             for (int i = 0; i < array.Length; i++) {
@@ -44,11 +44,11 @@ namespace System {
         }
         public static void Map<T>(ref T[] array, Func<T, T> func) {
             if (array == null) {
-                Panic("Argument null");
+                Panic.Error("Array.Map: array parameter is null");
             }
 
             if (func == null) {
-                Panic("Argument out of range");
+                Panic.Error("Array.Map: func parameter is null");
             }
 
             for (int i = 0; i < array.Length; i++) {

@@ -510,10 +510,10 @@ unsafe class Program {
                 int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
                 if (mx != lastMouseX || my != lastMouseY) {
                     lastMouseX = mx; lastMouseY = my; lastMoveTick = Timer.Ticks;
-                    Thread.Sleep(0);
+                    Thread.Sleep(0); // No sleep when mouse moving for maximum responsiveness
                 } else {
                     ulong age = (Timer.Ticks >= lastMoveTick) ? (Timer.Ticks - lastMoveTick) : 0UL;
-                    if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(2);
+                    if (age < ActiveMoveMs) Thread.Sleep(0); else Thread.Sleep(1); // Reduced from 2ms to 1ms for better responsiveness
                 }
             } catch {
                 // Catch any unhandled exception in main loop
