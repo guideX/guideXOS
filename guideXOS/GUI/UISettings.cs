@@ -7,9 +7,23 @@ namespace guideXOS.GUI {
         public static int FadeInDurationMs = 180;
         public static int FadeOutDurationMs = 180;
         public static bool UpdateAnimations = true; // enable animation updates during draw calls
+        
+        // Special window effects (Tron-style and more)
+        public static bool EnableSpecialWindowEffects = false; // master toggle for special effects
+        public static WindowEffectType WindowOpenEffect = WindowEffectType.None; // effect when window opens
+        public static WindowEffectType WindowCloseEffect = WindowEffectType.None; // effect when window closes
+        public static int SpecialEffectDurationMs = 400; // duration for special effects
+        
+        // Effect-specific settings
+        public static int DigitizeScanlineCount = 25; // number of scanlines for digitize effect
+        public static int BurnParticleCount = 150; // number of particles for burn effect
+        public static int SmokeParticleCount = 100; // number of particles for smoke effect
+        public static int GlitchIntensity = 15; // intensity of glitch effect (pixel shift)
+        public static int RippleWaveCount = 8; // number of ripple waves
+        public static int ExplodeParticleCount = 200; // number of particles for explode effect
 
         // Window slide animations (minimize/restore)
-        public static bool EnableWindowSlideAnimations = true;
+        public static bool EnableWindowSlideAnimations = false;
         public static int WindowSlideDurationMs = 220;
         
         // Animation overlay effects
@@ -336,5 +350,33 @@ namespace guideXOS.GUI {
         // Tombstone colors
         public static uint TombstoneTransparentColor = 0x88111111;
         public static uint TombstoneOpaqueColor = 0xDD111111;
+        
+        // Special effect colors
+        public static uint DigitizeColor = 0xFF00FFFF; // cyan for Tron-style digitize
+        public static uint DerezzColor = 0xFFFF6600; // orange for de-rezz
+        public static uint BurnColor = 0xFFFF4400; // orange-red for burn
+        public static uint SmokeColor = 0x88888888; // gray for smoke
+        public static uint GlitchColor = 0xFF00FF00; // green for glitch
+        public static uint RippleColor = 0xFF0088FF; // blue for ripple
+        public static uint ExplodeColor = 0xFFFFFF00; // yellow for explode
+    }
+    
+    /// <summary>
+    /// Window effect types for open/close animations
+    /// </summary>
+    public enum WindowEffectType {
+        None,           // No effect (instant)
+        Fade,           // Simple fade (default)
+        Digitize,       // Tron-style scanline materialization
+        Derezz,         // Tron-style de-resolution
+        BurnIn,         // Fire particles coalescing
+        BurnOut,        // Fire particles dispersing
+        SmokeIn,        // Smoke particles forming
+        SmokeOut,       // Smoke particles dissipating
+        Glitch,         // Digital corruption
+        Ripple,         // Ripple wave effect
+        Explode,        // Particle explosion
+        Implode,        // Particle implosion
+        Random          // Random effect each time
     }
 }

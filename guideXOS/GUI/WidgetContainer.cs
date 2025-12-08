@@ -90,7 +90,7 @@ namespace guideXOS.GUI {
         }
         
         private void UpdateLayout() {
-            if (_widgets.Count == 0) {
+            if (_widgets == null || _widgets.Count == 0) {
                 return;
             }
             
@@ -99,12 +99,14 @@ namespace guideXOS.GUI {
             int maxWidth = 140;
             
             for (int i = 0; i < _widgets.Count; i++) {
-                totalHeight += _widgets[i].PreferredHeight;
+                var w = _widgets[i];
+                if (w == null) continue;
+                totalHeight += w.PreferredHeight;
                 if (i < _widgets.Count - 1) {
                     totalHeight += WidgetGap;
                 }
-                if (_widgets[i].Width > maxWidth) {
-                    maxWidth = _widgets[i].Width;
+                if (w.Width > maxWidth) {
+                    maxWidth = w.Width;
                 }
             }
             totalHeight += Padding;
@@ -233,7 +235,7 @@ namespace guideXOS.GUI {
         }
         
         public override void OnDraw() {
-            if (!Visible || _widgets.Count == 0) return;
+            if (!Visible || _widgets == null || _widgets.Count == 0) return;
             
             // Draw container background with subtle glow
             UIPrimitives.AFillRoundedRect(X - 2, Y - 2, Width + 4, Height + 4, 0x331E90FF, 8);
@@ -246,6 +248,7 @@ namespace guideXOS.GUI {
             int currentY = Y + Padding;
             for (int i = 0; i < _widgets.Count; i++) {
                 var widget = _widgets[i];
+                if (widget == null) continue;
                 int contentX = X + Padding;
                 int contentWidth = Width - Padding * 2;
                 int widgetHeight = widget.PreferredHeight;
@@ -304,11 +307,8 @@ namespace guideXOS.GUI {
                                          closeX + pad, closeY + CloseBtnSize - pad + 1, xColor);
         }
         
+        // Do not dispose the internal list; widgets are managed elsewhere.
         public override void Dispose() {
-            if (_widgets != null) {
-                _widgets.Dispose();
-                _widgets = null;
-            }
             base.Dispose();
         }
     }

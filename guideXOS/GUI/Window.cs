@@ -86,6 +86,14 @@ namespace guideXOS.GUI {
         /// </summary>
         private bool IsAnimating => _animType != WindowAnimationTypeEnum.None;
         /// <summary>
+        /// Special effect type for open/close
+        /// </summary>
+        private WindowEffectType _currentEffect = WindowEffectType.None;
+        /// <summary>
+        /// Special effect progress (0.0 to 1.0)
+        /// </summary>
+        private float _effectProgress = 0f;
+        /// <summary>
         /// Resizing
         /// </summary>
         private bool _resizing;
@@ -147,6 +155,23 @@ namespace guideXOS.GUI {
         /// Begin Fade In
         /// </summary>
         void BeginFadeIn() {
+            // Check if special effects are enabled
+            if (UISettings.EnableSpecialWindowEffects) {
+                WindowEffectType effect = UISettings.WindowOpenEffect;
+                if (effect == WindowEffectType.Random) {
+                    effect = SpecialEffects.GetRandomEffect();
+                }
+                if (effect != WindowEffectType.None && effect != WindowEffectType.Fade) {
+                    _currentEffect = effect;
+                    _animType = WindowAnimationTypeEnum.FadeIn;
+                    _animStartTicks = Timer.Ticks;
+                    _animDurationMs = UISettings.SpecialEffectDurationMs;
+                    _effectProgress = 0f;
+                    return;
+                }
+            }
+            
+            // Fall back to regular fade animation
             if (!UISettings.EnableFadeAnimations) return;
             _animType = WindowAnimationTypeEnum.FadeIn;
             _animStartTicks = Timer.Ticks;
@@ -157,6 +182,23 @@ namespace guideXOS.GUI {
         /// Begin Fade Out Close
         /// </summary>
         void BeginFadeOutClose() {
+            // Check if special effects are enabled
+            if (UISettings.EnableSpecialWindowEffects) {
+                WindowEffectType effect = UISettings.WindowCloseEffect;
+                if (effect == WindowEffectType.Random) {
+                    effect = SpecialEffects.GetRandomEffect();
+                }
+                if (effect != WindowEffectType.None && effect != WindowEffectType.Fade) {
+                    _currentEffect = effect;
+                    _animType = WindowAnimationTypeEnum.FadeOutClose;
+                    _animStartTicks = Timer.Ticks;
+                    _animDurationMs = UISettings.SpecialEffectDurationMs;
+                    _effectProgress = 0f;
+                    return;
+                }
+            }
+            
+            // Fall back to regular fade animation
             if (!UISettings.EnableFadeAnimations) { 
                 this._visible = false;
                 // CRITICAL: Dispose window even when animations are disabled
@@ -209,20 +251,42 @@ namespace guideXOS.GUI {
 
             switch (_animType) {
                 case WindowAnimationTypeEnum.FadeIn: {
-                        _overlayAlpha = (byte)(255 - (int)(t * 255f));
-                        if (t >= 1f) { _overlayAlpha = 0; _animType = WindowAnimationTypeEnum.None; }
+                        // Check if using special effect
+                        if (_currentEffect != WindowEffectType.None && _currentEffect != WindowEffectType.Fade) {
+                            _effectProgress = t;
+                            if (t >= 1f) { 
+                                _animType = WindowAnimationTypeEnum.None; 
+                                _currentEffect = WindowEffectType.None;
+                                _effectProgress = 0f;
+                            }
+                        } else {
+                            _overlayAlpha = (byte)(255 - (int)(t * 255f));
+                            if (t >= 1f) { _overlayAlpha = 0; _animType = WindowAnimationTypeEnum.None; }
+                        }
                         break;
                     }
                 case WindowAnimationTypeEnum.FadeOutClose: {
-                        _overlayAlpha = (byte)((int)(t * 255f));
-                        if (t >= 1f) {
-                            _overlayAlpha = 0; 
-                            _animType = WindowAnimationTypeEnum.None; 
-                            this._visible = false; // hide after fade
-                            
-                            // CRITICAL: Dispose window resources after fade-out completes
-                            // This ensures memory is freed when window closes
-                            Dispose();
+                        // Check if using special effect
+                        if (_currentEffect != WindowEffectType.None && _currentEffect != WindowEffectType.Fade) {
+                            _effectProgress = t;
+                            if (t >= 1f) {
+                                _animType = WindowAnimationTypeEnum.None; 
+                                _currentEffect = WindowEffectType.None;
+                                _effectProgress = 0f;
+                                this._visible = false;
+                                Dispose();
+                            }
+                        } else {
+                            _overlayAlpha = (byte)((int)(t * 255f));
+                            if (t >= 1f) {
+                                _overlayAlpha = 0; 
+                                _animType = WindowAnimationTypeEnum.None; 
+                                this._visible = false; // hide after fade
+                                
+                                // CRITICAL: Dispose window resources after fade-out completes
+                                // This ensures memory is freed when window closes
+                                Dispose();
+                            }
                         }
                         break;
                     }
@@ -581,8 +645,18 @@ namespace guideXOS.GUI {
                 }
             }
 
-            // Fade overlay
-            if (_overlayAlpha > 0 && _animType != WindowAnimationTypeEnum.None && (_animType == WindowAnimationTypeEnum.FadeIn || _animType == WindowAnimationTypeEnum.FadeOutClose)) {
+            // Special effect overlay
+            if (_currentEffect != WindowEffectType.None && _currentEffect != WindowEffectType.Fade && IsAnimating) {
+                try {
+                    SpecialEffects.RenderEffect(_currentEffect, X, Y, Width, Height, BarHeight, _effectProgress);
+                } catch {
+                    // If effects fail (e.g., early boot/AOT init), disable and continue to avoid panic
+                    _currentEffect = WindowEffectType.None;
+                }
+            }
+            
+            // Fade overlay (for regular fade animations)
+            if (_overlayAlpha > 0 && _animType != WindowAnimationTypeEnum.None && (_animType == WindowAnimationTypeEnum.FadeIn || _animType == WindowAnimationTypeEnum.FadeOutClose) && _currentEffect == WindowEffectType.None) {
                 uint col = (uint)(_overlayAlpha) << 24;
                 UIPrimitives.AFillRoundedRect(X - 1, Y - BarHeight - 1, Width + 2, Height + BarHeight + 2, col, cornerRadius);
             }

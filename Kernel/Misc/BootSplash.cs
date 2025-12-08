@@ -15,6 +15,9 @@ namespace guideXOS.Misc {
         const int BlinkPhases = 3; // number of blocks
         const ulong BlinkIntervalMs = 80; // advance phase every 80 ms for faster blinking
         static ulong nextBlinkTick;
+        // Fallback frame-based animation when Timer.Ticks does not advance during boot
+        static int frameAdvanceCounter;
+        const int FramesPerAdvance = 2; // advance phase every N frames when timer is stuck
         
         // Logo image
         static Image logoImage;
@@ -38,6 +41,7 @@ namespace guideXOS.Misc {
             logoImage = null;
             logoLoadAttempted = false;
             backgroundDrawn = false;
+            frameAdvanceCounter = 0;
             
             // DON'T load logo here - filesystem isn't initialized yet!
             // Logo will be loaded lazily on first Tick() call
@@ -108,17 +112,32 @@ namespace guideXOS.Misc {
             // Check if phase changed
             ulong now = Timer.Ticks;
             bool phaseChanged = false;
-            if (now >= nextBlinkTick) {
-                phaseChanged = true;
-                phase = (phase + 1) % BlinkPhases;
-                nextBlinkTick = now + BlinkIntervalMs;
+            // Detect if timer appears stuck (no change between frames)
+            bool timerStuck = (now == lastTick);
+            if (!timerStuck) {
+                // Timer is advancing: use time-based blinking
+                if (now >= nextBlinkTick) {
+                    phaseChanged = true;
+                    phase = (phase + 1) % BlinkPhases;
+                    nextBlinkTick = now + BlinkIntervalMs;
+                }
+            } else {
+                // Timer is stuck: use frame-based fallback to animate
+                frameAdvanceCounter++;
+                if (frameAdvanceCounter >= FramesPerAdvance) {
+                    frameAdvanceCounter = 0;
+                    phaseChanged = true;
+                    phase = (phase + 1) % BlinkPhases;
+                }
             }
+            // Update lastTick for next detection
+            lastTick = now;
 
             // Only redraw dots if phase changed (eliminates flicker!)
             if (phaseChanged) {
-                // Clear only the dots area (black rectangle)
+                // Clear only the dots area with opaque black to ensure redraw is visible
                 int dotsClearWidth = dotsSize * 3 + dotsGap * 2;
-                Framebuffer.Graphics.FillRectangle(dotsStartX - 2, dotsY - 2, dotsClearWidth + 4, dotsSize + 4, 0x00000000);
+                Framebuffer.Graphics.AFillRectangle(dotsStartX - 2, dotsY - 2, dotsClearWidth + 4, dotsSize + 4, 0xFF000000);
 
                 // Redraw all 3 dots
                 for (int i = 0; i < 3; i++) {

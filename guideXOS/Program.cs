@@ -326,6 +326,16 @@ unsafe class Program {
         widgetContainer.Visible = UISettings.ShowWidgetsOnStartup; // Respect ShowWidgetsOnStartup setting
         WindowManager.MoveToEnd(widgetContainer);
 
+        // Store reference for toggle button
+        Program.WidgetsContainer = widgetContainer;
+
+        // Show small toggle button on the far right if widgets are hidden
+        if (!UISettings.ShowWidgetsOnStartup) {
+            var toggle = new WidgetToggleButton(Framebuffer.Width - 26, 6);
+            WindowManager.MoveToEnd(toggle);
+            toggle.Visible = true;
+        }
+
         // Console will be created on-demand when user opens it from Start Menu
         // No longer auto-created at startup
 
@@ -568,4 +578,5 @@ unsafe class Program {
              Console.WriteLine("Icon cache refresh failed - keeping old icons");
          }
      }
- }
+     public static WidgetContainer WidgetsContainer;
+}

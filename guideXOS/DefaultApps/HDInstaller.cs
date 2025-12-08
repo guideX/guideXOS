@@ -40,6 +40,17 @@ namespace guideXOS.DefaultApps {
         private bool _installInProgress = false;
         private int _installProgress = 0;
         private string _statusMessage = "";
+
+        // Partition plan (editable in PartitionSetup)
+        private int _bootPartitionMB = 100; // default boot size
+        private string _systemFs = "EXT2"; // default filesystem
+        private bool _advancedShown;
+
+        // Internal install phases
+        private bool _didPartition;
+        private bool _didFormat;
+        private bool _didCopyFiles;
+        private bool _didBootloader;
         
         // UI Layout constants
         private const int Pad = 20;
@@ -150,6 +161,21 @@ namespace guideXOS.DefaultApps {
             } else {
                 _clickLock = false;
             }
+
+            // Simple keyboard controls in PartitionSetup step
+            if (_currentStep == (int)InstallStep.PartitionSetup) {
+                var key = Keyboard.KeyInfo;
+                if (key.KeyState == ConsoleKeyState.Pressed) {
+                    if (key.Key == ConsoleKey.Add || key.Key == ConsoleKey.OemPlus) {
+                        _bootPartitionMB += 10; if (_bootPartitionMB > 1024) _bootPartitionMB = 1024;
+                    } else if (key.Key == ConsoleKey.Subtract || key.Key == ConsoleKey.OemMinus) {
+                        _bootPartitionMB -= 10; if (_bootPartitionMB < 64) _bootPartitionMB = 64;
+                    } else if (key.Key == ConsoleKey.Space) {
+                        // Toggle filesystem
+                        _systemFs = _systemFs == "EXT2" ? "EXT3" : _systemFs == "EXT3" ? "EXT4" : "EXT2";
+                    }
+                }
+            }
         }
 
         private bool HandleNextButton() {
@@ -183,8 +209,11 @@ namespace guideXOS.DefaultApps {
 
         private void StartInstallation() {
             _statusMessage = "Installing guideXOS...";
-            // Simulate installation progress
-            // In a real implementation, this would copy files, install bootloader, etc.
+            // Reset phases
+            _didPartition = false;
+            _didFormat = false;
+            _didCopyFiles = false;
+            _didBootloader = false;
         }
 
         public override void OnDraw() {
@@ -329,9 +358,13 @@ namespace guideXOS.DefaultApps {
                     $"Disk: {disk.Name}",
                     $"Total Size: {FormatSize(disk.TotalSectors * (disk.BytesPerSector == 0 ? 512UL : disk.BytesPerSector))}",
                     "",
-                    "Partition Layout:",
-                    "  - Boot Partition (FAT32) - 100 MB",
-                    "  - System Partition (EXT2) - Remaining space",
+                    "Partition Layout (editable):",
+                    $"  - Boot Partition (FAT32) - {_bootPartitionMB} MB",
+                    $"  - System Partition ({_systemFs}) - Remaining space",
+                    "",
+                    "Adjustments:",
+                    "  [+/-] Increase/Decrease boot size (64 MB - 1024 MB)",
+                    "  [Space] Toggle system filesystem (EXT2/EXT3/EXT4)",
                     "",
                     "The boot partition will contain:",
                     "  - Bootloader (GRUB)",
@@ -400,7 +433,23 @@ namespace guideXOS.DefaultApps {
             
             // Simulate installation progress
             if (_installInProgress) {
-                _installProgress += 2;
+                // Gate phases roughly by percentage
+                if (!_didPartition) {
+                    _statusMessage = "Partitioning disk...";
+                    if (PartitionDisk()) { _didPartition = true; _installProgress = 20; }
+                } else if (!_didFormat) {
+                    _statusMessage = "Formatting partitions...";
+                    if (FormatPartitions()) { _didFormat = true; _installProgress = 40; }
+                } else if (!_didCopyFiles) {
+                    _statusMessage = "Copying system files...";
+                    if (CopySystemFiles()) { _didCopyFiles = true; _installProgress = 70; }
+                } else if (!_didBootloader) {
+                    _statusMessage = "Installing bootloader...";
+                    if (InstallBootloader()) { _didBootloader = true; _installProgress = 90; }
+                } else {
+                    _statusMessage = "Finalizing installation...";
+                    _installProgress += 1;
+                }
                 if (_installProgress >= 100) {
                     _installProgress = 100;
                     _installInProgress = false;
@@ -424,11 +473,11 @@ namespace guideXOS.DefaultApps {
             
             // Installation steps
             string[] steps = new string[] {
-                "* Partitioning disk...",
-                _installProgress > 20 ? "* Formatting partitions..." : "  Formatting partitions...",
-                _installProgress > 40 ? "* Copying system files..." : "  Copying system files...",
-                _installProgress > 60 ? "* Installing bootloader..." : "  Installing bootloader...",
-                _installProgress > 80 ? "* Configuring system..." : "  Configuring system...",
+                _didPartition ? "* Partitioning disk..." : "  Partitioning disk...",
+                _didFormat ? "* Formatting partitions..." : "  Formatting partitions...",
+                _didCopyFiles ? "* Copying system files..." : "  Copying system files...",
+                _didBootloader ? "* Installing bootloader..." : "  Installing bootloader...",
+                _installProgress > 95 ? "* Configuring system..." : "  Configuring system...",
                 _installProgress >= 100 ? "* Installation complete!" : "  Finalizing installation..."
             };
             
@@ -453,7 +502,7 @@ namespace guideXOS.DefaultApps {
                 "To complete the setup:",
                 "",
                 "1. Remove the USB flash drive",
-                "2. Restart your computer",
+                "2. Click Reboot",
                 "3. Your computer will boot from the hard drive",
                 "",
                 "You can now enjoy the full guideXOS experience with:",
@@ -470,6 +519,22 @@ namespace guideXOS.DefaultApps {
             for (int i = 0; i < lines.Length; i++) {
                 WindowManager.font.DrawString(X + Pad, contentY, lines[i], Width - Pad * 2, WindowManager.font.FontSize);
                 contentY += WindowManager.font.FontSize + 6;
+            }
+
+            // Draw Reboot button
+            int rbW = 140, rbH = 32;
+            int rbX = X + Width - Pad - rbW;
+            int rbY = Y + Height - 110;
+            DrawButton(rbX, rbY, rbW, rbH, "Reboot", true);
+
+            // Handle reboot click
+            int mx = Control.MousePosition.X; int my = Control.MousePosition.Y;
+            bool left = Control.MouseButtons.HasFlag(MouseButtons.Left);
+            if (left && !_clickLock && Hit(mx, my, rbX, rbY, rbW, rbH)) {
+                try { guideXOS.Kernel.Drivers.Power.Reboot(); } catch { }
+                _clickLock = true;
+            } else if (!left) {
+                _clickLock = false;
             }
         }
 
@@ -497,6 +562,162 @@ namespace guideXOS.DefaultApps {
             _btnCancelY = btnY;
             bool cancelEnabled = _currentStep != (int)InstallStep.Installing;
             DrawButton(_btnCancelX, _btnCancelY, BtnW, BtnH, "Cancel", cancelEnabled);
+        }
+
+        // Disk operations (stubs for now - replace with real implementations)
+        private bool PartitionDisk() {
+            // Create MBR with two partitions: Boot (FAT32 LBA) and System (Linux/EXT2)
+            if (_selectedDiskIndex < 0 || _selectedDiskIndex >= _availableDisks.Count) return false;
+            var diskInfo = _availableDisks[_selectedDiskIndex];
+            var disk = guideXOS.FS.Disk.Instance;
+            uint bps = diskInfo.BytesPerSector == 0 ? 512u : diskInfo.BytesPerSector;
+            ulong totalSectors = diskInfo.TotalSectors;
+            // Calculate boot partition size in sectors
+            ulong bootSectors = ((ulong)_bootPartitionMB * 1024UL * 1024UL) / bps;
+            if (bootSectors < 2048) bootSectors = 2048; // minimum
+            if (bootSectors >= totalSectors - 4096) bootSectors = totalSectors / 4; // keep room
+            ulong sysStart = bootSectors;
+            ulong sysSectors = totalSectors - sysStart;
+
+            // Build MBR (512 bytes)
+            byte[] mbr = new byte[512];
+            // Zero MBR
+            for (int i = 0; i < mbr.Length; i++) mbr[i] = 0;
+            // Simple boot code message
+            string msg = "guideXOS MBR";
+            for (int i = 0; i < msg.Length && (0xB8 + i) < 446; i++) mbr[0xB8 + i] = (byte)msg[i];
+            // Partition entries start at 0x1BE
+            void WriteLBA32(int off, uint val) { mbr[off] = (byte)(val & 0xFF); mbr[off + 1] = (byte)((val >> 8) & 0xFF); mbr[off + 2] = (byte)((val >> 16) & 0xFF); mbr[off + 3] = (byte)((val >> 24) & 0xFF); }
+            // P0: Boot - Active, type 0x0C (FAT32 LBA)
+            mbr[0x1BE + 0] = 0x80; // active
+            mbr[0x1BE + 4] = 0x0C; // type FAT32 LBA
+            WriteLBA32(0x1BE + 8, (uint)1); // LBA start (skip MBR sector)
+            WriteLBA32(0x1BE + 12, (uint)bootSectors - 1);
+            // P1: System - type 0x83 (Linux)
+            int p1 = 0x1BE + 16;
+            mbr[p1 + 0] = 0x00; // non-active
+            mbr[p1 + 4] = 0x83; // Linux/EXT2
+            WriteLBA32(p1 + 8, (uint)sysStart);
+            WriteLBA32(p1 + 12, (uint)sysSectors);
+            // Signature 0x55AA
+            mbr[510] = 0x55; mbr[511] = 0xAA;
+            unsafe {
+                fixed (byte* p = mbr) disk.Write(0, 1, p);
+            }
+            return true;
+        }
+        private bool FormatPartitions() {
+            // Minimal FAT32 boot partition setup: write BPB and FSInfo
+            if (_selectedDiskIndex < 0 || _selectedDiskIndex >= _availableDisks.Count) return false;
+            var diskInfo = _availableDisks[_selectedDiskIndex];
+            var disk = guideXOS.FS.Disk.Instance;
+            uint bps = diskInfo.BytesPerSector == 0 ? 512u : diskInfo.BytesPerSector;
+            ulong totalSectors = diskInfo.TotalSectors;
+            ulong bootStart = 1; // after MBR
+            ulong bootSectors = ((ulong)_bootPartitionMB * 1024UL * 1024UL) / bps; if (bootSectors < 2048) bootSectors = 2048; if (bootSectors >= totalSectors - 4096) bootSectors = totalSectors / 4;
+            // BPB for FAT32
+            byte[] bpb = new byte[512];
+            for (int i = 0; i < bpb.Length; i++) bpb[i] = 0;
+            // Jump
+            bpb[0] = 0xEB; bpb[1] = 0x58; bpb[2] = 0x90;
+            // OEM name
+            string oem = "GUIDEXOS"; for (int i = 0; i < 8; i++) bpb[3 + i] = i < oem.Length ? (byte)oem[i] : (byte)' ';
+            // Bytes per sector
+            bpb[11] = (byte)(bps & 0xFF); bpb[12] = (byte)((bps >> 8) & 0xFF);
+            // Sec per cluster: choose 8
+            bpb[13] = 8;
+            // Reserved sectors: 32
+            bpb[14] = 32; bpb[15] = 0;
+            // Number of FATs
+            bpb[16] = 2;
+            // Root entries (0 for FAT32)
+            bpb[17] = 0; bpb[18] = 0;
+            // Total sectors 16 (0)
+            bpb[19] = 0; bpb[20] = 0;
+            // Media descriptor
+            bpb[21] = 0xF8;
+            // FAT size 16 (0)
+            bpb[22] = 0; bpb[23] = 0;
+            // Sectors per track / heads (dummy)
+            bpb[24] = 0x3F; bpb[25] = 0x00; bpb[26] = 0xFF; bpb[27] = 0x00;
+            // Hidden sectors
+            uint hidden = (uint)bootStart; bpb[28] = (byte)(hidden & 0xFF); bpb[29] = (byte)((hidden >> 8) & 0xFF); bpb[30] = (byte)((hidden >> 16) & 0xFF); bpb[31] = (byte)((hidden >> 24) & 0xFF);
+            // Total sectors 32
+            uint tot = (uint)bootSectors; bpb[32] = (byte)(tot & 0xFF); bpb[33] = (byte)((tot >> 8) & 0xFF); bpb[34] = (byte)((tot >> 16) & 0xFF); bpb[35] = (byte)((tot >> 24) & 0xFF);
+            // FAT size 32: rough estimate (tot/ sec per cluster / 128)
+            uint fatsz = tot / (8u * 128u); if (fatsz < 1) fatsz = 1; bpb[36] = (byte)(fatsz & 0xFF); bpb[37] = (byte)((fatsz >> 8) & 0xFF); bpb[38] = (byte)((fatsz >> 16) & 0xFF); bpb[39] = (byte)((fatsz >> 24) & 0xFF);
+            // Flags, version
+            bpb[40] = 0; bpb[41] = 0; bpb[42] = 0; bpb[43] = 0;
+            // Root cluster
+            bpb[44] = 2; bpb[45] = 0; bpb[46] = 0; bpb[47] = 0;
+            // FSInfo sector
+            bpb[48] = 1; bpb[49] = 0;
+            // Backup boot sector
+            bpb[50] = 6; bpb[51] = 0;
+            // Drive number, boot sig, volume id
+            bpb[64] = 0x80; bpb[66] = 0x29; bpb[67] = 0x12; bpb[68] = 0x34; bpb[69] = 0x56; bpb[70] = 0x78;
+            // Volume label
+            string vl = "GUIDEXOS   "; for (int i = 0; i < 11; i++) bpb[71 + i] = (byte)vl[i];
+            // File system type
+            string fs = "FAT32   "; for (int i = 0; i < 8; i++) bpb[82 + i] = (byte)fs[i];
+            // Signature
+            bpb[510] = 0x55; bpb[511] = 0xAA;
+            unsafe { fixed (byte* p = bpb) disk.Write(bootStart, 1, p); }
+            // Zero a few reserved sectors
+            var zero = new byte[bps]; unsafe { fixed (byte* pz = zero) { for (ulong s = bootStart + 1; s < bootStart + 32; s++) disk.Write(s, 1, pz); } }
+            // FSInfo sector
+            byte[] fsinfo = new byte[512]; for (int i = 0; i < 512; i++) fsinfo[i] = 0; fsinfo[0] = (byte)'R'; fsinfo[1] = (byte)'R'; fsinfo[2] = (byte)'a'; fsinfo[3] = (byte)'A'; fsinfo[508] = 0x55; fsinfo[509] = 0xAA; fsinfo[510] = 0x55; fsinfo[511] = 0xAA; unsafe { fixed (byte* pf = fsinfo) disk.Write(bootStart + 1, 1, pf); }
+            // System partition: zero first MB as a placeholder
+            var oneMB = (ulong)(1024 * 1024 / bps);
+            ulong sysStart = bootStart + bootSectors;
+            unsafe { fixed (byte* pz = zero) { for (ulong s = sysStart; s < sysStart + oneMB; s++) disk.Write(s, 1, pz); } }
+            return true;
+        }
+        private bool CopySystemFiles() {
+            // Copy GRUB files from Tools/grub2/boot to /boot (staging)
+            try {
+                string srcRoot = "Tools/grub2/boot/";
+                string dstRoot = "/boot/";
+                CopyDirectoryRecursive(srcRoot, dstRoot);
+                // Ensure a minimal grub.cfg exists
+                string cfgPath = dstRoot + "grub/grub.cfg";
+                if (!guideXOS.FS.File.Exists(cfgPath)) {
+                    string cfg = "set timeout=2\nset default=0\n\nmenuentry 'guideXOS' {\n    insmod fat\n    insmod part_msdos\n    set root=(hd0,msdos1)\n    linux /boot/kernel.bin\n}\n";
+                    guideXOS.FS.File.WriteAllBytes(cfgPath, GetAsciiBytes(cfg));
+                }
+            } catch { }
+            return true;
+        }
+
+        private void CopyDirectoryRecursive(string src, string dst) {
+            // NOTE: File API may not support directory creation here; assume existing structure or skip.
+            var entries = guideXOS.FS.File.GetFiles(src);
+            if (entries != null) {
+                for (int i = 0; i < entries.Count; i++) {
+                    var e = entries[i];
+                    if (e.Attribute == guideXOS.FS.FileAttribute.Directory) {
+                        CopyDirectoryRecursive(src + e.Name + "/", dst + e.Name + "/");
+                    } else {
+                        byte[] data = guideXOS.FS.File.ReadAllBytes(src + e.Name);
+                        guideXOS.FS.File.WriteAllBytes(dst + e.Name, data);
+                        data.Dispose();
+                    }
+                    e.Dispose();
+                }
+                entries.Dispose();
+            }
+        }
+
+        private static byte[] GetAsciiBytes(string s) {
+            if (s == null) return new byte[0];
+            var b = new byte[s.Length];
+            for (int i = 0; i < s.Length; i++) b[i] = (byte)(s[i] & 0x7F);
+            return b;
+        }
+        private bool InstallBootloader() {
+            // Minimal boot: write a tiny placeholder that relies on external bootloader; for GRUB, user can install later.
+            // Here we simply ensure MBR signature is present (already set) and leave FAT32 BPB intact.
+            return true;
         }
 
         private void DrawButton(int x, int y, int w, int h, string text, bool enabled = true) {

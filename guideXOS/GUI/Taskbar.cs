@@ -78,6 +78,10 @@ namespace guideXOS.GUI {
             _animWindowStart = _bootTicks;
             _animWindowEnd = _bootTicks + TenSeconds;
             _nextCycleStart = _bootTicks + FiveMinutes;
+
+            // Initialize last mouse activity to current time so auto-hide respects initial delay after startup
+            // Without this, timeSinceActivity would be large on first draw and cause immediate hide.
+            _lastMouseActivity = _bootTicks;
         }
 
         public void CloseWorkspaceSwitcher() {

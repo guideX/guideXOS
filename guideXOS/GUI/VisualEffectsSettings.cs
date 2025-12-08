@@ -100,6 +100,22 @@ namespace guideXOS.GUI {
         private int _taskbarAutoHideDelay;
         private int _taskbarSlideDuration;
         
+        // Special Effects Tab
+        private bool _enableSpecialWindowEffects;
+        private WindowEffectType _windowOpenEffect;
+        private WindowEffectType _windowCloseEffect;
+        private int _specialEffectDuration;
+        private int _digitizeScanlineCount;
+        private int _burnParticleCount;
+        private int _smokeParticleCount;
+        private int _glitchIntensity;
+        private int _rippleWaveCount;
+        private int _explodeParticleCount;
+        
+        // Dropdown states
+        private bool _openEffectDropdownOpen = false;
+        private bool _closeEffectDropdownOpen = false;
+        
         public VisualEffectsSettings(int X, int Y) : base(X, Y, 900, 700) {
             IsResizable = false;
             ShowInTaskbar = true;
@@ -179,6 +195,18 @@ namespace guideXOS.GUI {
             _widgetFadeInDuration = UISettings.WidgetFadeInDurationMs;
             _widgetFadeOutDuration = UISettings.WidgetFadeOutDurationMs;
             _widgetDefaultRefreshRate = UISettings.WidgetDefaultRefreshRateMs;
+            
+            // Special Effects
+            _enableSpecialWindowEffects = UISettings.EnableSpecialWindowEffects;
+            _windowOpenEffect = UISettings.WindowOpenEffect;
+            _windowCloseEffect = UISettings.WindowCloseEffect;
+            _specialEffectDuration = UISettings.SpecialEffectDurationMs;
+            _digitizeScanlineCount = UISettings.DigitizeScanlineCount;
+            _burnParticleCount = UISettings.BurnParticleCount;
+            _smokeParticleCount = UISettings.SmokeParticleCount;
+            _glitchIntensity = UISettings.GlitchIntensity;
+            _rippleWaveCount = UISettings.RippleWaveCount;
+            _explodeParticleCount = UISettings.ExplodeParticleCount;
         }
         
         public override void OnInput() {
@@ -282,6 +310,7 @@ namespace guideXOS.GUI {
                 case 2: ProcessWindowRenderingInput(mx, my, cx, currentY, contentY, contentH); break;
                 case 3: ProcessPerformanceInput(mx, my, cx, currentY, contentY, contentH); break;
                 case 4: ProcessWidgetsInput(mx, my, cx, currentY, contentY, contentH); break;
+                case 5: ProcessSpecialEffectsInput(mx, my, cx, currentY, contentY, contentH); break;
             }
         }
         
@@ -559,11 +588,11 @@ namespace guideXOS.GUI {
             int contentH = Height - _padding * 2 - _tabH - _tabGap - 60;
             
             // Draw tabs
-            int tabW = (cw - _tabGap * 4) / 5;
+            int tabW = (cw - _tabGap * 5) / 6;
             int tabY = cy;
-            string[] tabNames = { "Animations", "Visual Effects", "Rendering", "Performance", "Widgets" };
+            string[] tabNames = { "Animations", "Visual Effects", "Rendering", "Performance", "Widgets", "Special Effects" };
             
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 6; i++) {
                 int tabX = cx + i * (tabW + _tabGap);
                 uint tabBg = (_currentTab == i) ? 0xFF3A3A3A : 0xFF252525;
                 g.FillRectangle(tabX, tabY, tabW, _tabH, tabBg);
@@ -584,6 +613,7 @@ namespace guideXOS.GUI {
                 case 2: DrawWindowRenderingTab(cx, contentY, contentH); break;
                 case 3: DrawPerformanceTab(cx, contentY, contentH); break;
                 case 4: DrawWidgetsTab(cx, contentY, contentH); break;
+                case 5: DrawSpecialEffectsTab(cx, contentY, contentH); break;
             }
             
             // Draw scrollbar
@@ -913,6 +943,7 @@ namespace guideXOS.GUI {
                 case 2: return _lineHeight * 13; // Window Rendering
                 case 3: return _lineHeight * 9; // Performance
                 case 4: return _lineHeight * 11; // Widgets
+                case 5: return _lineHeight * 14; // Special Effects
                 default: return _lineHeight * 10;
             }
         }
@@ -986,6 +1017,18 @@ namespace guideXOS.GUI {
             UISettings.WidgetFadeOutDurationMs = _widgetFadeOutDuration;
             UISettings.WidgetDefaultRefreshRateMs = _widgetDefaultRefreshRate;
             
+            // Special Effects
+            UISettings.EnableSpecialWindowEffects = _enableSpecialWindowEffects;
+            UISettings.WindowOpenEffect = _windowOpenEffect;
+            UISettings.WindowCloseEffect = _windowCloseEffect;
+            UISettings.SpecialEffectDurationMs = _specialEffectDuration;
+            UISettings.DigitizeScanlineCount = _digitizeScanlineCount;
+            UISettings.BurnParticleCount = _burnParticleCount;
+            UISettings.SmokeParticleCount = _smokeParticleCount;
+            UISettings.GlitchIntensity = _glitchIntensity;
+            UISettings.RippleWaveCount = _rippleWaveCount;
+            UISettings.ExplodeParticleCount = _explodeParticleCount;
+            
             NotificationManager.Add(new Notify("Settings applied successfully", NotificationLevel.None));
             this.Visible = false;
         }
@@ -1053,7 +1096,255 @@ namespace guideXOS.GUI {
             _widgetFadeOutDuration = 200;
             _widgetDefaultRefreshRate = 1000;
             
+            _enableSpecialWindowEffects = true;
+            _windowOpenEffect = WindowEffectType.Digitize;
+            _windowCloseEffect = WindowEffectType.Derezz;
+            _specialEffectDuration = 400;
+            _digitizeScanlineCount = 25;
+            _burnParticleCount = 150;
+            _smokeParticleCount = 100;
+            _glitchIntensity = 15;
+            _rippleWaveCount = 8;
+            _explodeParticleCount = 200;
+            
             NotificationManager.Add(new Notify("Settings reset to defaults", NotificationLevel.None));
+        }
+        
+        // Special Effects tab processing and drawing
+        private void ProcessSpecialEffectsInput(int mx, int my, int cx, int currentY, int contentY, int contentH) {
+            currentY += _lineHeight; // Skip title
+            
+            if (CheckCheckbox(mx, my, cx, currentY, contentY, contentH)) { _enableSpecialWindowEffects = !_enableSpecialWindowEffects; _btnClickLatch = true; return; }
+            currentY += _lineHeight;
+            
+            // Open Effect dropdown
+            if (CheckDropdown(mx, my, cx + _labelWidth, currentY, contentY, contentH)) {
+                _openEffectDropdownOpen = !_openEffectDropdownOpen;
+                _closeEffectDropdownOpen = false;
+                _btnClickLatch = true;
+                return;
+            }
+            if (_openEffectDropdownOpen) {
+                WindowEffectType selected = ProcessDropdownOptions(mx, my, cx + _labelWidth, currentY + _lineHeight, contentY, contentH);
+                if (selected != (WindowEffectType)(-1)) {
+                    _windowOpenEffect = selected;
+                    _openEffectDropdownOpen = false;
+                    _btnClickLatch = true;
+                    return;
+                }
+            }
+            currentY += _lineHeight;
+            
+            // Close Effect dropdown
+            if (CheckDropdown(mx, my, cx + _labelWidth, currentY, contentY, contentH)) {
+                _closeEffectDropdownOpen = !_closeEffectDropdownOpen;
+                _openEffectDropdownOpen = false;
+                _btnClickLatch = true;
+                return;
+            }
+            if (_closeEffectDropdownOpen) {
+                WindowEffectType selected = ProcessDropdownOptions(mx, my, cx + _labelWidth, currentY + _lineHeight, contentY, contentH);
+                if (selected != (WindowEffectType)(-1)) {
+                    _windowCloseEffect = selected;
+                    _closeEffectDropdownOpen = false;
+                    _btnClickLatch = true;
+                    return;
+                }
+            }
+            currentY += _lineHeight;
+            
+            // Effect Duration slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 40; }
+            currentY += _lineHeight;
+            
+            // Digitize Scanline Count slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 41; }
+            currentY += _lineHeight;
+            
+            // Burn Particle Count slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 42; }
+            currentY += _lineHeight;
+            
+            // Smoke Particle Count slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 43; }
+            currentY += _lineHeight;
+            
+            // Glitch Intensity slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 44; }
+            currentY += _lineHeight;
+            
+            // Ripple Wave Count slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 45; }
+            currentY += _lineHeight;
+            
+            // Explode Particle Count slider
+            if (CheckSlider(mx, my, cx + _labelWidth, currentY, contentY, contentH)) { _draggingSlider = 46; }
+            
+            // Handle slider dragging
+            if (_draggingSlider >= 0) {
+                float t = (float)(mx - (cx + _labelWidth)) / _sliderWidth;
+                if (t < 0) t = 0;
+                if (t > 1) t = 1;
+                
+                switch (_draggingSlider) {
+                    case 40: _specialEffectDuration = (int)(100 + t * 900); break; // 100-1000ms
+                    case 41: _digitizeScanlineCount = (int)(10 + t * 90); break; // 10-100
+                    case 42: _burnParticleCount = (int)(50 + t * 450); break; // 50-500
+                    case 43: _smokeParticleCount = (int)(30 + t * 270); break; // 30-300
+                    case 44: _glitchIntensity = (int)(5 + t * 45); break; // 5-50
+                    case 45: _rippleWaveCount = (int)(3 + t * 17); break; // 3-20
+                    case 46: _explodeParticleCount = (int)(100 + t * 400); break; // 100-500
+                }
+            }
+        }
+        
+        private void DrawSpecialEffectsTab(int cx, int contentY, int contentH) {
+            int currentY = contentY - _scrollY;
+            
+            DrawTitle(cx, currentY, "Special Window Effects (Tron-style & More)");
+            currentY += _lineHeight;
+            
+            DrawCheckboxWithLabel(cx, currentY, contentY, contentH, _enableSpecialWindowEffects, "Enable Special Window Effects");
+            currentY += _lineHeight;
+            
+            DrawDropdownWithLabel(cx, currentY, contentY, contentH, "Window Open Effect:", _windowOpenEffect, _openEffectDropdownOpen);
+            if (_openEffectDropdownOpen) {
+                DrawDropdownOptions(cx + _labelWidth, currentY + _lineHeight, contentY, contentH);
+            }
+            currentY += _lineHeight;
+            
+            DrawDropdownWithLabel(cx, currentY, contentY, contentH, "Window Close Effect:", _windowCloseEffect, _closeEffectDropdownOpen);
+            if (_closeEffectDropdownOpen) {
+                DrawDropdownOptions(cx + _labelWidth, currentY + _lineHeight, contentY, contentH);
+            }
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Effect Duration:", _specialEffectDuration, 100, 1000, " ms");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Digitize Scanlines:", _digitizeScanlineCount, 10, 100, "");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Burn Particles:", _burnParticleCount, 50, 500, "");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Smoke Particles:", _smokeParticleCount, 30, 300, "");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Glitch Intensity:", _glitchIntensity, 5, 50, " px");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Ripple Waves:", _rippleWaveCount, 3, 20, "");
+            currentY += _lineHeight;
+            
+            DrawSliderWithLabel(cx, currentY, contentY, contentH, "Explode Particles:", _explodeParticleCount, 100, 500, "");
+        }
+        
+        private bool CheckDropdown(int mx, int my, int dx, int dy, int contentY, int contentH) {
+            if (dy < contentY - _lineHeight || dy > contentY + contentH) return false;
+            return mx >= dx && mx <= dx + _sliderWidth && my >= dy + 8 && my <= dy + 30;
+        }
+        
+        private void DrawDropdownWithLabel(int cx, int cy, int contentY, int contentH, string label, WindowEffectType value, bool isOpen) {
+            if (cy < contentY - _lineHeight || cy > contentY + contentH) return;
+            
+            WindowManager.font.DrawString(cx + 32, cy, label);
+            
+            // Draw dropdown box
+            int dx = cx + _labelWidth;
+            int dy = cy + 8;
+            int dw = _sliderWidth;
+            int dh = 22;
+            
+            var g = Framebuffer.Graphics;
+            g.FillRectangle(dx, dy, dw, dh, 0xFF2A2A2A);
+            g.DrawRectangle(dx, dy, dw, dh, 0xFF4F4F4F, 1);
+            
+            // Draw current value
+            string valueStr = GetEffectName(value);
+            WindowManager.font.DrawString(dx + 6, dy + 3, valueStr);
+            
+            // Draw arrow
+            int arrowX = dx + dw - 16;
+            int arrowY = dy + 8;
+            if (isOpen) {
+                // Up arrow
+                g.DrawLine(arrowX, arrowY + 4, arrowX + 4, arrowY, 0xFFCCCCCC);
+                g.DrawLine(arrowX + 4, arrowY, arrowX + 8, arrowY + 4, 0xFFCCCCCC);
+            } else {
+                // Down arrow
+                g.DrawLine(arrowX, arrowY, arrowX + 4, arrowY + 4, 0xFFCCCCCC);
+                g.DrawLine(arrowX + 4, arrowY + 4, arrowX + 8, arrowY, 0xFFCCCCCC);
+            }
+        }
+        
+        private void DrawDropdownOptions(int dx, int dy, int contentY, int contentH) {
+            var g = Framebuffer.Graphics;
+            int dw = _sliderWidth;
+            int optionHeight = 24;
+            
+            WindowEffectType[] effects = {
+                WindowEffectType.None, WindowEffectType.Fade, WindowEffectType.Digitize,
+                WindowEffectType.Derezz, WindowEffectType.BurnIn, WindowEffectType.BurnOut,
+                WindowEffectType.SmokeIn, WindowEffectType.SmokeOut, WindowEffectType.Glitch,
+                WindowEffectType.Ripple, WindowEffectType.Explode, WindowEffectType.Implode,
+                WindowEffectType.Random
+            };
+            
+            int totalHeight = effects.Length * optionHeight;
+            g.FillRectangle(dx, dy, dw, totalHeight, 0xFF1A1A1A);
+            g.DrawRectangle(dx, dy, dw, totalHeight, 0xFF4F4F4F, 1);
+            
+            for (int i = 0; i < effects.Length; i++) {
+                int oy = dy + (i * optionHeight);
+                if (oy >= contentY && oy <= contentY + contentH) {
+                    string name = GetEffectName(effects[i]);
+                    WindowManager.font.DrawString(dx + 6, oy + 4, name);
+                }
+            }
+        }
+        
+        private WindowEffectType ProcessDropdownOptions(int mx, int my, int dx, int dy, int contentY, int contentH) {
+            int dw = _sliderWidth;
+            int optionHeight = 24;
+            
+            WindowEffectType[] effects = {
+                WindowEffectType.None, WindowEffectType.Fade, WindowEffectType.Digitize,
+                WindowEffectType.Derezz, WindowEffectType.BurnIn, WindowEffectType.BurnOut,
+                WindowEffectType.SmokeIn, WindowEffectType.SmokeOut, WindowEffectType.Glitch,
+                WindowEffectType.Ripple, WindowEffectType.Explode, WindowEffectType.Implode,
+                WindowEffectType.Random
+            };
+            
+            int totalHeight = effects.Length * optionHeight;
+            
+            if (mx >= dx && mx <= dx + dw && my >= dy && my <= dy + totalHeight) {
+                int index = (my - dy) / optionHeight;
+                if (index >= 0 && index < effects.Length) {
+                    return effects[index];
+                }
+            }
+            
+            return (WindowEffectType)(-1);
+        }
+        
+        private string GetEffectName(WindowEffectType effect) {
+            switch (effect) {
+                case WindowEffectType.None: return "None";
+                case WindowEffectType.Fade: return "Fade";
+                case WindowEffectType.Digitize: return "Digitize (Tron)";
+                case WindowEffectType.Derezz: return "De-rezz (Tron)";
+                case WindowEffectType.BurnIn: return "Burn In";
+                case WindowEffectType.BurnOut: return "Burn Out";
+                case WindowEffectType.SmokeIn: return "Smoke In";
+                case WindowEffectType.SmokeOut: return "Smoke Out";
+                case WindowEffectType.Glitch: return "Glitch";
+                case WindowEffectType.Ripple: return "Ripple";
+                case WindowEffectType.Explode: return "Explode";
+                case WindowEffectType.Implode: return "Implode";
+                case WindowEffectType.Random: return "Random";
+                default: return "Unknown";
+            }
         }
     }
 }

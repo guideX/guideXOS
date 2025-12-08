@@ -131,6 +131,24 @@ namespace guideXOS.GUI {
             _usbDriveLabels = null;
         }
         /// <summary>
+        /// Heuristic: if a USB MSC disk is present and marked ready, show installer icon.
+        /// In future, this can check actual boot device id.
+        /// </summary>
+        private static bool IsBootFromUSB() {
+            try {
+                // If an IDE/SATA system disk exists and at least one USB MSC removable is present, assume live USB boot.
+                bool hasIde = guideXOS.FS.Disk.Instance is guideXOS.Kernel.Drivers.IDEDevice;
+                var dev = guideXOS.Kernel.Drivers.USBStorage.GetFirst();
+                if (dev != null) {
+                    var disk = guideXOS.Kernel.Drivers.USBMSC.TryOpenDisk(dev);
+                    if (disk != null && disk.IsReady) return true;
+                }
+                // Fallback: if multiple USB storage devices, also suggest installer
+                if (guideXOS.Kernel.Drivers.USBStorage.Count > 0 && !hasIde) return true;
+            } catch { }
+            return false;
+        }
+        /// <summary>
         /// Bar Height
         /// </summary>
         const int BarHeight = 40;
@@ -246,6 +264,20 @@ namespace guideXOS.GUI {
                 int textX = x + (folderIcon.Width / 2) - (textWidth / 2);
                 WindowManager.font.DrawString(textX, y + fh + 4, "Computer Files");
                 y += documentIcon.Height + devide;
+
+                // Auto-show installer icon if booting/live from USB media (heuristic)
+                if (IsBootFromUSB()) {
+                    if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
+                    string installLabel = "Install to Hard Drive";
+                    ClickEvent(installLabel, false, x, y, 50001, clickable, leftDown);
+                    uint colInst = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    // Use document icon for app-like entry
+                    Framebuffer.Graphics.DrawImage(x, y, docIcon);
+                    int instW = WindowManager.font.MeasureString(installLabel);
+                    int instX = x + (docIcon.Width / 2) - (instW / 2);
+                    WindowManager.font.DrawString(instX, y + fh + 4, installLabel);
+                    y += documentIcon.Height + devide;
+                }
                 // USB mass storage icons, one per connected device
                 if (Kernel.Drivers.USBStorage.Count > 0) {
                     int count = Kernel.Drivers.USBStorage.Count;
@@ -447,6 +479,14 @@ namespace guideXOS.GUI {
             if (name == "Root" && HomeMode) {
                 HomeMode = false;
                 _dirCacheDirty = true;
+                IndexClicked = -1;
+                return;
+            }
+            // Launch HD installer from desktop icon
+            if (name == "Install to Hard Drive" && HomeMode) {
+                var installer = new guideXOS.DefaultApps.HDInstaller(itemX + 60, itemY + 60);
+                WindowManager.MoveToEnd(installer);
+                installer.Visible = true;
                 IndexClicked = -1;
                 return;
             }
