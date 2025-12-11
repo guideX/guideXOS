@@ -13,3 +13,5 @@
 /Tools/Installer/GuideXOS.Installer/obj
 /Tools/Installer/GuideXOS.Installer/bin
 /Docs
+/Tools/grub2/boot/kernel.bin
+/grub2
