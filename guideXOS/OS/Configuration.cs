@@ -102,6 +102,14 @@ namespace guideXOS.OS {
                     widgetsStr.Dispose();
                 }
                 
+                // Load desktop icon positions
+                // Format: desktop_icon_positions=id1,x1,y1;id2,x2,y2;...
+                string iconPosStr = FindValue(content, "desktop_icon_positions=");
+                if (iconPosStr != null && iconPosStr.Length > 0) {
+                    LoadIconPositionsFromString(iconPosStr);
+                    iconPosStr.Dispose();
+                }
+                
                 content.Dispose();
                 //Console.WriteLine("[CONFIG] UI settings loaded");
             } catch {
@@ -121,6 +129,9 @@ namespace guideXOS.OS {
                 content += "enable_window_slide_animations=" + (UISettings.EnableWindowSlideAnimations ? "true" : "false") + "\n";
                 content += "enable_auto_background_rotation=" + (UISettings.EnableAutoBackgroundRotation ? "true" : "false") + "\n";
                 content += "background_rotation_interval_minutes=" + UISettings.BackgroundRotationIntervalMinutes.ToString() + "\n";
+                
+                // Save desktop icon positions
+                content += "desktop_icon_positions=" + GetIconPositionsString() + "\n";
                 
                 byte[] data = GetBytesFromString(content);
                 File.WriteAllBytes(ConfigFile, data);
@@ -255,6 +266,93 @@ namespace guideXOS.OS {
                 chars[i] = (char)data[i];
             }
             return new string(chars);
+        }
+        
+        /// <summary>
+        /// Get icon positions as a serialized string.
+        /// Format: id1,x1,y1;id2,x2,y2;...
+        /// </summary>
+        private static string GetIconPositionsString() {
+            System.Collections.Generic.List<int> ids, xs, ys;
+            Desktop.GetIconPositions(out ids, out xs, out ys);
+            
+            if (ids == null || ids.Count == 0) return "";
+            
+            string result = "";
+            for (int i = 0; i < ids.Count; i++) {
+                if (i > 0) result += ";";
+                result += ids[i].ToString() + "," + xs[i].ToString() + "," + ys[i].ToString();
+            }
+            return result;
+        }
+        
+        /// <summary>
+        /// Load icon positions from a serialized string.
+        /// Format: id1,x1,y1;id2,x2,y2;...
+        /// </summary>
+        private static void LoadIconPositionsFromString(string str) {
+            if (str == null || str.Length == 0) return;
+            
+            var ids = new System.Collections.Generic.List<int>();
+            var xs = new System.Collections.Generic.List<int>();
+            var ys = new System.Collections.Generic.List<int>();
+            
+            // Parse entries separated by semicolons
+            int start = 0;
+            while (start < str.Length) {
+                // Find end of this entry (semicolon or end of string)
+                int end = start;
+                while (end < str.Length && str[end] != ';') end++;
+                
+                if (end > start) {
+                    // Parse "id,x,y"
+                    string entry = str.Substring(start, end - start);
+                    
+                    // Find first comma
+                    int comma1 = -1;
+                    for (int i = 0; i < entry.Length; i++) {
+                        if (entry[i] == ',') { comma1 = i; break; }
+                    }
+                    
+                    if (comma1 > 0) {
+                        // Find second comma
+                        int comma2 = -1;
+                        for (int i = comma1 + 1; i < entry.Length; i++) {
+                            if (entry[i] == ',') { comma2 = i; break; }
+                        }
+                        
+                        if (comma2 > comma1) {
+                            string idStr = entry.Substring(0, comma1);
+                            string xStr = entry.Substring(comma1 + 1, comma2 - comma1 - 1);
+                            string yStr = entry.Substring(comma2 + 1, entry.Length - comma2 - 1);
+                            
+                            int id = ParseInt(idStr);
+                            int x = ParseInt(xStr);
+                            int y = ParseInt(yStr);
+                            
+                            ids.Add(id);
+                            xs.Add(x);
+                            ys.Add(y);
+                            
+                            idStr.Dispose();
+                            xStr.Dispose();
+                            yStr.Dispose();
+                        }
+                    }
+                    entry.Dispose();
+                }
+                
+                start = end + 1;
+            }
+            
+            if (ids.Count > 0) {
+                Desktop.LoadIconPositions(ids, xs, ys);
+            }
+            
+            // Dispose the lists (Desktop.LoadIconPositions copies the data)
+            ids.Dispose();
+            xs.Dispose();
+            ys.Dispose();
         }
     }
 }

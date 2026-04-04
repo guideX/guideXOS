@@ -193,12 +193,20 @@ namespace guideXOS.GUI {
                 if (_customPosIds[i] == id) {
                     _customPosX[i] = cx;
                     _customPosY[i] = cy;
+                    // Save positions to config if not in LiveMode
+                    if (!OS.SystemMode.IsLiveMode && HomeMode) {
+                        OS.Configuration.SaveConfiguration();
+                    }
                     return;
                 }
             }
             _customPosIds.Add(id);
             _customPosX.Add(cx);
             _customPosY.Add(cy);
+            // Save positions to config if not in LiveMode
+            if (!OS.SystemMode.IsLiveMode && HomeMode) {
+                OS.Configuration.SaveConfiguration();
+            }
         }
         /// <summary>
         /// Heuristic: if a USB MSC disk is present and marked ready, show installer icon.
@@ -908,6 +916,42 @@ namespace guideXOS.GUI {
             _dirCacheDirty = true;
         }
 
+        /// <summary>
+        /// Get icon positions for saving to configuration.
+        /// Returns arrays of icon IDs and their X,Y positions.
+        /// </summary>
+        public static void GetIconPositions(out List<int> ids, out List<int> xs, out List<int> ys) {
+            ids = _customPosIds;
+            xs = _customPosX;
+            ys = _customPosY;
+        }
+        
+        /// <summary>
+        /// Load icon positions from configuration.
+        /// </summary>
+        public static void LoadIconPositions(List<int> ids, List<int> xs, List<int> ys) {
+            if (ids == null || xs == null || ys == null) return;
+            if (ids.Count == 0) return;
+            
+            // Initialize lists if needed
+            if (_customPosIds == null) {
+                _customPosIds = new List<int>();
+                _customPosX = new List<int>();
+                _customPosY = new List<int>();
+            } else {
+                _customPosIds.Clear();
+                _customPosX.Clear();
+                _customPosY.Clear();
+            }
+            
+            // Copy positions
+            for (int i = 0; i < ids.Count; i++) {
+                _customPosIds.Add(ids[i]);
+                _customPosX.Add(xs[i]);
+                _customPosY.Add(ys[i]);
+            }
+        }
+        
         /// <summary>
         /// Compute total content width by simulating the column layout without drawing.
         /// </summary>
