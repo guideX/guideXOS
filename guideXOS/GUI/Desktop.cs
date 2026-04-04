@@ -105,6 +105,15 @@ namespace guideXOS.GUI {
         // FIXED: Cache USB Drive labels to prevent per-frame allocations
         private static string[] _usbDriveLabels = null;
         private static int _lastUSBCount = -1;
+
+        // Desktop horizontal scrolling
+        private static int _scrollX = 0;
+        private static bool _scrollDragActive = false;
+        private static int _scrollDragStartX = 0;
+        private static int _scrollDragStartScroll = 0;
+        private static bool _prevLeftDown = false;
+        private const int DesktopScrollbarH = 14;
+        private const int DesktopScrollArrowW = 20;
         
         /// <summary>
         /// Initialize
@@ -129,6 +138,8 @@ namespace guideXOS.GUI {
             compFiles = null;
             _lastUSBCount = -1;
             _usbDriveLabels = null;
+            _scrollX = 0;
+            _scrollDragActive = false;
         }
         /// <summary>
         /// Heuristic: if a USB MSC disk is present and marked ready, show installer icon.
@@ -250,6 +261,84 @@ namespace guideXOS.GUI {
             bool mouseBlocked = WindowManager.HasWindowMoving || WindowManager.MouseHandled || mouseOverWindow;
             bool clickable = leftDown && !mouseBlocked;
             if (leftDown && mouseOverWindow) clickable = false;
+
+            // --- Desktop horizontal scrolling ---
+            int screenW = Framebuffer.Graphics.Width;
+            // Compute total content width by doing a dry-run layout
+            int totalContentW = ComputeTotalContentWidth(devide, fw, fh, screenH);
+            int maxScrollX = totalContentW - screenW;
+            if (maxScrollX < 0) maxScrollX = 0;
+
+            // Mouse wheel scrolling on the desktop (only when not over a window)
+            if (!mouseOverWindow) {
+                int wheelDelta = PS2Mouse.DeltaZ;
+                if (wheelDelta != 0) {
+                    int scrollAmount = -wheelDelta * (fw + devide); // scroll one column per wheel notch
+                    int ns = _scrollX + scrollAmount;
+                    if (ns < 0) ns = 0;
+                    if (ns > maxScrollX) ns = maxScrollX;
+                    _scrollX = ns;
+                }
+            }
+
+            // Horizontal scrollbar interaction (above taskbar)
+            int sbY = screenH - BarHeight - DesktopScrollbarH;
+            int sbAreaW = screenW - DesktopScrollArrowW * 2;
+            int sbArrowLeftX = 0;
+            int sbArrowRightX = screenW - DesktopScrollArrowW;
+            int sbTrackX = DesktopScrollArrowW;
+            bool clickEdge = leftDown && !_prevLeftDown;
+
+            if (maxScrollX > 0 && !mouseOverWindow) {
+                int mx = Control.MousePosition.X;
+                int my = Control.MousePosition.Y;
+                // Arrow button clicks
+                if (clickEdge && my >= sbY && my <= sbY + DesktopScrollbarH) {
+                    // Left arrow
+                    if (mx >= sbArrowLeftX && mx < sbArrowLeftX + DesktopScrollArrowW) {
+                        int ns = _scrollX - (fw + devide);
+                        if (ns < 0) ns = 0;
+                        _scrollX = ns;
+                    }
+                    // Right arrow
+                    if (mx >= sbArrowRightX && mx < sbArrowRightX + DesktopScrollArrowW) {
+                        int ns = _scrollX + (fw + devide);
+                        if (ns > maxScrollX) ns = maxScrollX;
+                        _scrollX = ns;
+                    }
+                }
+                // Scrollbar thumb drag start
+                if (clickEdge && my >= sbY && my <= sbY + DesktopScrollbarH && mx >= sbTrackX && mx < sbArrowRightX) {
+                    _scrollDragActive = true;
+                    _scrollDragStartX = mx;
+                    _scrollDragStartScroll = _scrollX;
+                }
+                // Scrollbar thumb drag update
+                if (_scrollDragActive && leftDown) {
+                    int dx = Control.MousePosition.X - _scrollDragStartX;
+                    int thumbW = sbAreaW;
+                    if (totalContentW > screenW) {
+                        thumbW = (sbAreaW * screenW) / totalContentW;
+                        if (thumbW < 20) thumbW = 20;
+                        if (thumbW > sbAreaW) thumbW = sbAreaW;
+                    }
+                    int scrollRange = sbAreaW - thumbW;
+                    int ns = scrollRange > 0 ? _scrollDragStartScroll + (dx * maxScrollX) / scrollRange : 0;
+                    if (ns < 0) ns = 0;
+                    if (ns > maxScrollX) ns = maxScrollX;
+                    _scrollX = ns;
+                }
+            }
+            if (!leftDown) { _scrollDragActive = false; }
+            _prevLeftDown = leftDown;
+
+            // Clamp scroll if content shrunk
+            if (_scrollX > maxScrollX) _scrollX = maxScrollX;
+            if (_scrollX < 0) _scrollX = 0;
+
+            // Apply scroll offset to starting x
+            x -= _scrollX;
+
             if (HomeMode) {
                 if (y + fh + devide > screenH - devide) {
                     y = devide;
@@ -265,8 +354,8 @@ namespace guideXOS.GUI {
                 WindowManager.font.DrawString(textX, y + fh + 4, "Computer Files");
                 y += documentIcon.Height + devide;
 
-                // Auto-show installer icon if booting/live from USB media (heuristic)
-                if (IsBootFromUSB()) {
+                // Auto-show installer icon in LIVE mode or when booting from USB media
+                if (SystemMode.IsLiveMode || IsBootFromUSB()) {
                     if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                     string installLabel = "Install to Hard Drive";
                     ClickEvent(installLabel, false, x, y, 50001, clickable, leftDown);
@@ -400,6 +489,52 @@ namespace guideXOS.GUI {
             if (Program.WidgetsContainer != null) {
                 Program.WidgetsContainer.UpdateAutoHide();
             }
+            // Draw horizontal scrollbar if content overflows
+            if (maxScrollX > 0) {
+                // Scrollbar track
+                Framebuffer.Graphics.FillRectangle(0, sbY, screenW, DesktopScrollbarH, 0xFF1A1A1A);
+
+                // Left arrow button
+                int mxSb = Control.MousePosition.X;
+                int mySb = Control.MousePosition.Y;
+                bool hoverLeft = (mxSb >= sbArrowLeftX && mxSb < sbArrowLeftX + DesktopScrollArrowW && mySb >= sbY && mySb <= sbY + DesktopScrollbarH);
+                Framebuffer.Graphics.FillRectangle(sbArrowLeftX, sbY, DesktopScrollArrowW, DesktopScrollbarH, hoverLeft ? 0xFF3A3A3A : 0xFF2A2A2A);
+                Framebuffer.Graphics.DrawRectangle(sbArrowLeftX, sbY, DesktopScrollArrowW, DesktopScrollbarH, 0xFF3F3F3F, 1);
+                // Left triangle
+                int lcx = sbArrowLeftX + DesktopScrollArrowW / 2;
+                int lcy = sbY + DesktopScrollbarH / 2;
+                for (int r = 0; r < 4; r++) {
+                    int ty = lcy - r; int by = lcy + r; int lx = lcx - 2 + r;
+                    if (lx >= sbArrowLeftX && lx < sbArrowLeftX + DesktopScrollArrowW) {
+                        Framebuffer.Graphics.FillRectangle(lx, ty, 1, by - ty + 1, 0xFFCCCCCC);
+                    }
+                }
+
+                // Right arrow button
+                bool hoverRight = (mxSb >= sbArrowRightX && mxSb < sbArrowRightX + DesktopScrollArrowW && mySb >= sbY && mySb <= sbY + DesktopScrollbarH);
+                Framebuffer.Graphics.FillRectangle(sbArrowRightX, sbY, DesktopScrollArrowW, DesktopScrollbarH, hoverRight ? 0xFF3A3A3A : 0xFF2A2A2A);
+                Framebuffer.Graphics.DrawRectangle(sbArrowRightX, sbY, DesktopScrollArrowW, DesktopScrollbarH, 0xFF3F3F3F, 1);
+                // Right triangle
+                int rcx = sbArrowRightX + DesktopScrollArrowW / 2;
+                int rcy = sbY + DesktopScrollbarH / 2;
+                for (int r = 0; r < 4; r++) {
+                    int ty = rcy - r; int by = rcy + r; int rx = rcx + 2 - r;
+                    if (rx >= sbArrowRightX && rx < sbArrowRightX + DesktopScrollArrowW) {
+                        Framebuffer.Graphics.FillRectangle(rx, ty, 1, by - ty + 1, 0xFFCCCCCC);
+                    }
+                }
+
+                // Thumb
+                int thumbW = sbAreaW;
+                if (totalContentW > screenW) {
+                    thumbW = (sbAreaW * screenW) / totalContentW;
+                    if (thumbW < 20) thumbW = 20;
+                    if (thumbW > sbAreaW) thumbW = sbAreaW;
+                }
+                int thumbX = maxScrollX > 0 ? sbTrackX + ((sbAreaW - thumbW) * _scrollX) / maxScrollX : sbTrackX;
+                bool hoverThumb = (mxSb >= thumbX && mxSb <= thumbX + thumbW && mySb >= sbY && mySb <= sbY + DesktopScrollbarH);
+                Framebuffer.Graphics.FillRectangle(thumbX, sbY + 2, thumbW, DesktopScrollbarH - 4, hoverThumb ? 0xFF4F4F4F : 0xFF2F2F2F);
+            }
             // Draw taskbar and handle Start Menu interactions
             Taskbar.Draw();
         // Right-click pinning for desktop items (apps/files)
@@ -408,7 +543,7 @@ namespace guideXOS.GUI {
                 int my = Control.MousePosition.Y;
                 // Only handle right-click pinning if not over a window (prevent crashes)
                 if (!IsMouseOverAnyVisibleWindow()) {
-                    int scanX = devide;
+                    int scanX = devide - _scrollX;
                     int scanY = devide;
                     int iconW = docIcon.Width;
                     int iconH = docIcon.Height;
@@ -489,6 +624,7 @@ namespace guideXOS.GUI {
                 HomeMode = false;
                 _dirCacheDirty = true;
                 IndexClicked = -1;
+                _scrollX = 0;
                 return;
             }
             // Launch HD installer from desktop icon
@@ -533,6 +669,7 @@ namespace guideXOS.GUI {
                 Dir = "";
                 _dirCacheDirty = true;
                 IndexClicked = -1;
+                _scrollX = 0;
                 return;
             }
 
@@ -544,6 +681,7 @@ namespace guideXOS.GUI {
                 Dir = newd;
                 _dirCacheDirty = true;
                 IndexClicked = -1;
+                _scrollX = 0;
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 PNG png = new(buffer);
@@ -612,6 +750,48 @@ namespace guideXOS.GUI {
         /// </summary>
         public static void InvalidateDirCache() {
             _dirCacheDirty = true;
+        }
+
+        /// <summary>
+        /// Compute total content width by simulating the column layout without drawing.
+        /// </summary>
+        private static int ComputeTotalContentWidth(int devide, int fw, int fh, int screenH) {
+            int cx = devide;
+            int cy = devide;
+            int maxX = cx + fw; // at least one column
+            if (HomeMode) {
+                // Computer Files
+                if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                cy += fh + devide;
+                // Installer icon (LIVE mode or USB boot)
+                if (SystemMode.IsLiveMode || IsBootFromUSB()) {
+                    if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                    cy += fh + devide;
+                }
+                // USB drives
+                if (Kernel.Drivers.USBStorage.Count > 0) {
+                    for (int u = 0; u < Kernel.Drivers.USBStorage.Count; u++) {
+                        if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                        cy += fh + devide;
+                    }
+                }
+                // Root
+                if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                cy += fh + devide;
+                if (cx + fw > maxX) maxX = cx + fw;
+            } else {
+                // Desktop link
+                if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                cy += fh + devide;
+                // File entries
+                var names = GetDirectoryEntries();
+                for (int i = 0; i < names.Count; i++) {
+                    if (cy + fh + devide > screenH - devide) { cy = devide; cx += fw + devide; }
+                    cy += fh + devide;
+                }
+                if (cx + fw > maxX) maxX = cx + fw;
+            }
+            return maxX + devide; // add trailing padding
         }
     }
 }
