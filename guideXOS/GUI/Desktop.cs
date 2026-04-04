@@ -114,6 +114,21 @@ namespace guideXOS.GUI {
         private static bool _prevLeftDown = false;
         private const int DesktopScrollbarH = 14;
         private const int DesktopScrollArrowW = 20;
+
+        // Icon drag-and-drop
+        private static bool _iconDragging = false;
+        private static int _iconDragId = -1;
+        private static int _iconDragOffsetX = 0;
+        private static int _iconDragOffsetY = 0;
+        private static int _iconDragStartMouseX = 0;
+        private static int _iconDragStartMouseY = 0;
+        private static bool _iconDragStarted = false; // true once mouse moved enough to be a real drag
+        private const int IconDragThreshold = 5; // pixels of movement before drag starts
+
+        // Custom icon positions: parallel arrays keyed by icon id
+        private static List<int> _customPosIds = null;
+        private static List<int> _customPosX = null;
+        private static List<int> _customPosY = null;
         
         /// <summary>
         /// Initialize
@@ -140,6 +155,50 @@ namespace guideXOS.GUI {
             _usbDriveLabels = null;
             _scrollX = 0;
             _scrollDragActive = false;
+            _iconDragging = false;
+            _iconDragId = -1;
+            _iconDragStarted = false;
+            if (_customPosIds != null) { _customPosIds.Dispose(); _customPosIds = null; }
+            if (_customPosX != null) { _customPosX.Dispose(); _customPosX = null; }
+            if (_customPosY != null) { _customPosY.Dispose(); _customPosY = null; }
+            _customPosIds = new List<int>();
+            _customPosX = new List<int>();
+            _customPosY = new List<int>();
+        }
+        /// <summary>
+        /// Get custom position for an icon by its id. Returns true if found.
+        /// </summary>
+        private static bool GetCustomPos(int id, out int cx, out int cy) {
+            cx = 0; cy = 0;
+            if (_customPosIds == null) return false;
+            for (int i = 0; i < _customPosIds.Count; i++) {
+                if (_customPosIds[i] == id) {
+                    cx = _customPosX[i];
+                    cy = _customPosY[i];
+                    return true;
+                }
+            }
+            return false;
+        }
+        /// <summary>
+        /// Set custom position for an icon by its id.
+        /// </summary>
+        private static void SetCustomPos(int id, int cx, int cy) {
+            if (_customPosIds == null) {
+                _customPosIds = new List<int>();
+                _customPosX = new List<int>();
+                _customPosY = new List<int>();
+            }
+            for (int i = 0; i < _customPosIds.Count; i++) {
+                if (_customPosIds[i] == id) {
+                    _customPosX[i] = cx;
+                    _customPosY[i] = cy;
+                    return;
+                }
+            }
+            _customPosIds.Add(id);
+            _customPosX.Add(cx);
+            _customPosY.Add(cy);
         }
         /// <summary>
         /// Heuristic: if a USB MSC disk is present and marked ready, show installer icon.
@@ -339,32 +398,72 @@ namespace guideXOS.GUI {
             // Apply scroll offset to starting x
             x -= _scrollX;
 
+            // --- Icon drag movement tracking ---
+            if (_iconDragging && _iconDragId != -1 && leftDown) {
+                int dmx = Control.MousePosition.X - _iconDragStartMouseX;
+                int dmy = Control.MousePosition.Y - _iconDragStartMouseY;
+                if (!_iconDragStarted) {
+                    if (dmx * dmx + dmy * dmy > IconDragThreshold * IconDragThreshold) {
+                        _iconDragStarted = true;
+                    }
+                }
+            }
+            // Handle drag release - save position if drag was active
+            if (_iconDragging && !leftDown) {
+                if (_iconDragStarted && _iconDragId != -1) {
+                    // Drag completed: store new position
+                    int newX = Control.MousePosition.X - _iconDragOffsetX;
+                    int newY = Control.MousePosition.Y - _iconDragOffsetY;
+                    SetCustomPos(_iconDragId, newX, newY);
+                }
+                _iconDragging = false;
+                _iconDragId = -1;
+                _iconDragStarted = false;
+            }
+
+
+
             if (HomeMode) {
                 if (y + fh + devide > screenH - devide) {
                     y = devide;
                     x += fw + devide;
                 }
-                ClickEvent("Computer Files", false, x, y, Apps.Length, clickable, leftDown);
-                uint col98 = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                // Better padding: centered icon with transparent background
-                Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                // Draw text centered below icon with proper spacing
+                int cfId = Apps.Length;
+                int cfDx = x, cfDy = y;
+                int cfCx, cfCy;
+                if (_iconDragging && _iconDragId == cfId && _iconDragStarted) {
+                    cfDx = Control.MousePosition.X - _iconDragOffsetX;
+                    cfDy = Control.MousePosition.Y - _iconDragOffsetY;
+                } else if (GetCustomPos(cfId, out cfCx, out cfCy)) {
+                    cfDx = cfCx; cfDy = cfCy;
+                }
+                ClickEvent("Computer Files", false, cfDx, cfDy, cfId, clickable, leftDown);
+                uint col98 = UI.ButtonFillColor(cfDx, cfDy, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.DrawImage(cfDx, cfDy, folderIcon);
                 int textWidth = WindowManager.font.MeasureString("Computer Files");
-                int textX = x + (folderIcon.Width / 2) - (textWidth / 2);
-                WindowManager.font.DrawString(textX, y + fh + 4, "Computer Files");
+                int textX = cfDx + (folderIcon.Width / 2) - (textWidth / 2);
+                WindowManager.font.DrawString(textX, cfDy + fh + 4, "Computer Files");
                 y += documentIcon.Height + devide;
 
                 // Auto-show installer icon in LIVE mode or when booting from USB media
                 if (SystemMode.IsLiveMode || IsBootFromUSB()) {
                     if (y + fh + devide > screenH - devide) { y = devide; x += fw + devide; }
                     string installLabel = "Install to Hard Drive";
-                    ClickEvent(installLabel, false, x, y, 50001, clickable, leftDown);
-                    uint colInst = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                    // Use document icon for app-like entry
-                    Framebuffer.Graphics.DrawImage(x, y, docIcon);
+                    int instId = 50001;
+                    int instDx = x, instDy = y;
+                    int instCx, instCy;
+                    if (_iconDragging && _iconDragId == instId && _iconDragStarted) {
+                        instDx = Control.MousePosition.X - _iconDragOffsetX;
+                        instDy = Control.MousePosition.Y - _iconDragOffsetY;
+                    } else if (GetCustomPos(instId, out instCx, out instCy)) {
+                        instDx = instCx; instDy = instCy;
+                    }
+                    ClickEvent(installLabel, false, instDx, instDy, instId, clickable, leftDown);
+                    uint colInst = UI.ButtonFillColor(instDx, instDy, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    Framebuffer.Graphics.DrawImage(instDx, instDy, docIcon);
                     int instW = WindowManager.font.MeasureString(installLabel);
-                    int instX = x + (docIcon.Width / 2) - (instW / 2);
-                    WindowManager.font.DrawString(instX, y + fh + 4, installLabel);
+                    int instX = instDx + (docIcon.Width / 2) - (instW / 2);
+                    WindowManager.font.DrawString(instX, instDy + fh + 4, installLabel);
                     y += documentIcon.Height + devide;
                 }
                 // USB mass storage icons, one per connected device
@@ -404,30 +503,44 @@ namespace guideXOS.GUI {
                             y = devide;
                             x += fw + devide;
                         }
-                        // FIXED: Use only cached label - no duplicate creation!
                         string label = _usbDriveLabels[u];
-                        ClickEvent(label, true, x, y, 20000 + u, clickable, leftDown);
-                        uint col = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                        Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                        // Draw text centered below icon
+                        int usbId = 20000 + u;
+                        int usbDx = x, usbDy = y;
+                        int usbCx, usbCy;
+                        if (_iconDragging && _iconDragId == usbId && _iconDragStarted) {
+                            usbDx = Control.MousePosition.X - _iconDragOffsetX;
+                            usbDy = Control.MousePosition.Y - _iconDragOffsetY;
+                        } else if (GetCustomPos(usbId, out usbCx, out usbCy)) {
+                            usbDx = usbCx; usbDy = usbCy;
+                        }
+                        ClickEvent(label, true, usbDx, usbDy, usbId, clickable, leftDown);
+                        uint col = UI.ButtonFillColor(usbDx, usbDy, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                        Framebuffer.Graphics.DrawImage(usbDx, usbDy, folderIcon);
                         int labelWidth = WindowManager.font.MeasureString(label);
-                        int labelX = x + (folderIcon.Width / 2) - (labelWidth / 2);
-                        WindowManager.font.DrawString(labelX, y + fh + 4, label);
+                        int labelX = usbDx + (folderIcon.Width / 2) - (labelWidth / 2);
+                        WindowManager.font.DrawString(labelX, usbDy + fh + 4, label);
                         y += documentIcon.Height + devide;
-                        // FIXED: NEVER dispose cached labels - they are reused every frame!
                     }
                 }
                 if (y + fh + devide > screenH - devide) {
                     y = devide;
                     x += fw + devide;
                 }
-                ClickEvent("Root", true, x, y, Apps.Length + 1, clickable, leftDown);
-                uint colRoot = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                // Draw text centered below icon
+                int rootId = Apps.Length + 1;
+                int rootDx = x, rootDy = y;
+                int rootCx, rootCy;
+                if (_iconDragging && _iconDragId == rootId && _iconDragStarted) {
+                    rootDx = Control.MousePosition.X - _iconDragOffsetX;
+                    rootDy = Control.MousePosition.Y - _iconDragOffsetY;
+                } else if (GetCustomPos(rootId, out rootCx, out rootCy)) {
+                    rootDx = rootCx; rootDy = rootCy;
+                }
+                ClickEvent("Root", true, rootDx, rootDy, rootId, clickable, leftDown);
+                uint colRoot = UI.ButtonFillColor(rootDx, rootDy, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.DrawImage(rootDx, rootDy, folderIcon);
                 int rootTextWidth = WindowManager.font.MeasureString("Root");
-                int rootTextX = x + (folderIcon.Width / 2) - (rootTextWidth / 2);
-                WindowManager.font.DrawString(rootTextX, y + fh + 4, "Root");
+                int rootTextX = rootDx + (folderIcon.Width / 2) - (rootTextWidth / 2);
+                WindowManager.font.DrawString(rootTextX, rootDy + fh + 4, "Root");
                 y += documentIcon.Height + devide;
             }
             if (!HomeMode) {
@@ -435,13 +548,21 @@ namespace guideXOS.GUI {
                     y = devide;
                     x += fw + devide;
                 }
-                ClickEvent("Desktop", false, x, y, -100, clickable, leftDown);
-                uint cDesk = UI.ButtonFillColor(x, y, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
-                Framebuffer.Graphics.DrawImage(x, y, folderIcon);
-                // Draw text centered below icon
+                int deskId = -100;
+                int deskDx = x, deskDy = y;
+                int deskCx, deskCy;
+                if (_iconDragging && _iconDragId == deskId && _iconDragStarted) {
+                    deskDx = Control.MousePosition.X - _iconDragOffsetX;
+                    deskDy = Control.MousePosition.Y - _iconDragOffsetY;
+                } else if (GetCustomPos(deskId, out deskCx, out deskCy)) {
+                    deskDx = deskCx; deskDy = deskCy;
+                }
+                ClickEvent("Desktop", false, deskDx, deskDy, deskId, clickable, leftDown);
+                uint cDesk = UI.ButtonFillColor(deskDx, deskDy, folderIcon.Width, folderIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                Framebuffer.Graphics.DrawImage(deskDx, deskDy, folderIcon);
                 int deskTextWidth = WindowManager.font.MeasureString("Desktop");
-                int deskTextX = x + (folderIcon.Width / 2) - (deskTextWidth / 2);
-                WindowManager.font.DrawString(deskTextX, y + fh + 4, "Desktop");
+                int deskTextX = deskDx + (folderIcon.Width / 2) - (deskTextWidth / 2);
+                WindowManager.font.DrawString(deskTextX, deskDy + fh + 4, "Desktop");
                 y += fh + devide;
                 for (int i = 0; i < names.Count; i++) {
                     if (y + fh + devide > screenH - devide) {
@@ -450,24 +571,32 @@ namespace guideXOS.GUI {
                     }
                     string n = names[i].Name;
                     bool isDir = names[i].Attribute == FileAttribute.Directory;
-                    ClickEvent(n, isDir, x, y, i + 1000, clickable, leftDown);
-                    uint bg = UI.ButtonFillColor(x, y, documentIcon.Width, documentIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
+                    int fileId = i + 1000;
+                    int fileDx = x, fileDy = y;
+                    int fileCx, fileCy;
+                    if (_iconDragging && _iconDragId == fileId && _iconDragStarted) {
+                        fileDx = Control.MousePosition.X - _iconDragOffsetX;
+                        fileDy = Control.MousePosition.Y - _iconDragOffsetY;
+                    } else if (GetCustomPos(fileId, out fileCx, out fileCy)) {
+                        fileDx = fileCx; fileDy = fileCy;
+                    }
+                    ClickEvent(n, isDir, fileDx, fileDy, fileId, clickable, leftDown);
+                    uint bg = UI.ButtonFillColor(fileDx, fileDy, documentIcon.Width, documentIcon.Height, 0xFF2B2B2B, 0xFF343434, 0xFF3A3A3A);
                     // Draw appropriate icon based on file type
                     if (n.EndsWith(".png") || n.EndsWith(".bmp")) {
-                        Framebuffer.Graphics.DrawImage(x, y, imageIcon);
+                        Framebuffer.Graphics.DrawImage(fileDx, fileDy, imageIcon);
                     } else if (n.EndsWith(".wav")) {
-                        Framebuffer.Graphics.DrawImage(x, y, audioIcon);
+                        Framebuffer.Graphics.DrawImage(fileDx, fileDy, audioIcon);
                     } else if (isDir) {
-                        Framebuffer.Graphics.DrawImage(x, y, folderIcon);
+                        Framebuffer.Graphics.DrawImage(fileDx, fileDy, folderIcon);
                     } else {
-                        Framebuffer.Graphics.DrawImage(x, y, docIcon);
+                        Framebuffer.Graphics.DrawImage(fileDx, fileDy, docIcon);
                     }
                     // Draw text centered below icon, truncate if too long
                     string displayName = n;
                     int maxTextWidth = fw + 32;
                     int nameWidth = WindowManager.font.MeasureString(displayName);
                     if (nameWidth > maxTextWidth) {
-                        // Truncate name if too long
                         int ellipsisWidth = WindowManager.font.MeasureString("...");
                         int availWidth = maxTextWidth - ellipsisWidth;
                         int charCount = 0;
@@ -479,8 +608,8 @@ namespace guideXOS.GUI {
                         displayName = displayName.Substring(0, charCount) + "...";
                         nameWidth = WindowManager.font.MeasureString(displayName);
                     }
-                    int nameX = x + (documentIcon.Width / 2) - (nameWidth / 2);
-                    WindowManager.font.DrawString(nameX, y + fh + 4, displayName);
+                    int nameX = fileDx + (documentIcon.Width / 2) - (nameWidth / 2);
+                    WindowManager.font.DrawString(nameX, fileDy + fh + 4, displayName);
                     y += fh + devide;
                 }
             }
@@ -591,21 +720,39 @@ namespace guideXOS.GUI {
         /// <param name="leftDown"></param>
         private static bool _mouseClickLatch = false; // added latch to prevent repeated OnClick while mouse held
         private static void ClickEvent(string name, bool isDirectory, int X, int Y, int i, bool clickable, bool leftDown) {
+            int iconW = Icons.DocumentIcon(IconSize).Width;
+            int iconH = Icons.DocumentIcon(IconSize).Height;
+            int mx = Control.MousePosition.X;
+            int my = Control.MousePosition.Y;
+            bool overIcon = mx > X && mx < X + iconW && my > Y && my < Y + iconH;
             if (leftDown) {
-                if (!WindowManager.HasWindowMoving && clickable && !ClickLock && !_mouseClickLatch &&
-                  Control.MousePosition.X > X && Control.MousePosition.X < X + Icons.DocumentIcon(IconSize).Width &&
-                  Control.MousePosition.Y > Y && Control.MousePosition.Y < Y + Icons.DocumentIcon(IconSize).Height) {
-                    IndexClicked = i;
-                    OnClick(name, isDirectory, X, Y);
-                    _mouseClickLatch = true;
+                if (!WindowManager.HasWindowMoving && clickable && !ClickLock && !_mouseClickLatch && overIcon) {
+                    if (!_iconDragging && _iconDragId == -1) {
+                        // Begin potential drag
+                        _iconDragId = i;
+                        _iconDragOffsetX = mx - X;
+                        _iconDragOffsetY = my - Y;
+                        _iconDragStartMouseX = mx;
+                        _iconDragStartMouseY = my;
+                        _iconDragStarted = false;
+                        _iconDragging = true;
+                        IndexClicked = i;
+                        _mouseClickLatch = true;
+                    }
                 }
             } else {
+                // Mouse released - drag end is handled in Update(), here we just handle click
+                if (_iconDragId == i && !_iconDragStarted) {
+                    // No real drag happened: treat as click
+                    OnClick(name, isDirectory, X, Y);
+                }
                 ClickLock = false;
                 _mouseClickLatch = false;
             }
-            if (IndexClicked == i) {
-                int w = (int)(Icons.DocumentIcon(IconSize).Width * 1.5f);
-                Framebuffer.Graphics.AFillRectangle(X + ((Icons.DocumentIcon(IconSize).Width / 2) - (w / 2)), Y, w, Icons.DocumentIcon(IconSize).Height * 2, 0x7F2E86C1);
+            // Draw selection highlight (skip for icon being dragged, it draws separately)
+            if (IndexClicked == i && !(_iconDragging && _iconDragId == i && _iconDragStarted)) {
+                int w = (int)(iconW * 1.5f);
+                Framebuffer.Graphics.AFillRectangle(X + ((iconW / 2) - (w / 2)), Y, w, iconH * 2, 0x7F2E86C1);
             }
         }
         static bool ClickLock = false;
@@ -625,6 +772,9 @@ namespace guideXOS.GUI {
                 _dirCacheDirty = true;
                 IndexClicked = -1;
                 _scrollX = 0;
+                if (_customPosIds != null) _customPosIds.Clear();
+                if (_customPosX != null) _customPosX.Clear();
+                if (_customPosY != null) _customPosY.Clear();
                 return;
             }
             // Launch HD installer from desktop icon
@@ -670,6 +820,9 @@ namespace guideXOS.GUI {
                 _dirCacheDirty = true;
                 IndexClicked = -1;
                 _scrollX = 0;
+                if (_customPosIds != null) _customPosIds.Clear();
+                if (_customPosX != null) _customPosX.Clear();
+                if (_customPosY != null) _customPosY.Clear();
                 return;
             }
 
@@ -682,6 +835,9 @@ namespace guideXOS.GUI {
                 _dirCacheDirty = true;
                 IndexClicked = -1;
                 _scrollX = 0;
+                if (_customPosIds != null) _customPosIds.Clear();
+                if (_customPosX != null) _customPosX.Clear();
+                if (_customPosY != null) _customPosY.Clear();
             } else if (name.EndsWith(".png")) {
                 byte[] buffer = File.ReadAllBytes(path);
                 PNG png = new(buffer);

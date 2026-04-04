@@ -19,10 +19,10 @@ namespace guideXOS.OS {
         public static void Initialize() {
             if (_initialized) return;
             
-            Console.WriteLine("[CONFIG] Initializing configuration system...");
+            //Console.WriteLine("[CONFIG] Initializing configuration system...");
             
             if (SystemMode.IsLiveMode) {
-                Console.WriteLine("[CONFIG] LiveMode detected - settings will not be saved");
+                //Console.WriteLine("[CONFIG] LiveMode detected - settings will not be saved");
                 _initialized = true;
                 return;
             }
@@ -31,9 +31,9 @@ namespace guideXOS.OS {
             LoadConfiguration();
             
             _initialized = true;
-            Console.WriteLine("[CONFIG] Configuration system initialized");
+            //Console.WriteLine("[CONFIG] Configuration system initialized");
         }
-        
+
         /// <summary>
         /// Load all configuration from disk
         /// </summary>
@@ -66,7 +66,7 @@ namespace guideXOS.OS {
             try {
                 // Save UI settings
                 SaveUISettings();
-                Console.WriteLine("[CONFIG] Configuration saved to disk");
+                //Console.WriteLine("[CONFIG] Configuration saved to disk");
             } catch {
                 Console.WriteLine("[CONFIG] Error saving configuration");
             }
@@ -103,7 +103,7 @@ namespace guideXOS.OS {
                 }
                 
                 content.Dispose();
-                Console.WriteLine("[CONFIG] UI settings loaded");
+                //Console.WriteLine("[CONFIG] UI settings loaded");
             } catch {
                 Console.WriteLine("[CONFIG] Error loading UI settings");
             }

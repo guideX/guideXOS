@@ -24,14 +24,14 @@ namespace guideXOS.Diagnostics {
             _lastMemory = Allocator.MemoryInUse;
             _frameCount = 0;
             _lastLogTick = Timer.Ticks;
-            Console.WriteLine("[LeakDetector] Enabled - monitoring memory usage");
+            //Console.WriteLine("[LeakDetector] Enabled - monitoring memory usage");
         }
         
         public static void Disable() {
             _enabled = false;
-            Console.WriteLine("[LeakDetector] Disabled");
+            //Console.WriteLine("[LeakDetector] Disabled");
         }
-        
+
         /// <summary>
         /// Call at start of frame
         /// </summary>

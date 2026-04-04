@@ -99,10 +99,10 @@ namespace guideXOS.Misc {
                 // Booting from HDD - switch to system partition
                 Disk.Instance = IDE.Ports[0]; // Or SATA.Drives[0]
                 File.Instance = new FAT();
-                Console.WriteLine("[BOOT] Mounted /dev/sda2 as root");
+                //Console.WriteLine("[BOOT] Mounted /dev/sda2 as root");
             } else {
                 // Booting from USB/CD - use ramdisk
-                Console.WriteLine("[BOOT] Using ramdisk");
+                //Console.WriteLine("[BOOT] Using ramdisk");
             }
 
             // Initialize configuration system (only works when not in LiveMode)
@@ -115,11 +115,11 @@ namespace guideXOS.Misc {
         /// Detect and validate system architecture
         /// </summary>
         private static void DetectArchitecture() {
-            Console.WriteLine("=== Architecture Detection ===");
+            //Console.WriteLine("=== Architecture Detection ===");
             
             // 1. Pointer size check
             int ptrSize = sizeof(nint);
-            Console.WriteLine($"[ARCH] Pointer Size: {ptrSize} bytes ({(ptrSize == 8 ? "64-bit" : ptrSize == 4 ? "32-bit" : "Unknown")})");
+            //Console.WriteLine($"[ARCH] Pointer Size: {ptrSize} bytes ({(ptrSize == 8 ? "64-bit" : ptrSize == 4 ? "32-bit" : "Unknown")})");
 
             // 2. CPUID support check - COMMENTED OUT: Native cpuid functions not yet implemented
             // When you implement cpuid.cpp and link it, uncomment this section:
@@ -142,15 +142,15 @@ namespace guideXOS.Misc {
 
             // Simplified detection based on pointer size
             if (ptrSize == 8) {
-                Console.WriteLine("[ARCH] Running in 64-bit mode (AMD64)");
+                //Console.WriteLine("[ARCH] Running in 64-bit mode (AMD64)");
             } else if (ptrSize == 4) {
-                Console.WriteLine("[ARCH] Running in 32-bit mode");
+                //Console.WriteLine("[ARCH] Running in 32-bit mode");
             }
 
             // 3. Test pointer arithmetic integrity
             TestPointerIntegrity();
 
-            Console.WriteLine("=== Architecture Detection Complete ===");
+            //Console.WriteLine("=== Architecture Detection Complete ===");
         }
 
         /// <summary>
@@ -164,7 +164,7 @@ namespace guideXOS.Misc {
                 ulong recovered = (ulong)testPtr;
                 
                 if (recovered == testValue) {
-                    Console.WriteLine("[ARCH] Pointer integrity: PASS (64-bit pointers working)");
+                    //Console.WriteLine("[ARCH] Pointer integrity: PASS (64-bit pointers working)");
                 } else {
                     Panic.Error($"Pointer truncation detected! Expected 0x{testValue:X16}, got 0x{recovered:X16}");
                 }
