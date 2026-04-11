@@ -17,7 +17,7 @@ namespace guideXOS.OS {
         /// Key: mount point (e.g., "/mnt/fat32", "/mnt/ext4")
         /// Value: FileDisk instance
         /// </summary>
-        private static Dictionary<string, MountedVirtualDisk> _mountedDisks = new Dictionary<string, MountedVirtualDisk>(8);
+        private static Dictionary<string, MountedVirtualDisk> _mountedDisks = new Dictionary<string, MountedVirtualDisk>();
         
         private class MountedVirtualDisk {
             public string ImagePath;
@@ -62,16 +62,16 @@ namespace guideXOS.OS {
                 
                 string[] lines = content.Split('\n');
                 for (int i = 0; i < lines.Length; i++) {
-                    string line = lines[i].Trim();
+                    string line = TrimString(lines[i]);
                     
                     // Skip comments and empty lines
                     if (line.Length == 0 || line[0] == '#') continue;
                     
                     string[] parts = line.Split(':');
                     if (parts.Length >= 3) {
-                        string imagePath = parts[0].Trim();
-                        string mountPoint = parts[1].Trim();
-                        string fsType = parts[2].Trim();
+                        string imagePath = TrimString(parts[0]);
+                        string mountPoint = TrimString(parts[1]);
+                        string fsType = TrimString(parts[2]);
                         
                         MountVirtualDisk(imagePath, mountPoint, fsType);
                     }
@@ -220,8 +220,9 @@ namespace guideXOS.OS {
         public static List<string> GetMountedDisks() {
             var list = new List<string>(_mountedDisks.Count);
             
-            foreach (var kvp in _mountedDisks) {
-                list.Add(kvp.Key);
+            var keys = _mountedDisks.Keys;
+            for (int i = 0; i < keys.Count; i++) {
+                list.Add(keys[i]);
             }
             
             return list;
@@ -234,12 +235,14 @@ namespace guideXOS.OS {
         public static void SyncAll() {
             Console.WriteLine($"[AutoMount] Syncing {_mountedDisks.Count} virtual disks...");
             
-            foreach (var kvp in _mountedDisks) {
+            var keys = _mountedDisks.Keys;
+            for (int i = 0; i < keys.Count; i++) {
+                string key = keys[i];
                 try {
-                    kvp.Value.Disk.Sync();
-                    Console.WriteLine($"[AutoMount] Synced {kvp.Key}");
+                    _mountedDisks[key].Disk.Sync();
+                    Console.WriteLine($"[AutoMount] Synced {key}");
                 } catch {
-                    Console.WriteLine($"[AutoMount] Error syncing {kvp.Key}");
+                    Console.WriteLine($"[AutoMount] Error syncing {key}");
                 }
             }
             
@@ -286,6 +289,27 @@ namespace guideXOS.OS {
                 bytes[i] = (byte)str[i];
             }
             return bytes;
+        }
+        
+        // Helper to trim whitespace from string
+        private static string TrimString(string str) {
+            if (str.Length == 0) return str;
+            
+            int start = 0;
+            int end = str.Length - 1;
+            
+            // Trim from start
+            while (start < str.Length && (str[start] == ' ' || str[start] == '\t' || str[start] == '\r' || str[start] == '\n')) {
+                start++;
+            }
+            
+            // Trim from end
+            while (end >= start && (str[end] == ' ' || str[end] == '\t' || str[end] == '\r' || str[end] == '\n')) {
+                end--;
+            }
+            
+            if (start > end) return "";
+            return str.Substring(start, end - start + 1);
         }
     }
 }
