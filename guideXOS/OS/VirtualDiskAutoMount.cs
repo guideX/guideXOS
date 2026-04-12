@@ -89,25 +89,59 @@ namespace guideXOS.OS {
         /// Mount default disk images if they exist
         /// </summary>
         private static void MountDefaultImages() {
-            // Try to mount test images if they exist
-            Console.WriteLine("[AutoMount] Checking for /disks/test-fat32.img...");
-            if (File.Exists("/disks/test-fat32.img")) {
-                Console.WriteLine("[AutoMount] Found /disks/test-fat32.img, auto-mounting...");
-                MountVirtualDisk("/disks/test-fat32.img", "/mnt/fat32", "FAT32");
-            } else {
-                Console.WriteLine("[AutoMount] /disks/test-fat32.img not found on ramdisk");
+            // The ramdisk directory is "Disks" with capital D (not "disks")
+            // Try both possibilities for robustness
+            
+            string[] possiblePathsFat32 = new string[] {
+                "/Disks/test-fat32.img",  // Correct case - capital D
+                "/disks/test-fat32.img",  // lowercase (just in case)
+                "/ddDisks/test-fat32.img" // with dd prefix (some filesystems add this)
+            };
+            
+            bool fat32Mounted = false;
+            Console.WriteLine("[AutoMount] Checking for FAT32 test image...");
+            
+            for (int i = 0; i < possiblePathsFat32.Length; i++) {
+                if (File.Exists(possiblePathsFat32[i])) {
+                    Console.WriteLine("[AutoMount] Found " + possiblePathsFat32[i] + ", auto-mounting...");
+                    if (MountVirtualDisk(possiblePathsFat32[i], "/mnt/fat32", "FAT32")) {
+                        fat32Mounted = true;
+                        break;
+                    }
+                }
             }
             
-            Console.WriteLine("[AutoMount] Checking for /disks/test-ext4.img...");
-            if (File.Exists("/disks/test-ext4.img")) {
-                Console.WriteLine("[AutoMount] Found /disks/test-ext4.img, auto-mounting...");
-                MountVirtualDisk("/disks/test-ext4.img", "/mnt/ext4", "EXT4");
-            } else {
-                Console.WriteLine("[AutoMount] /disks/test-ext4.img not found on ramdisk");
+            if (!fat32Mounted) {
+                Console.WriteLine("[AutoMount] test-fat32.img not found (tried /Disks/, /disks/, /ddDisks/)");
             }
             
-            Console.WriteLine("[AutoMount] Tip: Include .img files in your ramdisk/initrd to auto-mount at boot");
-            Console.WriteLine("[AutoMount] Or use 'vfsmount' command to manually mount images from the ramdisk");
+            string[] possiblePathsExt4 = new string[] {
+                "/Disks/test-ext4.img",   // Correct case - capital D
+                "/disks/test-ext4.img",   // lowercase (just in case)
+                "/ddDisks/test-ext4.img"  // with dd prefix (some filesystems add this)
+            };
+            
+            bool ext4Mounted = false;
+            Console.WriteLine("[AutoMount] Checking for EXT4 test image...");
+            
+            for (int i = 0; i < possiblePathsExt4.Length; i++) {
+                if (File.Exists(possiblePathsExt4[i])) {
+                    Console.WriteLine("[AutoMount] Found " + possiblePathsExt4[i] + ", auto-mounting...");
+                    if (MountVirtualDisk(possiblePathsExt4[i], "/mnt/ext4", "EXT4")) {
+                        ext4Mounted = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (!ext4Mounted) {
+                Console.WriteLine("[AutoMount] test-ext4.img not found (tried /Disks/, /disks/, /ddDisks/)");
+            }
+            
+            if (!fat32Mounted && !ext4Mounted) {
+                Console.WriteLine("[AutoMount] Tip: Check 'ls /' to see available directories");
+                Console.WriteLine("[AutoMount] Or use 'vfsmount' command to manually mount images");
+            }
         }
         
         /// <summary>
@@ -265,14 +299,14 @@ namespace guideXOS.OS {
             string config = "# Virtual Disk Auto-Mount Configuration\n";
             config += "# Format: <image_path>:<mount_point>:<fs_type>\n";
             config += "# \n";
-            config += "# Example entries:\n";
-            config += "# /disks/test-fat32.img:/mnt/fat32:FAT32\n";
-            config += "# /disks/test-ext4.img:/mnt/ext4:EXT4\n";
-            config += "# /disks/data.img:/mnt/data:FAT32\n";
+            config += "# Example entries (note: use capital D in /Disks/):\n";
+            config += "# /Disks/test-fat32.img:/mnt/fat32:FAT32\n";
+            config += "# /Disks/test-ext4.img:/mnt/ext4:EXT4\n";
+            config += "# /Disks/data.img:/mnt/data:FAT32\n";
             config += "\n";
             config += "# Default auto-mount entries:\n";
-            config += "/disks/test-fat32.img:/mnt/fat32:FAT32\n";
-            config += "/disks/test-ext4.img:/mnt/ext4:EXT4\n";
+            config += "/Disks/test-fat32.img:/mnt/fat32:FAT32\n";
+            config += "/Disks/test-ext4.img:/mnt/ext4:EXT4\n";
             
             try {
                 byte[] data = GetBytesFromString(config);
