@@ -26,3 +26,13 @@
 /ESP/ramdisk.img
 /guideXOSBootLoader/guideXOS.1fedf2ad
 /Tools/grub2/boot/ramdisk.tar
+/Extras/guideXOS.Web/bin
+/Extras/guideXOS.Web/obj
+/Extras/guideXOS.WinPETestApp/.vs
+/Extras/guideXOS.WinPETestApp/x64
+/Extras/Installer/obj
+/Extras/Installer/bin
+/Extras/MediaCreator.Linux/obj
+/Extras/MediaCreator.Linux/bin
+/Extras/MediaCreator.Windows/obj
+/Extras/MediaCreator.Windows/bin
