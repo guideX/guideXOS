@@ -648,7 +648,7 @@ namespace guideXOS.FS {
             ZeroCluster(newc);
             // first entry of new cluster
             slot.Found = true; slot.Cluster = newc; slot.RootFixed = false; slot.LBA = FirstSectorOfCluster(newc); slot.Index = 0;
-        }
+        } 
 
         public override List<FileInfo> GetFiles(string Directory) {
             // Normalize Directory to have trailing '/'
@@ -928,8 +928,14 @@ namespace guideXOS.FS {
                 fsInfo[1] = (byte)'R';
                 fsInfo[2] = (byte)'a';
                 fsInfo[3] = (byte)'A';
-                fsInfo[484] = 0xFF; fsInfo[485] = 0xFF; fsInfo[486] = 0xFF; fsInfo[487] = 0xFF;
-                fsInfo[488] = 0xFF; fsInfo[489] = 0xFF; fsInfo[490] = 0xFF; fsInfo[491] = 0xFF;
+                fsInfo[484] = 0xFF; 
+                fsInfo[485] = 0xFF; 
+                fsInfo[486] = 0xFF; 
+                fsInfo[487] = 0xFF;
+                fsInfo[488] = 0xFF; 
+                fsInfo[489] = 0xFF; 
+                fsInfo[490] = 0xFF; 
+                fsInfo[491] = 0xFF;
                 fsInfo[510] = 0x55;
                 fsInfo[511] = 0xAA;
                 WriteSector(1, fsInfo);
