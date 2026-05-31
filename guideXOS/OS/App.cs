@@ -44,6 +44,83 @@ namespace guideXOS.OS {
     }
 
     /// <summary>
+    /// File association descriptor for Legacy compatibility.
+    /// </summary>
+    public class FileAssociationDescriptor {
+        public string Extension { get; set; }
+        public string AppId { get; set; }
+        public string DispatchName { get; set; }
+        public AppKind Kind { get; set; }
+    }
+
+    /// <summary>
+    /// Result of resolving a file association.
+    /// </summary>
+    public class FileAssociationResolution {
+        public bool Success { get; set; }
+        public string Extension { get; set; }
+        public string AppId { get; set; }
+        public string DispatchName { get; set; }
+        public AppKind Kind { get; set; }
+        public string FailureReason { get; set; }
+    }
+
+    /// <summary>
+    /// File association registry for the app-model compatibility layer.
+    /// </summary>
+    public static class FileAssociationRegistry {
+        private static List<FileAssociationDescriptor> _descriptors;
+
+        public static void InitializeDefaultAssociations() {
+            if (_descriptors != null) return;
+            _descriptors = new List<FileAssociationDescriptor>();
+        }
+
+        public static FileAssociationResolution Resolve(string extension) {
+            InitializeDefaultAssociations();
+            string normalized = NormalizeExtension(extension);
+            var result = new FileAssociationResolution {
+                Extension = normalized,
+                Kind = AppKind.Unknown,
+                Success = false
+            };
+
+            if (string.IsNullOrEmpty(normalized)) {
+                result.FailureReason = "Empty extension";
+                return result;
+            }
+
+            for (int i = 0; i < _descriptors.Count; i++) {
+                var d = _descriptors[i];
+                if (d.Extension == normalized) {
+                    result.Success = true;
+                    result.Extension = d.Extension;
+                    result.AppId = d.AppId;
+                    result.DispatchName = d.DispatchName;
+                    result.Kind = d.Kind;
+                    return result;
+                }
+            }
+
+            result.FailureReason = "No matching file association";
+            return result;
+        }
+
+        private static string NormalizeExtension(string extension) {
+            if (string.IsNullOrEmpty(extension)) return extension;
+            string value = extension;
+            if (value[0] != '.') value = "." + value;
+            char[] chars = new char[value.Length];
+            for (int i = 0; i < value.Length; i++) {
+                char c = value[i];
+                if (c >= 'A' && c <= 'Z') c = (char)(c + 32);
+                chars[i] = c;
+            }
+            return new string(chars);
+        }
+    }
+
+    /// <summary>
     /// Compatibility resolver for app IDs and legacy names.
     /// </summary>
     public static class AppLaunchResolver {
