@@ -48,6 +48,7 @@ namespace guideXOS.OS {
     /// </summary>
     public static class AppLaunchResolver {
         private static List<AppDescriptor> _descriptors;
+        public static bool EnableResolutionDiagnostics;
 
         public static void InitializeDefaultDescriptors() {
             if (_descriptors != null) return;
@@ -128,6 +129,69 @@ namespace guideXOS.OS {
 
             result.FailureReason = "No matching app descriptor";
             return result;
+        }
+
+        public static bool RunSelfTest() {
+            InitializeDefaultDescriptors();
+
+            int passed = 0;
+            int failed = 0;
+            string failure = null;
+
+            Check("gxos.builtin.notepad", "gxos.builtin.notepad", "Notepad", "Notepad", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.calculator", "gxos.builtin.calculator", "Calculator", "Calculator", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.files", "gxos.builtin.files", "Computer Files", "Computer Files", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.console", "gxos.builtin.console", "Console", "Console", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.taskmanager", "gxos.builtin.taskmanager", "Task Manager", "Task Manager", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.diskmanager", "gxos.builtin.diskmanager", "Disk Manager", "Disk Manager", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.imageviewer", "gxos.builtin.imageviewer", "Image Viewer", "Image Viewer", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+            Check("gxos.builtin.wavplayer", "gxos.builtin.wavplayer", "WAV Player", "WAV Player", AppKind.BuiltInApp, false, ref passed, ref failed, ref failure);
+
+            Check("Notepad", "gxos.builtin.notepad", "Notepad", "Notepad", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Calculator", "gxos.builtin.calculator", "Calculator", "Calculator", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Computer Files", "gxos.builtin.files", "Computer Files", "Computer Files", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Console", "gxos.builtin.console", "Console", "Console", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Task Manager", "gxos.builtin.taskmanager", "Task Manager", "Task Manager", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Disk Manager", "gxos.builtin.diskmanager", "Disk Manager", "Disk Manager", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("Image Viewer", "gxos.builtin.imageviewer", "Image Viewer", "Image Viewer", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+            Check("WAV Player", "gxos.builtin.wavplayer", "WAV Player", "WAV Player", AppKind.LegacyAlias, true, ref passed, ref failed, ref failure);
+
+            CheckFailure("Definitely Not A Real App", ref passed, ref failed, ref failure);
+            CheckFailure("gxos.builtin.notreal", ref passed, ref failed, ref failure);
+
+            if (failure != null) {
+                TryEmitSelfTestSummary(passed, failed, failure);
+                return false;
+            }
+
+            TryEmitSelfTestSummary(passed, failed, null);
+            return true;
+
+            void Check(string input, string expectedId, string expectedDisplay, string expectedDispatch, AppKind expectedKind, bool expectAlias, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(input);
+                if (!r.Success) { if (failureMessage == null) failureMessage = "input=" + input + " reason=" + (r.FailureReason ?? "<none>"); failedCount++; return; }
+                if (r.AppId != expectedId) { if (failureMessage == null) failureMessage = "input=" + input + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedId; failedCount++; return; }
+                if (r.DispatchName != expectedDispatch) { if (failureMessage == null) failureMessage = "input=" + input + " dispatchName=" + (r.DispatchName ?? "<null>") + " expected=" + expectedDispatch; failedCount++; return; }
+                if (string.IsNullOrEmpty(r.DisplayName)) { if (failureMessage == null) failureMessage = "input=" + input + " displayName empty"; failedCount++; return; }
+                if (r.ResolvedKind != expectedKind && !(expectedKind == AppKind.LegacyAlias && r.ResolvedKind == AppKind.BuiltInApp)) { if (failureMessage == null) failureMessage = "input=" + input + " kind=" + r.ResolvedKind + " expected=" + expectedKind; failedCount++; return; }
+                if (expectAlias && string.IsNullOrEmpty(r.MatchedAlias)) { if (failureMessage == null) failureMessage = "input=" + input + " alias missing"; failedCount++; return; }
+                passedCount++;
+            }
+
+            void CheckFailure(string input, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(input);
+                if (r.Success) { if (failureMessage == null) failureMessage = "input=" + input + " unexpectedly succeeded"; failedCount++; return; }
+                if (string.IsNullOrEmpty(r.FailureReason)) { if (failureMessage == null) failureMessage = "input=" + input + " missing failure reason"; failedCount++; return; }
+                passedCount++;
+            }
+        }
+
+        private static void TryEmitSelfTestSummary(int passed, int failed, string failure) {
+            if (EnableResolutionDiagnostics) {
+                try {
+                    NotificationManager.Add(new Notify("AppModelSmoke: passed=" + passed + " failed=" + failed + (failure != null ? " " + failure : "")));
+                } catch { }
+            }
         }
     }
 
@@ -241,9 +305,11 @@ namespace guideXOS.OS {
             guideXOS.GUI.NotificationManager.Add(new Notify("Loading App: " + name));
             var resolution = AppLaunchResolver.Resolve(name);
             string dispatchName = resolution.Success ? resolution.DispatchName : name;
-            try {
-                guideXOS.GUI.NotificationManager.Add(new Notify("input=" + name + " resolvedAppId=" + (resolution.AppId ?? "") + " resolvedKind=" + resolution.ResolvedKind + " dispatchName=" + (dispatchName ?? "") + " success=" + resolution.Success));
-            } catch { }
+            if (AppLaunchResolver.EnableResolutionDiagnostics) {
+                try {
+                    guideXOS.GUI.NotificationManager.Add(new Notify("input=" + name + " resolvedAppId=" + (resolution.AppId ?? "") + " resolvedKind=" + resolution.ResolvedKind + " dispatchName=" + (dispatchName ?? "") + " success=" + resolution.Success));
+                } catch { }
+            }
             for (int i = 0; i < _apps.Count; i++) {
                 if (_apps[i].Name == dispatchName) {
                     switch (dispatchName) {
