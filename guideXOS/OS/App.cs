@@ -44,12 +44,55 @@ namespace guideXOS.OS {
     }
 
     /// <summary>
+    /// Kind of shell object resolved by the compatibility registry.
+    /// </summary>
+    public enum ShellObjectKind {
+        BuiltInApp,
+        FileSystemLocation,
+        DeviceVolume,
+        SystemAction,
+        Unknown
+    }
+
+    /// <summary>
+    /// Shell object descriptor used by the compatibility registry.
+    /// </summary>
+    public class ShellObjectDescriptor {
+        public string ShellId { get; set; }
+        public string DisplayName { get; set; }
+        public ShellObjectKind Kind { get; set; }
+        public string AppId { get; set; }
+        public string DispatchName { get; set; }
+        public string Path { get; set; }
+        public string DeviceName { get; set; }
+        public string ActionName { get; set; }
+        public string[] LegacyAliases { get; set; }
+    }
+
+    /// <summary>
+    /// Result of resolving a shell object.
+    /// </summary>
+    public class ShellObjectResolution {
+        public bool Success { get; set; }
+        public string Input { get; set; }
+        public string ShellId { get; set; }
+        public string DisplayName { get; set; }
+        public ShellObjectKind Kind { get; set; }
+        public string AppId { get; set; }
+        public string DispatchName { get; set; }
+        public string Path { get; set; }
+        public string DeviceName { get; set; }
+        public string ActionName { get; set; }
+        public string MatchedAlias { get; set; }
+        public string FailureReason { get; set; }
+    }
+
+    /// <summary>
     /// File association descriptor for Legacy compatibility.
     /// </summary>
     public class FileAssociationDescriptor {
         public string Extension { get; set; }
         public string AppId { get; set; }
-        public string DispatchName { get; set; }
         public AppKind Kind { get; set; }
     }
 
@@ -60,6 +103,7 @@ namespace guideXOS.OS {
         public bool Success { get; set; }
         public string Extension { get; set; }
         public string AppId { get; set; }
+        public string DisplayName { get; set; }
         public string DispatchName { get; set; }
         public AppKind Kind { get; set; }
         public string FailureReason { get; set; }
@@ -74,19 +118,18 @@ namespace guideXOS.OS {
         public static void InitializeDefaultAssociations() {
             if (_descriptors != null) return;
             _descriptors = new List<FileAssociationDescriptor>();
-            Register(".txt", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation);
-            Register(".png", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation);
-            Register(".bmp", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation);
-            Register(".wav", "gxos.builtin.wavplayer", "WAV Player", AppKind.FileAssociation);
-            Register(".gxm", null, null, AppKind.GxmApp);
-            Register(".mue", null, null, AppKind.GxmApp);
+            Register(".txt", "gxos.builtin.notepad", AppKind.FileAssociation);
+            Register(".png", "gxos.builtin.imageviewer", AppKind.FileAssociation);
+            Register(".bmp", "gxos.builtin.imageviewer", AppKind.FileAssociation);
+            Register(".wav", "gxos.builtin.wavplayer", AppKind.FileAssociation);
+            Register(".gxm", null, AppKind.GxmApp);
+            Register(".mue", null, AppKind.GxmApp);
         }
 
-        private static void Register(string extension, string appId, string dispatchName, AppKind kind) {
+        private static void Register(string extension, string appId, AppKind kind) {
             _descriptors.Add(new FileAssociationDescriptor {
                 Extension = NormalizeExtension(extension),
                 AppId = appId,
-                DispatchName = dispatchName,
                 Kind = kind
             });
         }
@@ -108,10 +151,26 @@ namespace guideXOS.OS {
             for (int i = 0; i < _descriptors.Count; i++) {
                 var d = _descriptors[i];
                 if (d.Extension == normalized) {
+                    if (d.Kind == AppKind.FileAssociation && !string.IsNullOrEmpty(d.AppId)) {
+                        if (!AppLaunchResolver.TryGetDescriptorByAppId(d.AppId, out AppDescriptor appDescriptor)) {
+                            result.FailureReason = "No matching app descriptor for association";
+                            return result;
+                        }
+
+                        result.Success = true;
+                        result.Extension = d.Extension;
+                        result.AppId = appDescriptor.AppId;
+                        result.DisplayName = appDescriptor.DisplayName;
+                        result.DispatchName = appDescriptor.DispatchName;
+                        result.Kind = d.Kind;
+                        return result;
+                    }
+
                     result.Success = true;
                     result.Extension = d.Extension;
                     result.AppId = d.AppId;
-                    result.DispatchName = d.DispatchName;
+                    result.DisplayName = null;
+                    result.DispatchName = null;
                     result.Kind = d.Kind;
                     return result;
                 }
@@ -149,33 +208,45 @@ namespace guideXOS.OS {
             int failed = 0;
             string failure = null;
 
-            Check(".txt", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation, ref passed, ref failed, ref failure);
-            Check(".TXT", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation, ref passed, ref failed, ref failure);
-            Check(".png", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation, ref passed, ref failed, ref failure);
-            Check(".bmp", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation, ref passed, ref failed, ref failure);
-            Check(".wav", "gxos.builtin.wavplayer", "WAV Player", AppKind.FileAssociation, ref passed, ref failed, ref failure);
-            Check(".gxm", null, null, AppKind.GxmApp, ref passed, ref failed, ref failure);
-            Check(".mue", null, null, AppKind.GxmApp, ref passed, ref failed, ref failure);
-            CheckFailure(".unknown", ref passed, ref failed, ref failure);
+            if (ValidateAssociationDerived(".txt", "gxos.builtin.notepad", AppKind.FileAssociation, ref failure)) passed++; else failed++;
+            if (ValidateAssociationDerived(".TXT", "gxos.builtin.notepad", AppKind.FileAssociation, ref failure)) passed++; else failed++;
+            if (ValidateAssociationDerived(".png", "gxos.builtin.imageviewer", AppKind.FileAssociation, ref failure)) passed++; else failed++;
+            if (ValidateAssociationDerived(".bmp", "gxos.builtin.imageviewer", AppKind.FileAssociation, ref failure)) passed++; else failed++;
+            if (ValidateAssociationDerived(".wav", "gxos.builtin.wavplayer", AppKind.FileAssociation, ref failure)) passed++; else failed++;
+            if (ValidateAssociation(".gxm", null, null, null, AppKind.GxmApp, ref failure)) passed++; else failed++;
+            if (ValidateAssociation(".mue", null, null, null, AppKind.GxmApp, ref failure)) passed++; else failed++;
+            if (ValidateAssociationFailure(".unknown", ref failure)) passed++; else failed++;
 
             TryEmitSelfTestSummary(passed, failed, failure);
             return failed == 0;
+        }
 
-            void Check(string extension, string expectedAppId, string expectedDispatch, AppKind expectedKind, ref int passedCount, ref int failedCount, ref string failureMessage) {
-                var r = Resolve(extension);
-                if (!r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " reason=" + (r.FailureReason ?? "<none>"); failedCount++; return; }
-                if (r.Kind != expectedKind) { if (failureMessage == null) failureMessage = "extension=" + extension + " kind=" + r.Kind + " expected=" + expectedKind; failedCount++; return; }
-                if (expectedAppId != null && r.AppId != expectedAppId) { if (failureMessage == null) failureMessage = "extension=" + extension + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedAppId; failedCount++; return; }
-                if (expectedDispatch != null && r.DispatchName != expectedDispatch) { if (failureMessage == null) failureMessage = "extension=" + extension + " dispatchName=" + (r.DispatchName ?? "<null>") + " expected=" + expectedDispatch; failedCount++; return; }
-                passedCount++;
-            }
+        private static bool ValidateAssociation(string extension, string expectedAppId, string expectedDisplay, string expectedDispatch, AppKind expectedKind, ref string failureMessage) {
+            var r = Resolve(extension);
+            if (!r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " reason=" + (r.FailureReason ?? "<none>"); return false; }
+            if (r.Kind != expectedKind) { if (failureMessage == null) failureMessage = "extension=" + extension + " kind=" + r.Kind + " expected=" + expectedKind; return false; }
+            if (expectedAppId != null && r.AppId != expectedAppId) { if (failureMessage == null) failureMessage = "extension=" + extension + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedAppId; return false; }
+            if (expectedDisplay != null && r.DisplayName != expectedDisplay) { if (failureMessage == null) failureMessage = "extension=" + extension + " displayName=" + (r.DisplayName ?? "<null>") + " expected=" + expectedDisplay; return false; }
+            if (expectedDispatch != null && r.DispatchName != expectedDispatch) { if (failureMessage == null) failureMessage = "extension=" + extension + " dispatchName=" + (r.DispatchName ?? "<null>") + " expected=" + expectedDispatch; return false; }
+            return true;
+        }
 
-            void CheckFailure(string extension, ref int passedCount, ref int failedCount, ref string failureMessage) {
-                var r = Resolve(extension);
-                if (r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " unexpectedly succeeded"; failedCount++; return; }
-                if (string.IsNullOrEmpty(r.FailureReason)) { if (failureMessage == null) failureMessage = "extension=" + extension + " missing failure reason"; failedCount++; return; }
-                passedCount++;
-            }
+        private static bool ValidateAssociationDerived(string extension, string expectedAppId, AppKind expectedKind, ref string failureMessage) {
+            var r = Resolve(extension);
+            if (!r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " reason=" + (r.FailureReason ?? "<none>"); return false; }
+            if (r.Kind != expectedKind) { if (failureMessage == null) failureMessage = "extension=" + extension + " kind=" + r.Kind + " expected=" + expectedKind; return false; }
+            if (r.AppId != expectedAppId) { if (failureMessage == null) failureMessage = "extension=" + extension + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedAppId; return false; }
+            if (!AppLaunchResolver.TryGetDescriptorByAppId(expectedAppId, out AppDescriptor descriptor)) { if (failureMessage == null) failureMessage = "extension=" + extension + " missing app descriptor"; return false; }
+            if (r.DisplayName != descriptor.DisplayName) { if (failureMessage == null) failureMessage = "extension=" + extension + " displayName=" + (r.DisplayName ?? "<null>") + " expected=" + descriptor.DisplayName; return false; }
+            if (r.DispatchName != descriptor.DispatchName) { if (failureMessage == null) failureMessage = "extension=" + extension + " dispatchName=" + (r.DispatchName ?? "<null>") + " expected=" + descriptor.DispatchName; return false; }
+            return true;
+        }
+
+        private static bool ValidateAssociationFailure(string extension, ref string failureMessage) {
+            var r = Resolve(extension);
+            if (r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " unexpectedly succeeded"; return false; }
+            if (string.IsNullOrEmpty(r.FailureReason)) { if (failureMessage == null) failureMessage = "extension=" + extension + " missing failure reason"; return false; }
+            return true;
         }
 
         private static void TryEmitSelfTestSummary(int passed, int failed, string failure) {
@@ -197,6 +268,162 @@ namespace guideXOS.OS {
                 chars[i] = c;
             }
             return new string(chars);
+        }
+    }
+
+    /// <summary>
+    /// Shell object registry for Legacy compatibility.
+    /// </summary>
+    public static class ShellObjectRegistry {
+        private static List<ShellObjectDescriptor> _descriptors;
+
+        public static void InitializeDefaultShellObjects() {
+            if (_descriptors != null) return;
+            _descriptors = new List<ShellObjectDescriptor>();
+
+            AppLaunchResolver.InitializeDefaultDescriptors();
+            if (AppLaunchResolver.TryGetDescriptorByAppId("gxos.builtin.files", out AppDescriptor filesDescriptor)) {
+                Register(new ShellObjectDescriptor {
+                    ShellId = "gxos.shell.computerfiles",
+                    DisplayName = filesDescriptor.DisplayName,
+                    Kind = ShellObjectKind.BuiltInApp,
+                    AppId = filesDescriptor.AppId,
+                    DispatchName = filesDescriptor.DispatchName,
+                    LegacyAliases = new string[] { "Computer Files" }
+                });
+            }
+
+            Register(new ShellObjectDescriptor {
+                ShellId = "gxos.shell.root",
+                DisplayName = "Root",
+                Kind = ShellObjectKind.FileSystemLocation,
+                Path = "",
+                LegacyAliases = new string[] { "Root" }
+            });
+
+            Register(new ShellObjectDescriptor {
+                ShellId = "gxos.shell.usbdrive",
+                DisplayName = "USB Drive",
+                Kind = ShellObjectKind.DeviceVolume,
+                DeviceName = "USB Drive",
+                LegacyAliases = new string[] { "USB Drive" }
+            });
+
+            Register(new ShellObjectDescriptor {
+                ShellId = "gxos.shell.installtoharddrive",
+                DisplayName = "Install to Hard Drive",
+                Kind = ShellObjectKind.SystemAction,
+                ActionName = "HDInstaller",
+                DispatchName = "HDInstaller",
+                LegacyAliases = new string[] { "Install to Hard Drive" }
+            });
+        }
+
+        private static void Register(ShellObjectDescriptor descriptor) {
+            if (descriptor == null) return;
+            _descriptors.Add(descriptor);
+        }
+
+        public static ShellObjectResolution Resolve(string input) {
+            InitializeDefaultShellObjects();
+            var result = new ShellObjectResolution {
+                Input = input,
+                Kind = ShellObjectKind.Unknown,
+                Success = false
+            };
+
+            if (string.IsNullOrEmpty(input)) {
+                result.FailureReason = "Empty input";
+                return result;
+            }
+
+            for (int i = 0; i < _descriptors.Count; i++) {
+                var d = _descriptors[i];
+                if (MatchesShellAlias(d, input, out string matchedAlias)) {
+                    result.Success = true;
+                    result.ShellId = d.ShellId;
+                    result.DisplayName = d.DisplayName;
+                    result.Kind = d.Kind;
+                    result.AppId = d.AppId;
+                    result.DispatchName = d.DispatchName;
+                    result.Path = d.Path;
+                    result.DeviceName = d.Kind == ShellObjectKind.DeviceVolume ? input : d.DeviceName;
+                    result.ActionName = d.ActionName;
+                    result.MatchedAlias = matchedAlias;
+                    return result;
+                }
+            }
+
+            result.FailureReason = "No matching shell object";
+            return result;
+        }
+
+        private static bool MatchesShellAlias(ShellObjectDescriptor descriptor, string input, out string matchedAlias) {
+            matchedAlias = null;
+            if (descriptor == null || descriptor.LegacyAliases == null) return false;
+            for (int i = 0; i < descriptor.LegacyAliases.Length; i++) {
+                string alias = descriptor.LegacyAliases[i];
+                if (alias == null) continue;
+                if (alias == input) {
+                    matchedAlias = alias;
+                    return true;
+                }
+                if (descriptor.Kind == ShellObjectKind.DeviceVolume && StartsWith(input, alias)) {
+                    matchedAlias = alias;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool StartsWith(string value, string prefix) {
+            if (value == null || prefix == null || value.Length < prefix.Length) return false;
+            for (int i = 0; i < prefix.Length; i++) {
+                if (value[i] != prefix[i]) return false;
+            }
+            return true;
+        }
+
+        public static bool RunSelfTest() {
+            InitializeDefaultShellObjects();
+
+            int passed = 0;
+            int failed = 0;
+            string failure = null;
+
+            Check("Computer Files", ShellObjectKind.BuiltInApp, "gxos.builtin.files", null, null, "Computer Files", ref passed, ref failed, ref failure);
+            Check("Root", ShellObjectKind.FileSystemLocation, null, "", null, "Root", ref passed, ref failed, ref failure);
+            Check("Install to Hard Drive", ShellObjectKind.SystemAction, null, null, "HDInstaller", "Install to Hard Drive", ref passed, ref failed, ref failure);
+            CheckFailure("Definitely Not A Real Shell Object", ref passed, ref failed, ref failure);
+
+            TryEmitSelfTestSummary(passed, failed, failure);
+            return failed == 0;
+
+            void Check(string input, ShellObjectKind expectedKind, string expectedAppId, string expectedPath, string expectedAction, string expectedDisplay, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(input);
+                if (!r.Success) { if (failureMessage == null) failureMessage = "input=" + input + " reason=" + (r.FailureReason ?? "<none>"); failedCount++; return; }
+                if (r.Kind != expectedKind) { if (failureMessage == null) failureMessage = "input=" + input + " kind=" + r.Kind + " expected=" + expectedKind; failedCount++; return; }
+                if (expectedAppId != null && r.AppId != expectedAppId) { if (failureMessage == null) failureMessage = "input=" + input + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedAppId; failedCount++; return; }
+                if (expectedPath != null && r.Path != expectedPath) { if (failureMessage == null) failureMessage = "input=" + input + " path=" + (r.Path ?? "<null>") + " expected=" + expectedPath; failedCount++; return; }
+                if (expectedAction != null && r.ActionName != expectedAction) { if (failureMessage == null) failureMessage = "input=" + input + " actionName=" + (r.ActionName ?? "<null>") + " expected=" + expectedAction; failedCount++; return; }
+                if (string.IsNullOrEmpty(r.DisplayName)) { if (failureMessage == null) failureMessage = "input=" + input + " displayName empty"; failedCount++; return; }
+                passedCount++;
+            }
+
+            void CheckFailure(string input, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(input);
+                if (r.Success) { if (failureMessage == null) failureMessage = "input=" + input + " unexpectedly succeeded"; failedCount++; return; }
+                if (string.IsNullOrEmpty(r.FailureReason)) { if (failureMessage == null) failureMessage = "input=" + input + " missing failure reason"; failedCount++; return; }
+                passedCount++;
+            }
+        }
+
+        private static void TryEmitSelfTestSummary(int passed, int failed, string failure) {
+            if (AppLaunchResolver.EnableResolutionDiagnostics) {
+                try {
+                    NotificationManager.Add(new Notify("ShellObjectSmoke: passed=" + passed + " failed=" + failed + (failure != null ? " " + failure : "")));
+                } catch { }
+            }
         }
     }
 
@@ -248,17 +475,17 @@ namespace guideXOS.OS {
                 return result;
             }
 
+            if (TryGetDescriptorByAppId(input, out AppDescriptor directDescriptor)) {
+                result.Success = true;
+                result.AppId = directDescriptor.AppId;
+                result.DisplayName = directDescriptor.DisplayName;
+                result.DispatchName = directDescriptor.DispatchName;
+                result.ResolvedKind = directDescriptor.Kind;
+                return result;
+            }
+
             for (int i = 0; i < _descriptors.Count; i++) {
                 var d = _descriptors[i];
-                if (d.AppId == input) {
-                    result.Success = true;
-                    result.AppId = d.AppId;
-                    result.DisplayName = d.DisplayName;
-                    result.DispatchName = d.DispatchName;
-                    result.ResolvedKind = d.Kind;
-                    return result;
-                }
-
                 if (d.LegacyAliases != null) {
                     for (int a = 0; a < d.LegacyAliases.Length; a++) {
                         if (d.LegacyAliases[a] == input) {
@@ -286,6 +513,34 @@ namespace guideXOS.OS {
 
             result.FailureReason = "No matching app descriptor";
             return result;
+        }
+
+        public static bool TryGetDescriptorByAppId(string appId, out AppDescriptor descriptor) {
+            InitializeDefaultDescriptors();
+            descriptor = null;
+            if (string.IsNullOrEmpty(appId)) return false;
+
+            for (int i = 0; i < _descriptors.Count; i++) {
+                var d = _descriptors[i];
+                if (StringEqualsIgnoreCase(d.AppId, appId)) {
+                    descriptor = d;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool StringEqualsIgnoreCase(string a, string b) {
+            if (a == null || b == null || a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++) {
+                char ca = a[i];
+                char cb = b[i];
+                if (ca >= 'A' && ca <= 'Z') ca = (char)(ca + 32);
+                if (cb >= 'A' && cb <= 'Z') cb = (char)(cb + 32);
+                if (ca != cb) return false;
+            }
+            return true;
         }
 
         public static bool RunSelfTest() {

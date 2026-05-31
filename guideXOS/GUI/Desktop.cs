@@ -774,8 +774,9 @@ namespace guideXOS.GUI {
         /// <param name="itemY"></param>
         public static void OnClick(string name, bool isDirectory, int itemX, int itemY) {
             ClickLock = true;
+            var shellObject = ShellObjectRegistry.Resolve(name);
             // Special desktop controls
-            if (name == "Root" && HomeMode) {
+            if (shellObject.Success && shellObject.Kind == ShellObjectKind.FileSystemLocation && HomeMode) {
                 HomeMode = false;
                 _dirCacheDirty = true;
                 IndexClicked = -1;
@@ -786,14 +787,14 @@ namespace guideXOS.GUI {
                 return;
             }
             // Launch HD installer from desktop icon
-            if (name == "Install to Hard Drive" && HomeMode) {
+            if (shellObject.Success && shellObject.Kind == ShellObjectKind.SystemAction && HomeMode) {
                 var installer = new guideXOS.DefaultApps.HDInstaller(itemX + 60, itemY + 60);
                 WindowManager.MoveToEnd(installer);
                 installer.Visible = true;
                 IndexClicked = -1;
                 return;
             }
-            if (name == "Computer Files" && HomeMode) {
+            if (shellObject.Success && shellObject.Kind == ShellObjectKind.BuiltInApp && shellObject.AppId == "gxos.builtin.files" && HomeMode) {
                 // Always create a new ComputerFiles window (old one may have been disposed on close)
                 compFiles = new ComputerFiles(300, 200, 540, 380);
                 WindowManager.MoveToEnd(compFiles);
@@ -801,18 +802,7 @@ namespace guideXOS.GUI {
             }
             // Click on USB drive icon opens Computer Files too (when on Home desktop)
             if (HomeMode) {
-                string usbPrefix = "USB Drive";
-                bool isUsb = name.Length >= usbPrefix.Length;
-                if (isUsb) {
-                    for (int pi = 0; pi < usbPrefix.Length; pi++) {
-                        if (name[pi] != usbPrefix[pi]) {
-                            isUsb = false;
-                            break;
-                        }
-                    }
-                }
-                // FIXED: NEVER dispose string literals - they are constants!
-                if (isUsb) {
+                if (shellObject.Success && shellObject.Kind == ShellObjectKind.DeviceVolume) {
                     // Always create a new ComputerFiles window (old one may have been disposed)
                     compFiles = new ComputerFiles(300, 200, 540, 380);
                     WindowManager.MoveToEnd(compFiles);
