@@ -74,6 +74,21 @@ namespace guideXOS.OS {
         public static void InitializeDefaultAssociations() {
             if (_descriptors != null) return;
             _descriptors = new List<FileAssociationDescriptor>();
+            Register(".txt", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation);
+            Register(".png", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation);
+            Register(".bmp", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation);
+            Register(".wav", "gxos.builtin.wavplayer", "WAV Player", AppKind.FileAssociation);
+            Register(".gxm", null, null, AppKind.GxmApp);
+            Register(".mue", null, null, AppKind.GxmApp);
+        }
+
+        private static void Register(string extension, string appId, string dispatchName, AppKind kind) {
+            _descriptors.Add(new FileAssociationDescriptor {
+                Extension = NormalizeExtension(extension),
+                AppId = appId,
+                DispatchName = dispatchName,
+                Kind = kind
+            });
         }
 
         public static FileAssociationResolution Resolve(string extension) {
@@ -104,6 +119,71 @@ namespace guideXOS.OS {
 
             result.FailureReason = "No matching file association";
             return result;
+        }
+
+        public static FileAssociationResolution ResolvePath(string pathOrName) {
+            if (string.IsNullOrEmpty(pathOrName)) {
+                return new FileAssociationResolution {
+                    Success = false,
+                    Kind = AppKind.Unknown,
+                    FailureReason = "Empty path"
+                };
+            }
+
+            int dot = pathOrName.LastIndexOf('.');
+            if (dot < 0 || dot >= pathOrName.Length) {
+                return new FileAssociationResolution {
+                    Success = false,
+                    Kind = AppKind.Unknown,
+                    FailureReason = "No file extension"
+                };
+            }
+
+            return Resolve(pathOrName.Substring(dot));
+        }
+
+        public static bool RunSelfTest() {
+            InitializeDefaultAssociations();
+
+            int passed = 0;
+            int failed = 0;
+            string failure = null;
+
+            Check(".txt", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation, ref passed, ref failed, ref failure);
+            Check(".TXT", "gxos.builtin.notepad", "Notepad", AppKind.FileAssociation, ref passed, ref failed, ref failure);
+            Check(".png", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation, ref passed, ref failed, ref failure);
+            Check(".bmp", "gxos.builtin.imageviewer", "Image Viewer", AppKind.FileAssociation, ref passed, ref failed, ref failure);
+            Check(".wav", "gxos.builtin.wavplayer", "WAV Player", AppKind.FileAssociation, ref passed, ref failed, ref failure);
+            Check(".gxm", null, null, AppKind.GxmApp, ref passed, ref failed, ref failure);
+            Check(".mue", null, null, AppKind.GxmApp, ref passed, ref failed, ref failure);
+            CheckFailure(".unknown", ref passed, ref failed, ref failure);
+
+            TryEmitSelfTestSummary(passed, failed, failure);
+            return failed == 0;
+
+            void Check(string extension, string expectedAppId, string expectedDispatch, AppKind expectedKind, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(extension);
+                if (!r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " reason=" + (r.FailureReason ?? "<none>"); failedCount++; return; }
+                if (r.Kind != expectedKind) { if (failureMessage == null) failureMessage = "extension=" + extension + " kind=" + r.Kind + " expected=" + expectedKind; failedCount++; return; }
+                if (expectedAppId != null && r.AppId != expectedAppId) { if (failureMessage == null) failureMessage = "extension=" + extension + " appId=" + (r.AppId ?? "<null>") + " expected=" + expectedAppId; failedCount++; return; }
+                if (expectedDispatch != null && r.DispatchName != expectedDispatch) { if (failureMessage == null) failureMessage = "extension=" + extension + " dispatchName=" + (r.DispatchName ?? "<null>") + " expected=" + expectedDispatch; failedCount++; return; }
+                passedCount++;
+            }
+
+            void CheckFailure(string extension, ref int passedCount, ref int failedCount, ref string failureMessage) {
+                var r = Resolve(extension);
+                if (r.Success) { if (failureMessage == null) failureMessage = "extension=" + extension + " unexpectedly succeeded"; failedCount++; return; }
+                if (string.IsNullOrEmpty(r.FailureReason)) { if (failureMessage == null) failureMessage = "extension=" + extension + " missing failure reason"; failedCount++; return; }
+                passedCount++;
+            }
+        }
+
+        private static void TryEmitSelfTestSummary(int passed, int failed, string failure) {
+            if (AppLaunchResolver.EnableResolutionDiagnostics) {
+                try {
+                    NotificationManager.Add(new Notify("FileAssocSmoke: passed=" + passed + " failed=" + failed + (failure != null ? " " + failure : "")));
+                } catch { }
+            }
         }
 
         private static string NormalizeExtension(string extension) {

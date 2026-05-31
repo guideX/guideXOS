@@ -846,65 +846,71 @@ namespace guideXOS.GUI {
                 if (_customPosIds != null) _customPosIds.Clear();
                 if (_customPosX != null) _customPosX.Clear();
                 if (_customPosY != null) _customPosY.Clear();
-            } else if (name.EndsWith(".png")) {
-                byte[] buffer = File.ReadAllBytes(path);
-                PNG png = new(buffer);
-                buffer.Dispose();
-                imageViewer.SetImage(png);
-                png.Dispose();
-                WindowManager.MoveToEnd(imageViewer);
-                imageViewer.Visible = true;
-                RecentManager.AddDocument(path, Icons.ImageIcon(32));
-            } else if (name.EndsWith(".bmp")) {
-                byte[] buffer = File.ReadAllBytes(path);
-                Bitmap png = new(buffer);
-                buffer.Dispose();
-                imageViewer.SetImage(png);
-                png.Dispose();
-                WindowManager.MoveToEnd(imageViewer);
-                imageViewer.Visible = true;
-                RecentManager.AddDocument(path, Icons.ImageIcon(32));
-            } else if (name.EndsWith(".txt")) {
-                // Open in Notepad
-                var notepad = new Notepad(itemX + 40, itemY + 40);
-                notepad.OpenFile(path);
-                WindowManager.MoveToEnd(notepad);
-                notepad.Visible = true;
-                RecentManager.AddDocument(path, Icons.DocumentIcon(32));
-            } else if (name.EndsWith(".gxm") || name.EndsWith(".mue")) {
-                byte[] buffer = File.ReadAllBytes(path);
-                string err;
-                bool ok = GXMLoader.TryExecute(buffer, out err);
-                if (!ok) {
-                    msgbox.X = itemX + 60;
-                    msgbox.Y = itemY + 60;
-                    msgbox.SetText(err ?? "Failed to run executable");
-                    WindowManager.MoveToEnd(msgbox);
-                    msgbox.Visible = true;
-                } else {
-                    RecentManager.AddDocument(path, Icons.DocumentIcon(32));
-                }
-            } else if (name.EndsWith(".wav")) {
-                if (Audio.HasAudioDevice) {
-                    wavplayer.Visible = true;
-                    byte[] buffer = File.ReadAllBytes(path);
-                    unsafe {
-                        fixed (char* ptr = name) wavplayer.Play(buffer, new string(ptr));
+            } else {
+                var association = FileAssociationRegistry.ResolvePath(name);
+                if (association.Success) {
+                    if (association.Kind == AppKind.FileAssociation && association.DispatchName == "Image Viewer") {
+                        if (association.Extension == ".png") {
+                            byte[] buffer = File.ReadAllBytes(path);
+                            PNG png = new(buffer);
+                            buffer.Dispose();
+                            imageViewer.SetImage(png);
+                            png.Dispose();
+                            WindowManager.MoveToEnd(imageViewer);
+                            imageViewer.Visible = true;
+                            RecentManager.AddDocument(path, Icons.ImageIcon(32));
+                        } else if (association.Extension == ".bmp") {
+                            byte[] buffer = File.ReadAllBytes(path);
+                            Bitmap png = new(buffer);
+                            buffer.Dispose();
+                            imageViewer.SetImage(png);
+                            png.Dispose();
+                            WindowManager.MoveToEnd(imageViewer);
+                            imageViewer.Visible = true;
+                            RecentManager.AddDocument(path, Icons.ImageIcon(32));
+                        }
+                    } else if (association.Kind == AppKind.FileAssociation && association.DispatchName == "Notepad") {
+                        var notepad = new Notepad(itemX + 40, itemY + 40);
+                        notepad.OpenFile(path);
+                        WindowManager.MoveToEnd(notepad);
+                        notepad.Visible = true;
+                        RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                    } else if (association.Kind == AppKind.GxmApp) {
+                        byte[] buffer = File.ReadAllBytes(path);
+                        string err;
+                        bool ok = GXMLoader.TryExecute(buffer, out err);
+                        if (!ok) {
+                            msgbox.X = itemX + 60;
+                            msgbox.Y = itemY + 60;
+                            msgbox.SetText(err ?? "Failed to run executable");
+                            WindowManager.MoveToEnd(msgbox);
+                            msgbox.Visible = true;
+                        } else {
+                            RecentManager.AddDocument(path, Icons.DocumentIcon(32));
+                        }
+                    } else if (association.Kind == AppKind.FileAssociation && association.DispatchName == "WAV Player") {
+                        if (Audio.HasAudioDevice) {
+                            wavplayer.Visible = true;
+                            byte[] buffer = File.ReadAllBytes(path);
+                            unsafe {
+                                fixed (char* ptr = name) wavplayer.Play(buffer, new string(ptr));
+                            }
+                            RecentManager.AddDocument(path, Icons.AudioIcon(32));
+                        } else {
+                            msgbox.X = itemX + 75;
+                            msgbox.Y = itemY + 75;
+                            msgbox.SetText("Audio controller is unavailable!");
+                            WindowManager.MoveToEnd(msgbox);
+                            msgbox.Visible = true;
+                        }
                     }
-                    RecentManager.AddDocument(path, Icons.AudioIcon(32));
-                } else {
+                } else if (!Apps.Load(name)) {
                     msgbox.X = itemX + 75;
                     msgbox.Y = itemY + 75;
-                    msgbox.SetText("Audio controller is unavailable!");
+                    msgbox.SetText("No application can open this file!");
                     WindowManager.MoveToEnd(msgbox);
                     msgbox.Visible = true;
                 }
-            } else if (!Apps.Load(name)) {
-                msgbox.X = itemX + 75;
-                msgbox.Y = itemY + 75;
-                msgbox.SetText("No application can open this file!");
-                WindowManager.MoveToEnd(msgbox);
-                msgbox.Visible = true;
             }
             path.Dispose();
             devider.Dispose();
