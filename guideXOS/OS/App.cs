@@ -6,6 +6,132 @@ using System.Collections.Generic;
 using System.Drawing;
 namespace guideXOS.OS {
     /// <summary>
+    /// Kind of app entry resolved by the launch resolver.
+    /// </summary>
+    public enum AppKind {
+        BuiltInApp,
+        LegacyAlias,
+        GxmApp,
+        FileAssociation,
+        ShellObject,
+        Unknown
+    }
+
+    /// <summary>
+    /// App descriptor used by the compatibility resolver.
+    /// </summary>
+    public class AppDescriptor {
+        public string AppId { get; set; }
+        public string DisplayName { get; set; }
+        public string DispatchName { get; set; }
+        public AppKind Kind { get; set; }
+        public string[] LegacyAliases { get; set; }
+        public Image Icon { get; set; }
+    }
+
+    /// <summary>
+    /// Result of resolving a launch request.
+    /// </summary>
+    public class AppLaunchResolution {
+        public bool Success { get; set; }
+        public string Input { get; set; }
+        public string AppId { get; set; }
+        public string DisplayName { get; set; }
+        public string DispatchName { get; set; }
+        public AppKind ResolvedKind { get; set; }
+        public string MatchedAlias { get; set; }
+        public string FailureReason { get; set; }
+    }
+
+    /// <summary>
+    /// Compatibility resolver for app IDs and legacy names.
+    /// </summary>
+    public static class AppLaunchResolver {
+        private static List<AppDescriptor> _descriptors;
+
+        public static void InitializeDefaultDescriptors() {
+            if (_descriptors != null) return;
+            _descriptors = new List<AppDescriptor>();
+            RegisterBuiltIn("gxos.builtin.calculator", "Calculator", "Calculator", Icons.CalculatorIcon(32), "Calculator");
+            RegisterBuiltIn("gxos.builtin.files", "Computer Files", "Computer Files", Icons.FolderIcon(32), "Computer Files", "File Explorer");
+            RegisterBuiltIn("gxos.builtin.console", "Console", "Console", Icons.EditIcon(32), "Console");
+            RegisterBuiltIn("gxos.builtin.devices", "Devices", "Devices", Icons.ConfigureIcon(32), "Devices");
+            RegisterBuiltIn("gxos.builtin.diskmanager", "Disk Manager", "Disk Manager", Icons.DocumentIcon(32), "Disk Manager");
+            RegisterBuiltIn("gxos.builtin.displayoptions", "Display Options", "Display Options", Icons.ConfigureIcon(32), "Display Options");
+            RegisterBuiltIn("gxos.builtin.firewall", "Firewall", "Firewall", Icons.ConfigureIcon(32), "Firewall");
+            RegisterBuiltIn("gxos.builtin.notepad", "Notepad", "Notepad", Icons.NotepadIcon(32), "Notepad");
+            RegisterBuiltIn("gxos.builtin.paint", "Paint", "Paint", Icons.ImageIcon(32), "Paint");
+            RegisterBuiltIn("gxos.builtin.taskmanager", "Task Manager", "Task Manager", Icons.ApplicationsIcon(32), "Task Manager");
+            RegisterBuiltIn("gxos.builtin.imageviewer", "Image Viewer", "Image Viewer", Icons.ImageIcon(32), "Image Viewer");
+            RegisterBuiltIn("gxos.builtin.wavplayer", "WAV Player", "WAV Player", Icons.AudioIcon(32), "WAV Player");
+        }
+
+        private static void RegisterBuiltIn(string appId, string displayName, string dispatchName, Image icon, params string[] legacyAliases) {
+            _descriptors.Add(new AppDescriptor {
+                AppId = appId,
+                DisplayName = displayName,
+                DispatchName = dispatchName,
+                Kind = AppKind.BuiltInApp,
+                LegacyAliases = legacyAliases,
+                Icon = icon
+            });
+        }
+
+        public static AppLaunchResolution Resolve(string input) {
+            InitializeDefaultDescriptors();
+            var result = new AppLaunchResolution {
+                Input = input,
+                ResolvedKind = AppKind.Unknown,
+                Success = false
+            };
+
+            if (string.IsNullOrEmpty(input)) {
+                result.FailureReason = "Empty input";
+                return result;
+            }
+
+            for (int i = 0; i < _descriptors.Count; i++) {
+                var d = _descriptors[i];
+                if (d.AppId == input) {
+                    result.Success = true;
+                    result.AppId = d.AppId;
+                    result.DisplayName = d.DisplayName;
+                    result.DispatchName = d.DispatchName;
+                    result.ResolvedKind = d.Kind;
+                    return result;
+                }
+
+                if (d.LegacyAliases != null) {
+                    for (int a = 0; a < d.LegacyAliases.Length; a++) {
+                        if (d.LegacyAliases[a] == input) {
+                            result.Success = true;
+                            result.AppId = d.AppId;
+                            result.DisplayName = d.DisplayName;
+                            result.DispatchName = d.DispatchName;
+                            result.ResolvedKind = AppKind.LegacyAlias;
+                            result.MatchedAlias = d.LegacyAliases[a];
+                            return result;
+                        }
+                    }
+                }
+
+                if (d.DisplayName == input || d.DispatchName == input) {
+                    result.Success = true;
+                    result.AppId = d.AppId;
+                    result.DisplayName = d.DisplayName;
+                    result.DispatchName = d.DispatchName;
+                    result.ResolvedKind = AppKind.LegacyAlias;
+                    result.MatchedAlias = input;
+                    return result;
+                }
+            }
+
+            result.FailureReason = "No matching app descriptor";
+            return result;
+        }
+    }
+
+    /// <summary>
     /// App
     /// </summary>
     public class App {
@@ -80,6 +206,7 @@ namespace guideXOS.OS {
         /// Load Default Apps
         /// </summary>
         private void LoadDefaultApps() {
+            AppLaunchResolver.InitializeDefaultDescriptors();
             _apps.Add(new App("Calculator", Icons.CalculatorIcon(32)));
             _apps.Add(new App("Computer Files", Icons.FolderIcon(32)));
             _apps.Add(new App("Console", Icons.EditIcon(32)));
@@ -112,9 +239,14 @@ namespace guideXOS.OS {
         public bool Load(string name) {
             var b = false;
             guideXOS.GUI.NotificationManager.Add(new Notify("Loading App: " + name));
+            var resolution = AppLaunchResolver.Resolve(name);
+            string dispatchName = resolution.Success ? resolution.DispatchName : name;
+            try {
+                guideXOS.GUI.NotificationManager.Add(new Notify("input=" + name + " resolvedAppId=" + (resolution.AppId ?? "") + " resolvedKind=" + resolution.ResolvedKind + " dispatchName=" + (dispatchName ?? "") + " success=" + resolution.Success));
+            } catch { }
             for (int i = 0; i < _apps.Count; i++) {
-                if (_apps[i].Name == name) {
-                    switch (name) {
+                if (_apps[i].Name == dispatchName) {
+                    switch (dispatchName) {
                         case "Devices": _apps[i].AppObject = new Devices(400, 300); b = true; break;
                         case "Lock": Lockscreen.Run(); b = true; break;
                         case "Calculator": _apps[i].AppObject = new Calculator(300, 500); b = true; break;
@@ -162,7 +294,7 @@ namespace guideXOS.OS {
                     }
                     if (b) {
                         // record recents
-                        RecentManager.AddProgram(_apps[i].Name, _apps[i].Icon);
+                        RecentManager.AddProgram(dispatchName, _apps[i].Icon);
                         // apply taskbar icon if window
                         if (_apps[i].AppObject is guideXOS.GUI.Window w) {
                             w.TaskbarIcon = _apps[i].Icon;
